@@ -3,7 +3,7 @@
 // moteur Python exécuté dans le navigateur (Pyodide). Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "2d9f09df04";
+const VERSION = "e69227daf0";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPES = "Files.ReadWrite offline_access User.Read";
@@ -184,7 +184,7 @@ async function chargePython(){
   py = await loadPyodide({indexURL: PYODIDE});
   py.FS.mkdirTree("/app"); py.FS.mkdirTree("/data");
   for(const n of MODULES){
-    const r = await fetch("py/" + n + "?v=" + VERSION, {cache: "no-cache"});
+    const r = await fetch(n + "?v=" + VERSION, {cache: "no-cache"});
     if(!r.ok) throw new Error("Module manquant : " + n);
     py.FS.writeFile("/app/" + n, await r.text());
   }
