@@ -3,7 +3,7 @@
 // moteur Python exécuté dans le navigateur (Pyodide). Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "e69227daf0";
+const VERSION = "8637aa7827";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPES = "Files.ReadWrite offline_access User.Read";
@@ -110,16 +110,20 @@ async function choisitFichier(forcer){
     catch(e){ if(e.status !== 404) throw e; LS.set("w_fichier", null); }
   }
   etape("Recherche de ton fichier Excel dans OneDrive…");
-  const items = ((await (await graph("/me/drive/root/children?$top=200&$select=id,name,eTag,size,lastModifiedDateTime,file")).json()).value || [])
-    .filter(i => /\.xlsx$/i.test(i.name) && !/^~\$/.test(i.name));
+  const xlsx = l => (l || []).filter(i => /\.xlsx$/i.test(i.name) && !/^~\$/.test(i.name) && !(i.parentReference && /Sauvegardes/i.test(i.parentReference.path || "")));
+  // racine puis recherche dans tout le OneDrive (le fichier peut être dans un sous-dossier, ex. Documents)
+  let items = xlsx((await (await graph("/me/drive/root/children?$top=200&$select=id,name,eTag,size,lastModifiedDateTime,file,parentReference")).json()).value);
+  if(!items.some(i => /financ/i.test(i.name))){
+    try { items = xlsx((await (await graph("/me/drive/root/search(q='Finances')?$top=50&$select=id,name,eTag,size,lastModifiedDateTime,file,parentReference")).json()).value).concat(items); } catch(e){}
+  }
   let cands = items.filter(i => /financ/i.test(i.name));
   if(!cands.length) cands = items;
-  if(!cands.length) throw new Error("Aucun fichier Excel trouvé à la racine de ton OneDrive. Place ton fichier de finances dans OneDrive, puis réessaie.");
+  if(!cands.length) throw new Error("Aucun fichier Excel « Finances… » trouvé dans ton OneDrive. Vérifie qu'il y est bien, puis réessaie.");
   let choix = cands[0];
   if(cands.length > 1 || forcer){
     choix = await new Promise(res => {
       const e = ecran(`<h1>Quel fichier utiliser ?</h1><p>Fichiers Excel trouvés dans ton OneDrive :</p><div class="we-liste">${cands.map((c, i) =>
-        `<button class="btn" data-i="${i}"><b>${esc(c.name)}</b><br><small class="muted">modifié le ${new Date(c.lastModifiedDateTime).toLocaleDateString("fr-CA")}</small></button>`).join("")}</div>`);
+        `<button class="btn" data-i="${i}"><b>${esc(c.name)}</b><br><small class="muted">${esc(((c.parentReference && c.parentReference.path) || "").replace(/^.*root:?/, "") || "/")} · modifié le ${new Date(c.lastModifiedDateTime).toLocaleDateString("fr-CA")}</small></button>`).join("")}</div>`);
       e.querySelectorAll("[data-i]").forEach(b => b.onclick = () => res(cands[+b.dataset.i]));
     });
   }
@@ -128,12 +132,12 @@ async function choisitFichier(forcer){
 }
 async function telecharge(){
   for(let k = 0; k < 3; k++){
-    const avant = await (await graph(`/me/drive/items/${fichier.id}?$select=id,name,eTag`)).json();
+    const avant = await (await graph(`/me/drive/items/${fichier.id}?$select=id,name,eTag,parentReference`)).json();
     const buf = new Uint8Array(await (await graph(`/me/drive/items/${fichier.id}/content`)).arrayBuffer());
-    const apres = await (await graph(`/me/drive/items/${fichier.id}?$select=id,name,eTag`)).json();
+    const apres = await (await graph(`/me/drive/items/${fichier.id}?$select=id,name,eTag,parentReference`)).json();
     if(avant.eTag === apres.eTag){
       if(!(buf[0] === 0x50 && buf[1] === 0x4B)) throw new Error("Le fichier téléchargé n'est pas un classeur Excel valide.");
-      fichier.eTag = apres.eTag; fichier.name = apres.name;
+      fichier.eTag = apres.eTag; fichier.name = apres.name; fichier.parentReference = apres.parentReference;
       py.FS.writeFile(CHEMIN, buf);
       py.globals.set("_cfg", JSON.stringify(CONFIG));
       py.runPython(`pont.ouvre("${CHEMIN}", _cfg)`);
@@ -168,7 +172,10 @@ async function sauvegardeDuJour(){
   try {
     const base = fichier.name.replace(/\.xlsx$/i, "");
     const nom = `${base} – ${jour} ${date2(d.getHours())}h${date2(d.getMinutes())}.xlsx`;
-    await graph(`/me/drive/root:/${encodeURIComponent("Sauvegardes app finances")}/${encodeURIComponent(nom)}:/content`,
+    // dans le dossier « Sauvegardes app finances » situé à côté du fichier Excel (suit le fichier s'il est déplacé)
+    const parent = fichier.parentReference && fichier.parentReference.id;
+    const base_ = parent ? `/me/drive/items/${parent}:` : "/me/drive/root:";
+    await graph(`${base_}/${encodeURIComponent("Sauvegardes app finances")}/${encodeURIComponent(nom)}:/content`,
       {method: "PUT", body: py.FS.readFile(CHEMIN), headers: {"Content-Type": XLSX_TYPE}});
     LS.set(cle, jour);
   } catch(e){ console.warn("Sauvegarde OneDrive impossible", e); }
@@ -278,7 +285,7 @@ function carteReglages(){
   return `<div class="card"><h3>Compte et fichier</h3>
     <div class="kv small"><div class="k">Compte Microsoft</div><div style="word-break:break-all">${esc(compte)}</div>
     <div class="k">Fichier OneDrive</div><div style="word-break:break-all">${esc(fichier && fichier.name)}</div></div>
-    <p class="hint">Une copie de sécurité est faite chaque jour d'utilisation dans le dossier OneDrive « Sauvegardes app finances ».</p>
+    <p class="hint">Une copie de sécurité est faite chaque jour d'utilisation dans le dossier OneDrive « Sauvegardes app finances », à côté du fichier Excel.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="weFich">Changer de fichier</button><button class="btn small" id="weDec">Se déconnecter</button></div></div>`;
 }
 function brancheReglages(el){
