@@ -934,31 +934,79 @@ class Application:
         self.modeles.clear(); self.memo.clear()
         return a_partir + 1
 
+    def _ecrit_transaction(self, feuille, data):
+        f, d = self._verifie_modifiable(feuille)
+        r = data.get("ligne")
+        if r is None:
+            r = self._assure_lignes(feuille)
+            f, d = self.wb.feuille(feuille), self.dispo(feuille)
+        elif r not in d.lignes:
+            raise Erreur("Ligne invalide")
+        date = self._date(data.get("date"))
+        desc = (data.get("description") or "").strip()
+        if not desc:
+            raise Erreur("La description est obligatoire.")
+        typ = self.type_exact(data.get("type") or "")
+        f.ecrit(d.c_date + str(r), date)
+        f.ecrit(d.c_desc + str(r), desc)
+        f.ecrit(d.c_type + str(r), typ)
+        self._ecrit_montant(f, d.c_deb + str(r), data.get("montant"))
+        cat = (data.get("categorie") or "").strip()
+        if cat and cat != self.categorie_auto(desc):
+            f.ecrit(d.c_cat + str(r), cat)
+        else:
+            self._restaure_categorie(f, d, r)
+        return r
+
     def enregistre_transaction(self, feuille, data):
+        return self._ecriture(lambda: self._ecrit_transaction(feuille, data))
+
+    def enregistre_transactions_lot(self, feuille, liste):
+        """Ajoute plusieurs dépenses en une seule écriture (import de relevé)."""
+        if not liste:
+            raise Erreur("Aucune dépense à ajouter.")
+        info = self.info_mois(feuille)
+        for k, t in enumerate(liste, 1):
+            if not (t.get("description") or "").strip():
+                raise Erreur("Ligne %d : description manquante." % k)
+            v, _ = self.montant_saisi(t.get("montant"))
+            if v is None:
+                raise Erreur("Ligne %d : montant invalide." % k)
+            dt = self._date(t.get("date"))
+            if dt is None or dt.strftime("%Y-%m") != info["cle"]:
+                raise Erreur("Ligne %d : la date doit être dans %s." % (k, info["nom"]))
+
         def op():
-            f, d = self._verifie_modifiable(feuille)
-            r = data.get("ligne")
-            if r is None:
-                r = self._assure_lignes(feuille)
-                f, d = self.wb.feuille(feuille), self.dispo(feuille)
-            elif r not in d.lignes:
-                raise Erreur("Ligne invalide")
-            date = self._date(data.get("date"))
-            desc = (data.get("description") or "").strip()
-            if not desc:
-                raise Erreur("La description est obligatoire.")
-            typ = self.type_exact(data.get("type") or "")
-            f.ecrit(d.c_date + str(r), date)
-            f.ecrit(d.c_desc + str(r), desc)
-            f.ecrit(d.c_type + str(r), typ)
-            self._ecrit_montant(f, d.c_deb + str(r), data.get("montant"))
-            cat = (data.get("categorie") or "").strip()
-            if cat and cat != self.categorie_auto(desc):
-                f.ecrit(d.c_cat + str(r), cat)
-            else:
-                self._restaure_categorie(f, d, r)
-            return r
+            lignes = []
+            for t in liste:
+                t = dict(t); t.pop("ligne", None)
+                lignes.append(self._ecrit_transaction(feuille, t))
+                self.modeles.clear(); self.memo.clear()
+            return lignes
         return self._ecriture(op)
+
+    def analyse_releve(self, feuille, images):
+        import releve
+        info = self.info_mois(feuille)
+        existantes = []
+        if info["canvas"]:
+            m = self.modele(feuille)
+            for t in m["transactions"]:
+                if t["utilise"]:
+                    existantes.append({"date": t.get("date"), "montant": t.get("deboursement"), "libelle": t.get("description")})
+            # montants manuels du tableau Remboursement (ex. achats faits pour Marika)
+            for r in m.get("reports") or []:
+                if r.get("montant") and not r.get("auto"):
+                    existantes.append({"date": None, "montant": abs(r["montant"]), "libelle": r.get("libelle")})
+        revenus = []
+        if info["canvas"]:
+            for r in self.modele(feuille).get("revenus") or []:
+                if r.get("utilise") and r.get("montant") is not None:
+                    # « =1402.63-200 » : le dépôt de 1 402,63 $ est aussi reconnu
+                    montants = [r["montant"]] + [float(x) for x in re.findall(r"(?<![\d.])\d+\.\d{2}(?![\d])", str(r.get("montant_txt") or ""))[:1]]
+                    revenus.append({"date": r.get("date"), "montants": montants, "libelle": r.get("description")})
+        lignes = releve.analyse(images or [], info["cle"], existantes, self.categorie_auto, revenus)
+        return {"mois": info["nom"], "cle": info["cle"], "modifiable": info["modifiable"], "lignes": lignes}
 
     def supprime_transaction(self, feuille, ligne):
         def op():

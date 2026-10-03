@@ -20,6 +20,10 @@ def post(app, chemin, data):
     f = data.get("feuille")
     if chemin == "/api/transaction":
         return app.enregistre_transaction(f, data)
+    if chemin == "/api/transactions/lot":
+        return app.enregistre_transactions_lot(f, data.get("transactions") or [])
+    if chemin == "/api/releve/analyse":
+        return app.analyse_releve(f, data.get("images") or [])
     if chemin == "/api/transaction/supprimer":
         return app.supprime_transaction(f, int(data["ligne"]))
     if chemin == "/api/reglement":

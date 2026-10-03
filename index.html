@@ -160,6 +160,13 @@ svg text{fill:var(--ink-3);font-size:11px}
 .small{font-size:13px}
 .spacer{height:12px}
 .loading{opacity:.55;pointer-events:none;transition:opacity .15s}
+.imp-liste{display:grid;gap:8px;max-height:58vh;overflow:auto;margin-top:4px}
+.imp-l{border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:grid;gap:6px}.imp-l.off{opacity:.55}
+.imp-r1{display:grid;grid-template-columns:auto 1fr 96px;gap:8px;align-items:center}.imp-r2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.imp-l input:not([type=checkbox]),.imp-l select{width:100%;min-width:0;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface);font-size:14px}
+.imp-l .imp-m{text-align:right}.imp-c{width:20px;height:20px;accent-color:var(--accent)}.warn-t{color:var(--warn)}
+@media (max-width:600px){.imp-r2{grid-template-columns:1fr 1fr}.imp-r2 .imp-cat{grid-column:1/-1}}
+.we-spin-inline{display:inline-block;width:12px;height:12px;margin-right:8px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:wsi .8s linear infinite;vertical-align:-1px}@keyframes wsi{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -185,7 +192,7 @@ svg text{fill:var(--ink-3);font-size:11px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=8637aa7827"></script>
+<script src="web.js?v=ccf1731c16"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -439,7 +446,7 @@ function vueTrans(el){
     if(!q){
       const g = groupesDepenses();
       z.innerHTML = `<div class="grid two">
-        <div class="card cadre"><h3>Dépenses par catégorie</h3>
+        <div class="card cadre"><h3>Dépenses par catégorie${mod && !hist ? `<span class="sp"><button class="btn small" id="btnImport">Importer des captures</button></span>` : ""}</h3>
           ${g.length ? g.map(x=>`<div class="grp" data-c="${esc(x.categorie)}"><div class="grp-h" role="button" tabindex="0">
             <i class="pastille" style="background:${couleurCat(x.categorie)}"></i>
             <div class="main"><div class="t1">${esc(x.categorie)}</div><div class="t2">${x.lignes.length} dépense${x.lignes.length>1?"s":""}</div></div>
@@ -451,6 +458,7 @@ function vueTrans(el){
       <div class="spacer"></div>
       <div class="card cadre"><h3>Dépenses des 6 derniers mois</h3><div id="g6"><div class="empty">Chargement…</div></div></div>`;
       graphDepenses6(z);
+      const bi = $("#btnImport", z); if(bi) bi.onclick = () => dlgImportCaptures();
       z.querySelectorAll(".grp-h").forEach(h=>h.onclick=()=>dlgCategorieDepenses(h.parentNode.dataset.c));
       brancheMarika(z, m);
       return;
@@ -489,6 +497,113 @@ async function graphDepenses6(z){
   const ecart = (a,b) => { if(!b) return ""; const p = (a-b)/b; return `<b class="${p>0?"neg":"pos"}">${p>0?"+":""}${(p*100).toFixed(0).replace("-","−")} %</b>`; };
   g.innerHTML = s + "</svg>" + (n>1 ? `<div class="legend"><span><i style="background:transparent;border-top:2px dashed var(--ink-2);height:0;border-radius:0"></i>Moyenne des ${n-1} mois précédents : ${$$(moy)}</span></div>
     <div class="muted" style="margin-top:6px;font-size:.9em">${esc(cur.nom)}${enCours?" (en cours)":""} : ${$$(cur.v)} · ${ecart(cur.v,moy)} vs la moyenne${prec?` · ${ecart(cur.v,prec.v)} vs ${esc(prec.nom)}`:""}</div>` : "");
+}
+// ---------------------------------------------------------------- import de captures d'écran (relevés)
+const TESSERACT = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+function chargeScriptUneFois(src){
+  if(!window.__scripts) window.__scripts = {};
+  if(!window.__scripts[src]) window.__scripts[src] = new Promise((ok, ko) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => { delete window.__scripts[src]; ko(new Error("Chargement impossible de l'outil de lecture (connexion Internet ?)")); }; document.head.appendChild(s); });
+  return window.__scripts[src];
+}
+function imageVersCanvas(fichier){
+  return new Promise((ok, ko) => {
+    const url = URL.createObjectURL(fichier), img = new Image();
+    img.onload = () => {
+      const k = Math.min(2, Math.max(1, 1400 / img.naturalWidth));   // largeur ≈ 1400 px : meilleure lecture
+      const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); ok(c);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); ko(new Error("Image illisible : " + fichier.name)); };
+    img.src = url;
+  });
+}
+function motsTesseract(data){
+  const mots = [];
+  const ajoute = w => { if(w && w.text && w.text.trim() && w.bbox) mots.push({t: w.text.trim(), x0: w.bbox.x0, y0: w.bbox.y0, x1: w.bbox.x1, y1: w.bbox.y1, c: w.confidence}); };
+  if(Array.isArray(data.words) && data.words.length) data.words.forEach(ajoute);
+  else if(Array.isArray(data.blocks)) data.blocks.forEach(b => (b.paragraphs || []).forEach(p => (p.lines || []).forEach(l => (l.words || []).forEach(ajoute))));
+  if(!mots.length && data.tsv){
+    data.tsv.split("\n").forEach(l => { const c = l.split("\t"); if(c[0] === "5" && c[11] && c[11].trim()) mots.push({t: c[11].trim(), x0: +c[6], y0: +c[7], x1: +c[6] + +c[8], y1: +c[7] + +c[9], c: +c[10]}); });
+  }
+  return mots;
+}
+async function lisCaptures(fichiers, etat){
+  etat("Chargement de l'outil de lecture… (la première fois : 10 à 20 secondes)");
+  await chargeScriptUneFois(TESSERACT);
+  let pct = 0;
+  const worker = await Tesseract.createWorker("fra", 1, {logger: m => { if(m.status === "recognizing text") pct = Math.round((m.progress || 0) * 100); }});
+  try {
+    await worker.setParameters({tessedit_pageseg_mode: "11"});
+    const images = [];
+    for(let i = 0; i < fichiers.length; i++){
+      const c = await imageVersCanvas(fichiers[i]);
+      etat(`Lecture de la capture ${i + 1} sur ${fichiers.length}…`);
+      const {data} = await worker.recognize(c, {}, {blocks: true, tsv: true});
+      images.push({largeur: c.width, hauteur: c.height, mots: motsTesseract(data)});
+    }
+    return images;
+  } finally { try { await worker.terminate(); } catch(e){} }
+}
+function dlgImportCaptures(){
+  const e = S.etat, m = S.mois;
+  ouvre(`<div class="dlg-h"><h2>Importer des captures</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b" id="impB">
+     <p style="margin:0">Prends des captures d'écran de la liste de tes transactions dans l'app <b>Desjardins</b> (compte ou carte de crédit) ou <b>Amex</b>, puis choisis-les ici. Tu pourras tout vérifier avant l'ajout dans <b>${esc(S.info.nom)}</b>.</p>
+     <p class="hint" style="margin:0">La lecture se fait sur ton appareil : les images ne sont envoyées nulle part.</p>
+     <label class="btn primary" style="align-self:flex-start;cursor:pointer">Choisir des captures<input type="file" id="impF" accept="image/*" multiple hidden></label>
+     <div id="impEtat" class="small muted"></div>
+   </div>
+   <div class="dlg-f" id="impF2"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button></div>`, d => {
+    $("#impF", d).onchange = async ev => {
+      const fichiers = [...ev.target.files]; if(!fichiers.length) return;
+      const etat = t => { $("#impEtat", d).innerHTML = `<span class="we-spin-inline"></span>${esc(t)}`; };
+      try {
+        const images = await lisCaptures(fichiers, etat);
+        etat("Analyse des transactions…");
+        const r = (await api("/api/releve/analyse", {feuille: S.feuille, images})).resultat;
+        revueImport(d, r);
+      } catch(x){ $("#impEtat", d).innerHTML = `<span class="neg">${esc(x.message || x)}</span>`; }
+    };
+  });
+}
+function revueImport(d, r){
+  const e = S.etat;
+  const types = e.types.slice().sort((a,b)=>(semType(a)==="P"?-1:0)-(semType(b)==="P"?-1:0));
+  const L = r.lignes;
+  const SRC = {amex: "Amex", desjardins_credit: "Desjardins crédit", desjardins_compte: "Desjardins compte"};
+  if(!L.length){ $("#impEtat", d).innerHTML = `<span class="neg">Aucune transaction reconnue. Essaie une capture plus nette de la liste des transactions.</span>`; return; }
+  $("#impB", d).innerHTML = `<p style="margin:0"><b>${L.length}</b> ligne(s) lue(s), <b id="impN">0</b> dépense(s) cochée(s) pour <b>${esc(r.mois)}</b>. Vérifie les montants et les dates : la lecture d'image peut se tromper.</p>
+    <div class="imp-liste">${L.map((l, i) => `<div class="imp-l${l.cocher ? "" : " off"}" data-i="${i}">
+      <div class="imp-r1"><input type="checkbox" class="imp-c" ${l.cocher ? "checked" : ""} aria-label="Ajouter">
+        <input class="imp-d" value="${esc(l.description)}" aria-label="Description">
+        <input class="imp-m num" inputmode="decimal" value="${String(l.montant.toFixed(2)).replace(".", ",")}" aria-label="Montant"></div>
+      <div class="imp-r2"><input type="date" class="imp-date" value="${esc(l.date || "")}" aria-label="Date">
+        <select class="imp-t" aria-label="Type">${types.map(x => `<option value="${esc(x)}">${esc(TYPES_COURTS[semType(x)] || x)}</option>`).join("")}</select>
+        <select class="imp-cat" aria-label="Catégorie"><option value="">Auto${l.categorie ? " (" + esc(l.categorie) + ")" : ""}</option>${e.categories.map(c => `<option>${esc(c)}</option>`).join("")}</select></div>
+      <div class="imp-r3 small muted">${esc(SRC[l.source] || "")}${l.signe ? " · " + (l.signe === "+" ? "entrée" : "sortie") : ""}${l.raison ? ` · <span class="${l.cocher ? "" : "warn-t"}">${esc(l.raison)}</span>` : ""}</div>
+    </div>`).join("")}</div>`;
+  $("#impF2", d).innerHTML = `<span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primary" id="impOk">Ajouter</button>`;
+  d.querySelectorAll("#impF2 [data-close]").forEach(b => b.onclick = () => d.close());
+  const maj = () => {
+    const n = d.querySelectorAll(".imp-c:checked").length;
+    $("#impN", d).textContent = n; $("#impOk", d).textContent = n ? `Ajouter ${n} dépense${n > 1 ? "s" : ""}` : "Ajouter"; $("#impOk", d).disabled = !n;
+    d.querySelectorAll(".imp-l").forEach(x => x.classList.toggle("off", !x.querySelector(".imp-c").checked));
+  };
+  d.querySelectorAll(".imp-c").forEach(c => c.onchange = maj); maj();
+  $("#impOk", d).onclick = async () => {
+    const lot = [], erreurs = [];
+    d.querySelectorAll(".imp-l").forEach(x => {
+      if(!x.querySelector(".imp-c").checked) return;
+      const t = {description: x.querySelector(".imp-d").value.trim(), montant: x.querySelector(".imp-m").value.trim(),
+        date: x.querySelector(".imp-date").value, type: x.querySelector(".imp-t").value, categorie: x.querySelector(".imp-cat").value};
+      if(!t.description || !t.montant || !t.date || t.date.slice(0, 7) !== r.cle){ erreurs.push(x); x.style.outline = "2px solid var(--neg)"; } else { x.style.outline = ""; lot.push(t); }
+    });
+    if(erreurs.length){ toast(`${erreurs.length} ligne(s) à corriger : description, montant et une date dans ${r.mois}.`, true); erreurs[0].scrollIntoView({block: "center"}); return; }
+    $("#impOk", d).disabled = true;
+    try { await ecrit("/api/transactions/lot", {transactions: lot}, `${lot.length} dépense${lot.length > 1 ? "s" : ""} ajoutée${lot.length > 1 ? "s" : ""}`); d.close(); }
+    catch(x){ $("#impOk", d).disabled = false; }
+  };
 }
 function dlgCategorieDepenses(cat){
   const g = groupesDepenses().find(x=>x.categorie===cat) || {categorie:cat, lignes:[], total:0};
@@ -533,6 +648,7 @@ function dlgTransaction(t, apres, catDefaut){
   ouvre(`<form method="dialog" id="ft">
     <div class="dlg-h"><h2>${edit?"Modifier la transaction":"Nouvelle dépense"}</h2><button type="button" class="x" data-close>✕</button></div>
     <div class="dlg-b">
+      ${edit ? "" : `<button type="button" class="btn small" id="versImport" style="align-self:flex-start">📷 Importer des captures d'écran</button>`}
       <label class="f">Description<input name="description" required autocomplete="off" value="${esc(t?t.description:"")}" placeholder="ex. Épicerie, Uber, Netflix…"></label>
       <div class="row2">
         <label class="f">Montant déboursé<input name="montant" inputmode="decimal" required autocomplete="off" value="${esc(t?(t.deb_formule||String(t.deboursement??"").replace(".",",")):"")}" placeholder="0,00"></label>
@@ -544,6 +660,7 @@ function dlgTransaction(t, apres, catDefaut){
     </div>
     <div class="dlg-f">${edit?`<button type="button" class="btn danger" id="del">Supprimer</button><button type="button" class="btn" id="reg">Solde réglé ici</button>`:""}<span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary" id="ok">${edit?"Enregistrer":"Ajouter"}</button></div>
   </form>`, d => {
+    const vi = $("#versImport", d); if(vi) vi.onclick = () => dlgImportCaptures();
     const f = $("#ft", d);
     let type = t ? (e.types.find(x=>semType(x)===semType(t.type)) || e.types[0]) : (e.types.find(x=>semType(x)==="P") || e.types[0]);
     if(t && t.cat_manuelle) f.categorie.value = t.categorie;

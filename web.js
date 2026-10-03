@@ -3,7 +3,7 @@
 // moteur Python exécuté dans le navigateur (Pyodide). Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "8637aa7827";
+const VERSION = "ccf1731c16";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPES = "Files.ReadWrite offline_access User.Read";
@@ -11,7 +11,8 @@ const G = "https://graph.microsoft.com/v1.0";
 const PYODIDE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const CONFIG = {premier_mois_modifiable: "Octobre 2026", alias_investissements: {"Fonds communs de placement": "CÉLI"}};
 const CHEMIN = "/data/finances.xlsx";
-const MODULES = ["formules.py", "xlsx.py", "modele.py", "routes.py", "pont.py"];
+const MODULES = ["formules.py", "xlsx.py", "modele.py", "releve.py", "routes.py", "pont.py"];
+const LECTURE_SEULE = ["/api/releve/analyse"];   // POST sans écriture dans le fichier
 const REDIRECT = location.origin + location.pathname.replace(/[^/]*$/, "");
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -208,6 +209,11 @@ async function api(chemin, corps){
     const j = appelPy("GET", chemin);
     if(j && j.erreur) throw new Error(j.erreur);
     if(chemin === "/api/etat"){ j.excel_ouvert = false; j.web = {compte, fichier: fichier && fichier.name}; }
+    return j;
+  }
+  if(LECTURE_SEULE.includes(chemin)){
+    const j = appelPy("POST", chemin, corps);
+    if(j && j.erreur) throw new Error(j.erreur);
     return j;
   }
   // écritures : une à la fois
