@@ -196,7 +196,7 @@ svg text{fill:var(--ink-3);font-size:11px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=335a74f2a8"></script>
+<script src="web.js?v=0e2d41686d"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -248,6 +248,7 @@ async function init(){
   S.feuille = (memo && S.etat.mois.some(m=>m.feuille===memo)) ? memo : (courant ? courant.feuille : (finals.length ? finals[finals.length-1].feuille : S.etat.mois[S.etat.mois.length-1].feuille));
   sel.value = S.feuille;
   await chargeMois();
+  if(!(REG().configuration_a_faire && S.info.modifiable)) verifiePartageRecu();
 }
 async function rafraichit(){
   const avant = S.feuille;
@@ -265,6 +266,113 @@ async function chargeMois(){
   $("#fab").disabled = !S.info.modifiable;
   rend();
   if(REG().configuration_a_faire && S.info.modifiable && S.info.canvas) dlgConfiguration();
+}
+// ---------------------------------------------------------------- partage des dépenses entre les deux apps
+// Le partage voyage dans un lien (…/finances/#partage=…) envoyé par iMessage : la partie après « # » n'est
+// jamais envoyée à un serveur. L'app qui le reçoit ajoute la part de l'autre personne à SES dépenses.
+const SITE_EN_LIGNE = "https://quebec2001.github.io/finances/";
+function encodePartage(o){ const b = new TextEncoder().encode(JSON.stringify(o)); let x = ""; b.forEach(c => x += String.fromCharCode(c));
+  return btoa(x).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
+function decodePartage(t){
+  t = String(t||"").trim(); const m = t.match(/partage=([A-Za-z0-9_-]+)/); if(m) t = m[1];
+  if(!/^[A-Za-z0-9_-]{8,}$/.test(t)) throw new Error("Ce texte n'est pas un lien de partage.");
+  t = t.replace(/-/g,"+").replace(/_/g,"/"); while(t.length % 4) t += "=";
+  const x = atob(t), o = JSON.parse(new TextDecoder().decode(Uint8Array.from(x, c => c.charCodeAt(0))));
+  if(!o || o.v !== 1 || !Array.isArray(o.t)) throw new Error("Lien de partage invalide.");
+  return o;
+}
+function dlgPartage(){
+  const m = S.mois;
+  const lignes = m.transactions.filter(t => t.utilise && (t.marika||0) > 0.004 && ["SP","50"].includes(semType(t.type)) && t.date)
+    .sort((a,b) => a.date.localeCompare(b.date));
+  ouvre(`<div class="dlg-h"><h2>Partager avec ${PART()} – ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     <p class="small" style="margin:0">${PART()} reçoit sa part de tes dépenses partagées : elle s'ajoute à ses dépenses du mois (marquée « carte ${MOI()} »). Les dépenses qu'elle a déjà reçues sont ignorées, tu peux donc repartager tout le mois. Le solde entre vous reste suivi ici.</p>
+     ${lignes.length ? `<div class="imp-liste">${lignes.map(t => `<label class="imp-l" style="grid-template-columns:auto 1fr auto;display:grid;align-items:center;gap:10px"><input type="checkbox" class="imp-c" data-l="${t.ligne}" checked>
+        <span><b style="font-weight:550">${esc(t.description)}</b><span class="sous-t" style="display:block;font-size:12px;color:var(--ink-3)">${dateFR(t.date).slice(0,5)} · ${esc(TYPES_COURTS[semType(t.type)])} · payé ${$$(t.deboursement)}</span></span>
+        <b class="num">${$$(t.marika)}</b></label>`).join("")}</div>
+        <div class="preview total-du"><span>Part de ${PART()}</span><b class="num" id="ptot"></b></div>`
+      : `<div class="small muted">Aucune dépense partagée (SPLIT) ce mois-ci.</div>`}
+     <div id="plien" style="display:none"><label class="f">Lien à envoyer<textarea id="plienT" rows="3" readonly style="font-size:12px"></textarea></label></div>
+   </div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button>${lignes.length?`<button type="button" class="btn primary" id="pOk">Partager</button>`:""}</div>`, d => {
+    if(!lignes.length) return;
+    const choisies = () => lignes.filter(t => d.querySelector(`.imp-c[data-l="${t.ligne}"]`).checked);
+    const maj = () => { $("#ptot", d).textContent = $$(choisies().reduce((a,t)=>a+t.marika,0)); d.querySelectorAll(".imp-l").forEach(x => x.classList.toggle("off", !x.querySelector(".imp-c").checked)); };
+    d.querySelectorAll(".imp-c").forEach(c => c.onchange = maj); maj();
+    $("#pOk", d).onclick = async () => {
+      const ch = choisies(); if(!ch.length) return toast("Coche au moins une dépense", true);
+      const o = {v:1, de:REG().prenom, pour:REG().partenaire, t: ch.map(t => [t.date, t.description, Math.round(t.marika*100)/100, t.categorie||""])};
+      const url = SITE_EN_LIGNE + "#partage=" + encodePartage(o);
+      const texte = `${REG().prenom} t'envoie ta part de ${ch.length} dépense${ch.length>1?"s":""} (${S.info.nom}). Touche le lien, ou copie-le dans ton app : Dépenses › Split › Recevoir un partage.`;
+      $("#plien", d).style.display = ""; $("#plienT", d).value = url;
+      try { if(navigator.share){ await navigator.share({title:"Dépenses partagées", text:texte, url}); toast("Partage envoyé"); return; } } catch(e){ if(e && e.name === "AbortError") return; }
+      try { await navigator.clipboard.writeText(texte + "\n" + url); toast("Lien copié : colle-le dans iMessage"); }
+      catch(e){ $("#plienT", d).select(); toast("Copie le lien ci-dessous et envoie-le", false); }
+    };
+  });
+}
+function dlgCollePartage(){
+  ouvre(`<form id="fcp"><div class="dlg-h"><h2>Recevoir un partage</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b"><label class="f">Colle le lien reçu<textarea name="code" rows="4" required placeholder="https://quebec2001.github.io/finances/#partage=…" style="font-size:13px"></textarea></label></div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary">Continuer</button></div></form>`, d => {
+    $("#fcp", d).onsubmit = ev => { ev.preventDefault(); let o; try { o = decodePartage($("#fcp", d).code.value); } catch(e){ return toast(e.message, true); } dlgRecoitPartage(o); };
+  });
+}
+async function verifiePartageRecu(){
+  let code = null; try { code = localStorage.getItem("partage_recu"); localStorage.removeItem("partage_recu"); } catch(e){}
+  if(!code) return;
+  try { dlgRecoitPartage(decodePartage(code)); } catch(e){ toast(e.message, true); }
+}
+async function dlgRecoitPartage(o){
+  const de = esc(o.de || "?"), moi = REG().prenom;
+  if(o.de === moi) return toast("Ce partage vient de ton app : ouvre-le dans l'app de " + (o.pour||"l'autre personne") + ".", true);
+  // mois du fichier et dépenses déjà présentes (pour ignorer ce qui a déjà été reçu)
+  const parMois = {};
+  for(const t of o.t){ const k = String(t[0]).slice(0,7); (parMois[k] = parMois[k] || []).push(t); }
+  const infos = {};
+  for(const k of Object.keys(parMois)){
+    const mo = S.etat.mois.find(x => x.cle === k);
+    let mm = null; if(mo && mo.modifiable){ try { mm = await api("/api/mois?f=" + encodeURIComponent(mo.feuille)); } catch(e){} }
+    infos[k] = {mo, mm};
+  }
+  const suffixe = ` (carte ${o.de})`;
+  const lignes = o.t.map(([date, desc, part, cat], i) => {
+    const k = String(date).slice(0,7), inf = infos[k];
+    let etat = "", ok = true;
+    if(!inf.mo) { etat = "Mois absent de ton fichier (crée-le d'abord)"; ok = false; }
+    else if(!inf.mo.modifiable || !inf.mm) { etat = "Mois non modifiable"; ok = false; }
+    else if(inf.mm.transactions.some(t => t.utilise && t.date === date && Math.abs((t.deboursement||0) - part) < 0.005 && (t.description||"").startsWith(desc))) { etat = "Déjà reçue"; ok = false; }
+    const auto = catAuto(desc), c = (auto && auto !== "Autres") ? auto : (S.etat.categories.includes(cat) ? cat : (auto || "Autres"));
+    return {i, date, desc, part, cat: c, k, etat, ok};
+  });
+  const nb = lignes.filter(l => l.ok).length;
+  ouvre(`<div class="dlg-h"><h2>Dépenses partagées par ${de}</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     ${o.pour && o.pour !== moi ? `<div class="banner err" style="margin:0">Ce partage était destiné à ${esc(o.pour)}.</div>` : ""}
+     <p class="small" style="margin:0">Ta part de ces dépenses payées par ${de} s'ajoute à tes dépenses (type Personnel, marquée « carte ${de} »). Le remboursement à ${de} reste suivi dans son app.</p>
+     <div class="imp-liste">${lignes.map(l => `<div class="imp-l ${l.ok?"":"off"}" data-i="${l.i}">
+        <div class="imp-r1"><input type="checkbox" class="imp-c" ${l.ok?"checked":"disabled"}><div><b style="font-weight:550">${esc(l.desc)}</b><div class="small muted">${dateFR(l.date).slice(0,5)}${l.etat?` · <span class="warn-t">${esc(l.etat)}</span>`:""}</div></div><b class="num" style="text-align:right">${$$(l.part)}</b></div>
+        ${l.ok ? `<div class="imp-r2" style="grid-template-columns:1fr"><select class="imp-cat">${S.etat.categories.map(c=>`<option ${c===l.cat?"selected":""}>${esc(c)}</option>`).join("")}</select></div>` : ""}
+      </div>`).join("")}</div>
+   </div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button>${nb?`<button type="button" class="btn primary" id="rOk">Ajouter</button>`:""}</div>`, d => {
+    const maj = () => { const n = d.querySelectorAll(".imp-c:checked").length; const b = $("#rOk", d); if(b){ b.textContent = `Ajouter ${n} dépense${n>1?"s":""}`; b.disabled = !n; }
+      d.querySelectorAll(".imp-l").forEach(x => x.classList.toggle("off", !x.querySelector(".imp-c").checked)); };
+    d.querySelectorAll(".imp-c").forEach(c => c.onchange = maj); maj();
+    const b = $("#rOk", d); if(!b) return;
+    b.onclick = async () => {
+      const groupes = {};
+      d.querySelectorAll(".imp-l").forEach(x => { if(!x.querySelector(".imp-c").checked) return; const l = lignes[+x.dataset.i];
+        (groupes[l.k] = groupes[l.k] || []).push({description: l.desc + suffixe, montant: String(l.part), date: l.date, type: "Personnel", categorie: x.querySelector(".imp-cat").value}); });
+      b.disabled = true;
+      try {
+        let n = 0;
+        for(const k of Object.keys(groupes)){ await ecrit("/api/transactions/lot", {feuille: infos[k].mo.feuille, transactions: groupes[k]}); n += groupes[k].length; }
+        toast(`${n} dépense${n>1?"s":""} ajoutée${n>1?"s":""}`); d.close();
+      } catch(e){ b.disabled = false; }
+    };
+  });
 }
 // ---------------------------------------------------------------- configuration de départ (fichier vierge)
 function dlgConfiguration(){
@@ -289,7 +397,7 @@ function dlgConfiguration(){
       const placements = {}; inv.forEach(x => placements[x.ligne] = {investi: f["inv_"+x.ligne].value, jv: f["jv_"+x.ligne].value});
       $("#okCfg",d).disabled = true;
       try { await ecrit("/api/configuration", {solde_debut: f.solde_debut.value, placements, pct_partenaire: f.pct.value}, "C'est prêt !");
-        d.oncancel = null; d.close(); }
+        d.oncancel = null; d.close(); verifiePartageRecu(); }
       catch(e){ $("#okCfg",d).disabled = false; }
     };
   });
@@ -816,7 +924,9 @@ function dlgMarika(){
     </section>
     <div class="preview total-du"><span>Remboursement dû</span><b class="num">${marikaTexte(m.du_total)}</b></div>
   </div>
-  <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button></div>`, d => {
+  <div class="dlg-f"><button type="button" class="btn" id="btnPartage">Partager avec ${PART()}</button><button type="button" class="btn" id="btnRecoit">Recevoir un partage</button><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button></div>`, d => {
+    $("#btnPartage", d).onclick = () => dlgPartage();
+    $("#btnRecoit", d).onclick = () => dlgCollePartage();
     const a = $("#addAj", d); if(a) a.onclick = () => dlgAjust(null);
     d.querySelectorAll("[data-aj]").forEach(it => it.onclick = () => dlgAjust(m.reports.find(r=>r.ligne==it.dataset.aj)));
   });
@@ -1175,6 +1285,10 @@ async function dlgNouveauMois(){
   });
 }
 
+function captePartage(){ const m = location.hash.match(/[#&]partage=([A-Za-z0-9_-]+)/);
+  if(m){ try { localStorage.setItem("partage_recu", m[1]); } catch(e){} history.replaceState(null, "", location.pathname + location.search); return true; } return false; }
+captePartage();
+window.addEventListener("hashchange", () => { if(captePartage() && S.etat) verifiePartageRecu(); });
 (window.WEB ? WEB.demarre() : Promise.resolve()).then(init).catch(e => { $("#main").innerHTML = `<div class="banner err">Impossible de charger les données : ${esc(e.message)}</div>`; });
 </script>
 </body>
