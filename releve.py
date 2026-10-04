@@ -15,7 +15,7 @@ MOIS_LONGS = {"janvier": 1, "fevrier": 2, "mars": 3, "avril": 4, "mai": 5, "juin
 RX_MONTANT = re.compile(r"([+\-−–]?)\s?(\d{1,3}(?:[   ]\d{3})+|\d+)(?:[,.](\d{2}))?\s?[$S§]")
 RX_DATE = re.compile(r"^(\d{1,2})\s*([A-Za-zéûÉÛ]{3,5})(\.?)\s*(\d{4})?$")
 RX_ENTETE = re.compile(r"(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\s+(\d{4})")
-VILLES = {"MONTREAL", "WESTMOUNT", "LAVAL", "LONGUEUIL", "QC", "QUEBEC", "CA", "CAN", "OUTREMONT", "VERDUN",
+VILLES = {"PQ", "BRAMPTON", "MISSISSAUGA", "OTTAWA", "MONTREAL", "WESTMOUNT", "LAVAL", "LONGUEUIL", "QC", "QUEBEC", "CA", "CAN", "OUTREMONT", "VERDUN",
           "BROSSARD", "TORONTO", "ON", "SAINT-LAURENT", "MTL"}
 
 
@@ -24,7 +24,10 @@ def sans_accents(t):
     return "".join(c for c in t if not unicodedata.combining(c))
 
 
-ONGLETS = re.compile(r"\b(apercu|adhesion|offres amex|compte|accueil|virements|payer|plus)\b", re.I)
+ONGLETS = re.compile(r"\b(apercu|adhesion|offres amex|compte|accueil|virements|payer|plus|home|accounts|move money|more)\b", re.I)
+RX_DATE_EN = re.compile(r"^([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})$")      # RBC : « Sep 30, 2026 »
+ENTETES = ("amex", "rbc_credit", "rbc_compte")    # dates en en-tête au-dessus des transactions
+RX_MONTANT_NU = re.compile(r"([+\-−–]?)\s?(\d{1,3}(?:,\d{3})+|\d+)\.(\d{2})")   # RBC : « 13.30 », « -900.12 »
 
 
 def _mots(img):
@@ -70,16 +73,25 @@ def _lignes(img, source_prec=None):
     """Lignes de texte (de haut en bas) après nettoyage propre à l'app bancaire reconnue."""
     mots, W, H = _mots(img)
     source = _source(_grouper(list(mots)), H, source_prec)
-    if source != "amex":
+    if source.startswith("desjardins"):
         # Desjardins : icônes rondes à gauche des descriptions
         mots = [m for m in mots if m["x1"] > W * 0.16]
     lignes = [L for L in _grouper(mots) if not (L["yc"] > H * 0.88 and ONGLETS.search(sans_accents(L["texte"])))]
     return lignes, W, H, source
 
 
-def _montant(L, W):
+def _montant(L, W, source=""):
     """Montant tout à droite de la ligne → (signe, valeur, texte à gauche) ou None."""
     ms = L["mots"]
+    if source.startswith("rbc"):
+        # RBC : montant sans « $ », point décimal (« 1,234.56 », « -900.12 »)
+        der = ms[-1]
+        k = 2 if len(ms) >= 2 and ms[-2]["t"] in ("-", "−", "–") and ms[-2]["x0"] > W * 0.5 else 1
+        txt = "".join(m["t"] for m in ms[-k:])
+        m = RX_MONTANT_NU.fullmatch(txt)
+        if m and ms[-k]["x0"] > W * 0.5:
+            signe = "-" if m.group(1) in ("-", "−", "–") else ("+" if m.group(1) == "+" else "")
+            return signe, float(m.group(2).replace(",", "") + "." + m.group(3)), " ".join(x["t"] for x in ms[:-k]).strip()
     for k in range(min(4, len(ms)), 0, -1):          # le plus long d'abord (« +1 402,63 $ »)
         suffixe = ms[-k:]
         if suffixe[0]["x0"] < W * 0.5:
@@ -139,6 +151,11 @@ RX_DATE_BRUIT = re.compile(r"^([0-9|\]lIZzOo!]{1,2})\s*[.:,;]?\s*([A-Za-z5$][A-Z
 
 def _date(texte, annee_def):
     t = sans_accents(texte.strip()).rstrip(",")
+    me = RX_DATE_EN.match(t)
+    if me:
+        mois = MOIS.get(me.group(1).lower()) or MOIS.get(me.group(1).lower()[:3])
+        if mois and 1 <= int(me.group(2)) <= 31:
+            return {"jour": int(me.group(2)), "mois": mois, "annee": int(me.group(3)), "style": "entete"}
     m = RX_DATE.match(t)
     if m:
         jour, mois_txt, point, an = int(m.group(1)), m.group(2).lower(), m.group(3), m.group(4)
@@ -165,6 +182,15 @@ def _source(lignes, H, prec=None):
     d'une capture à la suivante (l'en-tête « Facturées en … » n'est visible que sur la première)."""
     haut = sans_accents(" ".join(L["texte"] for L in lignes if L["yc"] < H * 0.12)).lower()
     tout = sans_accents(" ".join(L["texte"] for L in lignes)).lower()
+    haut_rbc = sans_accents(" ".join(L["texte"] for L in lignes if L["yc"] < H * 0.2)).lower()
+    if not re.search(r"american|cobalt|amex", haut_rbc) and (
+            re.search(r"\bposted\b|move money|\bas of \w+ \d|comptabilisee", tout) or
+            re.search(r"\b(mastercard|visa)\b", haut_rbc) and "transactions" not in haut):
+        if re.search(r"\b(mastercard|visa|credit card|carte de credit)\b", haut_rbc):
+            return "rbc_credit"
+        if re.search(r"chequing|savings|day to day|cheques|epargne|compte", haut_rbc):
+            return "rbc_compte"
+        return prec if prec in ("rbc_credit", "rbc_compte") else "rbc_credit"
     if re.search(r"american|cobalt|\bcard\b|amex", haut):
         return "amex"
     if "transactions" not in haut and re.search(r"american express|cobalt", tout) and "facturees" not in tout:
@@ -180,9 +206,10 @@ def _source(lignes, H, prec=None):
 
 def nettoie_description(desc, source):
     d = re.sub(r"\s+", " ", desc.replace(" / ", " ").replace("/", " ")).strip(" -")
-    if source == "amex":
+    if source in ENTETES:
         # « CANADIAN TIRE / #435 MONTREAL » → « Canadian Tire » (1re ligne = commerçant)
-        mots = [w for w in d.split() if not re.fullmatch(r"#?\d+", w)]
+        num = r"#?\d+" if source == "amex" else r"#|#?\d{3,}"      # RBC : garder « 3 » de « 3 Brasseurs »
+        mots = [w for w in d.split() if not re.fullmatch(num, w)]
         while len(mots) > 1 and mots[-1].upper().strip(",.") in VILLES:
             mots.pop()
         d = " ".join(mots)
@@ -201,9 +228,19 @@ def analyse_image(img, annee_def, date_precedente=None, source_prec=None):
     m_ent = RX_ENTETE.search(sans_accents(texte_complet).lower())
     annee = int(m_ent.group(2)) if m_ent else annee_def
     montants, dates, textes = [], [], []
+    y_posted, en_attente_vu = None, False
     for L in lignes:
         tn = sans_accents(L["texte"]).lower()
-        mt = _montant(L, W)
+        if source.startswith("rbc"):
+            if L["yc"] < H * 0.19:
+                continue                               # en-tête : nom de la carte et solde
+            if re.match(r"(posted|comptabilisee)", tn):
+                y_posted = L["yc"]
+                continue
+            if re.match(r"(as of|en date du|pending|en attente)", tn):
+                en_attente_vu = True
+                continue
+        mt = _montant(L, W, source)
         if mt:
             signe, valeur, gauche = mt
             montants.append({"signe": signe, "montant": valeur, "yc": L["yc"], "h": L["h"],
@@ -216,7 +253,7 @@ def analyse_image(img, annee_def, date_precedente=None, source_prec=None):
             dates.append((L["yc"], d))
             continue
         mp = re.fullmatch(r"([0-9|\]lI]{1,2})(?:[\s.,:;]*\S{2,3})?", L["texte"].strip())
-        if source != "amex" and mp and L["mots"][0]["x0"] < W * 0.5 and mp.group(1).translate(str.maketrans("|]lI", "1111")).isdigit():
+        if source not in ENTETES and mp and L["mots"][0]["x0"] < W * 0.5 and mp.group(1).translate(str.maketrans("|]lI", "1111")).isdigit():
             # « 22.56 » pour « 22 SEP » : jour lisible, mois deviné d'après les dates voisines
             dates.append((L["yc"], {"jour": int(mp.group(1).translate(str.maketrans("|]lI", "1111"))), "mois": None,
                                     "annee": annee, "style": "dessous"}))
@@ -227,7 +264,7 @@ def analyse_image(img, annee_def, date_precedente=None, source_prec=None):
             continue
         if re.search(r"\d+[,.]\d+ ?%|^\d+ ?%$", L["texte"]) or "32007" in L["texte"] or L["mots"][0]["x0"] > W * 0.6:
             continue
-        if source == "amex" and L["yc"] < H * 0.17:
+        if source in ENTETES and L["yc"] < H * 0.17:
             continue                                   # titre de la carte
         alnum = sum(ch.isalnum() for ch in L["texte"])
         if alnum < max(3, 0.6 * len(L["texte"].replace(" ", ""))):
@@ -235,17 +272,24 @@ def analyse_image(img, annee_def, date_precedente=None, source_prec=None):
         textes.append((L["yc"], L["texte"]))
     if not montants:
         return [], source, date_precedente
+    if source.startswith("rbc"):
+        for m in montants:
+            # transactions en attente : au-dessus de « Posted » (ou toute la capture si seulement « As of … »)
+            if (y_posted is not None and m["yc"] < y_posted) or (y_posted is None and en_attente_vu):
+                m["attente"] = True
+            if source == "rbc_credit":
+                m["signe"] = "+" if m["signe"] == "-" else ""   # carte : « -900.12 » = paiement / crédit
     # chaque ligne de texte va au montant le plus proche verticalement (description sur 1 à 3 lignes)
     for yc, t in textes:
         best = min(montants, key=lambda m: abs(m["yc"] - yc))
         dy = yc - best["yc"]
-        if source == "amex":
+        if source in ENTETES:
             if abs(dy) <= best["h"] * 1.6:
                 best["lignes"].append((yc, t))
         elif -best["h"] * 0.8 <= dy <= best["h"] * 4.5:
             best["lignes"].append((yc, t))
     # dates : Amex = en-tête au-dessus d'un groupe ; Desjardins = sous chaque transaction
-    if source == "amex":
+    if source in ENTETES:
         courante = date_precedente
         evts = sorted([(yc, "d", d) for yc, d in dates] + [(m["yc"], "m", m) for m in montants], key=lambda e: e[0])
         for yc, k, v in evts:
@@ -288,7 +332,7 @@ def analyse_image(img, annee_def, date_precedente=None, source_prec=None):
         desc = " ".join(lignes_tx).strip()
         if not desc:
             continue                                   # transaction coupée en haut/bas de l'écran
-        base = lignes_tx[0] if source == "amex" and len(lignes_tx[0]) >= 3 else desc
+        base = lignes_tx[0] if source in ENTETES and len(lignes_tx[0]) >= 3 else desc
         if re.fullmatch(r"(sous-)?total.*", sans_accents(desc).lower()):
             continue                                   # ligne « Total » de la période
         out.append({"source": source, "signe": x["signe"], "montant": x["montant"],
@@ -311,12 +355,12 @@ def classe(tx):
     """Décide si la ligne est une dépense à proposer (cochée) et pourquoi pas sinon."""
     d = sans_accents(tx["description_brute"]).lower()
     if tx["signe"] == "+":
-        return False, ("Entrée d'argent (dépôt, remboursement)" if tx["source"] == "desjardins_compte"
+        return False, ("Entrée d'argent (dépôt, remboursement)" if tx["source"] in ("desjardins_compte", "rbc_compte")
                        else "Crédit sur la carte (paiement ou remboursement)")
     for rx, raison in EXCLUSIONS:
         if re.search(rx, d):
             return False, raison
-    if tx["source"] == "desjardins_compte" and tx["signe"] != "-":
+    if tx["source"] in ("desjardins_compte", "rbc_compte") and tx["signe"] != "-":
         return False, "Sens du montant incertain"
     return True, ""
 

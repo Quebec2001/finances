@@ -567,8 +567,12 @@ class Application:
             if not t:
                 continue
             bi, cj = num(ev("B" + str(r))), num(ev("C" + str(r)))
+            cb = f.cell("B" + str(r))
             invs.append({"ligne": r, "type": t, "investi": bi, "jv": cj,
-                         "variation": (cj - bi) if bi is not None and cj is not None else None})
+                         "variation": (cj - bi) if bi is not None and cj is not None else None,
+                         # capital investi : calculé (formule du mois précédent + épargne) ou saisi à la main
+                         "investi_auto": bool(cb is not None and cb.formule),
+                         "investi_auto_possible": self._formule_investi_auto(nom, r) is not None})
         # résumé
         debut = num(ev(d.a_debut))
         retraits = [{"libelle": x["libelle"], "compte": x["compte"], "adr": x["adr"],
@@ -1349,13 +1353,36 @@ class Application:
                 self.wb.feuille("Listes").ecrit(lignes["configuration de départ"][0], "Faite")
         return self._ecriture(op)
 
+    def _formule_investi_auto(self, nom, r):
+        """Formule normale du capital investi : investi du mois précédent + épargne versée vers ce compte
+        ce mois-là (comme à la création du mois). None s'il n'y a pas de mois précédent au format Canvas."""
+        noms = [m["feuille"] for m in self.mois]
+        if nom not in noms:
+            return None
+        k = noms.index(nom)
+        if k == 0 or not self.mois[k - 1]["canvas"]:
+            return None
+        prec = self.mois[k - 1]["feuille"]
+        fp, dp = self.wb.feuille(prec), self.dispo(prec)
+        t = normalise(self.wb.feuille(nom).texte("A" + str(r)))
+        rp = next((x for x in dp.invest if normalise(fp.texte("A" + str(x))) == t), None)
+        ret = next((x["adr"] for x in dp.retraits if x["compte"] and normalise(x["compte"]) == t), None)
+        p = prefixe_feuille(prec)
+        termes = (["%sB%d" % (p, rp)] if rp else []) + ([p + ret] if ret else [])
+        return "+".join(termes) or None
+
     def enregistre_investissement(self, feuille, data):
         def op():
             f, d = self._verifie_modifiable(feuille)
             r = int(data["ligne"])
             if r not in d.invest:
                 raise Erreur("Ligne invalide")
-            if "investi" in data:
+            if data.get("investi_auto"):
+                fx = self._formule_investi_auto(feuille, r)
+                if not fx:
+                    raise Erreur("Pas de mois précédent : le capital investi doit être saisi à la main.")
+                f.ecrit("B" + str(r), formule=fx)
+            elif "investi" in data:
                 self._ecrit_montant(f, "B" + str(r), data["investi"])
             if "jv" in data:
                 self._ecrit_montant(f, "C" + str(r), data["jv"])

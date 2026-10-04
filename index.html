@@ -196,7 +196,7 @@ svg text{fill:var(--ink-3);font-size:11px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=0e2d41686d"></script>
+<script src="web.js?v=457f4353f8"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1197,12 +1197,43 @@ function vueInv(el){
   const ti = inv.reduce((s,x)=>s+(x.investi||0),0), tj = inv.reduce((s,x)=>s+(x.jv||0),0);
   el.innerHTML = `<div class="grid kpis">${kpi("Montant investi", $$(ti))}${kpi("Valeur marchande", $$(tj))}${kpi("Variation", $$(tj-ti), ti?pct((tj-ti)/ti):"", tj-ti<0?"neg":"pos")}</div><div class="spacer"></div>
    <div class="card cadre"><h3>Par compte</h3><div class="scroll-x"><table class="t"><thead><tr><th>Compte</th><th>Investi</th><th>Valeur marchande</th><th>Variation</th>${mod?"<th></th>":""}</tr></thead><tbody>
-   ${inv.map(x=>`<tr><td>${esc(x.type)}</td><td class="num">${$$(x.investi)}</td><td class="num">${$$(x.jv)}</td><td class="num ${x.variation<0?"neg":"pos"}">${$$(x.variation)}</td>${mod&&x.ligne?`<td><button class="btn small" data-i="${x.ligne}">Modifier</button></td>`:mod?"<td></td>":""}</tr>`).join("")}
+   ${inv.map(x=>`<tr><td>${esc(x.type)}</td><td class="num">${$$(x.investi)}${x.investi_auto===false && x.investi_auto_possible ? ` <span class="chip" title="Saisi à la main">manuel</span>` : ""}</td><td class="num">${$$(x.jv)}</td><td class="num ${x.variation<0?"neg":"pos"}">${$$(x.variation)}</td>${mod&&x.ligne?`<td><button class="btn small" data-i="${x.ligne}">Modifier</button></td>`:mod?"<td></td>":""}</tr>`).join("")}
    </tbody></table></div></div>
    <div class="spacer"></div>
    <div class="card cadre"><h3>Évolution des investissements</h3><div id="g3"><div class="empty">Chargement…</div></div><div class="legend"><span><i style="background:var(--accent)"></i>Valeur marchande</span><span><i style="background:var(--ink-3)"></i>Montant investi</span></div></div>`;
   (async () => { try { if(!S.tend) S.tend = await api("/api/tendances"); const g = $("#g3", el); if(g) graphLignes(g, S.tend, [{f:x=>x.jv||null,c:"var(--accent)",n:"Valeur marchande"},{f:x=>x.investi||null,c:"var(--ink-3)",n:"Montant investi"}]); } catch(e){} })();
-  el.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{ const x=inv.find(i=>i.ligne==b.dataset.i); dlgChamps(x.type, [["jv","Valeur marchande (JV)",x.jv]], "/api/investissement", {ligne:x.ligne}); });
+  el.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>dlgInvest(inv.find(i=>i.ligne==b.dataset.i)));
+}
+function dlgInvest(x){
+  // capital investi : calculé normalement (mois précédent + épargne du mois) ; modifiable à la main au besoin
+  let manuel = !x.investi_auto;
+  ouvre(`<form id="fi"><div class="dlg-h"><h2>${esc(x.type)} – ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     <label class="f">Valeur marchande (JV)<input name="jv" inputmode="decimal" value="${esc(v2(x.jv))}" autocomplete="off"></label>
+     <div class="card" style="padding:12px 14px;background:var(--surface-2);border:0;display:grid;gap:8px">
+       <div style="display:flex;align-items:center;gap:8px"><b>Capital investi</b><span class="grow" style="flex:1"></span><b class="num">${$$(x.investi)}</b></div>
+       <div class="small muted" id="iMode"></div>
+       <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="iMan" style="width:18px;height:18px;accent-color:var(--accent)" ${manuel?"checked":""} ${x.investi_auto_possible?"":"disabled"}> Modifier manuellement le capital investi</label>
+       <label class="f" id="iChamp" style="margin:0">Capital investi<input name="investi" inputmode="decimal" value="${esc(v2(x.investi))}" autocomplete="off"></label>
+     </div>
+   </div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary">Enregistrer</button></div></form>`, d => {
+    const f = $("#fi", d);
+    const maj = () => {
+      manuel = $("#iMan", d).checked;
+      $("#iChamp", d).style.display = manuel ? "" : "none";
+      $("#iMode", d).textContent = manuel
+        ? (x.investi_auto_possible ? "Saisi à la main. Décoche pour revenir au calcul normal (mois précédent + épargne du mois)." : "Premier mois du fichier : le capital investi est saisi à la main.")
+        : "Calcul normal : capital investi du mois précédent + épargne versée durant le mois.";
+    };
+    $("#iMan", d).onchange = maj; maj();
+    f.onsubmit = async ev => { ev.preventDefault();
+      const corps = {ligne: x.ligne, jv: f.jv.value};
+      if(manuel){ if(!(f.investi.value||"").trim()) return toast("Indique le capital investi", true); corps.investi = f.investi.value; }
+      else if(!x.investi_auto) corps.investi_auto = true;      // retour au calcul normal
+      try { await ecrit("/api/investissement", corps, "Enregistré"); d.close(); } catch(e){}
+    };
+  });
 }
 
 // ---------------------------------------------------------------- graphiques
