@@ -101,6 +101,18 @@ class Disposition:
         self.a_marika = self._a_droite("Revenu Marika", "N")
         self.a_zach = self._a_droite("Revenu Zach", "N")
         pm = f.cherche("% Marika")
+        # fichiers d'autres personnes : 1er « Revenu … » sous « Répartition » = partenaire, 2e = moi, 1er « % … » = % partenaire
+        rep = f.cherche("Répartition")
+        if rep:
+            sous = sorted((c for c in f.cellules.values() if c.col == rep.col and rep.lig < c.lig <= rep.lig + 10
+                           and isinstance(c.valeur, str) and c.valeur.strip()), key=lambda c: c.lig)
+            revs = [c for c in sous if normalise(c.valeur).startswith("revenu")]
+            pcts = [c for c in sous if c.valeur.strip().startswith("%")]
+            droite = lambda c: num_en_col(col_en_num(c.col) + 1) + str(c.lig)
+            if len(revs) >= 2:
+                self.a_marika, self.a_zach = droite(revs[0]), droite(revs[1])
+            if pcts:
+                pm = pcts[0]
         self.a_pct = num_en_col(col_en_num(pm.col) + 1) + str(pm.lig) if pm else None
         self.a_pct_utilise = self.c_mprop + str(self.lig_total) if self.c_mprop else None
         # Pourboires
@@ -547,7 +559,7 @@ class Application:
                          "description": desc,
                          "cases": self._cases_formule(b.formule if b is not None else None, d)})
         total_rev = sum(x.get("montant") or 0 for x in revs if x["utilise"])
-        total_fio = sum(x.get("montant") or 0 for x in revs if x["utilise"] and self.RE_FIORELLINO.search(x.get("description") or ""))
+        total_fio = sum(x.get("montant") or 0 for x in revs if x["utilise"] and self.re_revenu_principal().search(x.get("description") or ""))
         # investissements
         invs = []
         for r in d.invest:
@@ -739,11 +751,63 @@ class Application:
             out.append({"feuille": m["feuille"], "nom": m["nom"], "cle": m["cle"], "groupe": m["groupe"],
                         "total_depenses": d["total_depenses"], "par_categorie": cats,
                         "revenus": d["total_revenus"], "revenu_net": d["revenu_net"], "solde_fin": d["solde_fin"],
-                        "investi": d["total_investi"], "jv": d["total_jv"]})
+                        "investi": d["total_investi"], "jv": d["total_jv"],
+                        "epargne_placee": sum(x.get("montant") or 0 for x in d.get("retraits") or [])})
         return out
 
+    # --- réglages propres à chaque fichier (bloc « Réglages de l'app » de l'onglet Listes) ---
+    REGLAGES_DEFAUT = {"prenom": "Zach", "partenaire": "Marika", "pourboires": True,
+                       "revenu_principal": "Revenu Fiorellino",
+                       "descriptions_revenu_principal": ["Dépôts d'espèces", "Salaire horaire", "Pourboire"],
+                       "mots_revenu_principal": "fiorellino|esp[eè]ces|salaire horaire|pourboire",
+                       "configuration_a_faire": False}
+    CLES_REGLAGES = {"prénom": "prenom", "partenaire": "partenaire", "pourboires": "pourboires",
+                     "revenu principal": "revenu_principal",
+                     "descriptions du revenu principal": "descriptions_revenu_principal",
+                     "mots du revenu principal": "mots_revenu_principal",
+                     "configuration de départ": "configuration_a_faire"}
+
+    def _bloc_reglages(self):
+        f = self.wb.feuille("Listes")
+        h = f.cherche("Réglages de l'app")
+        if not h:
+            return None, {}
+        vc = num_en_col(col_en_num(h.col) + 1)
+        lignes = {}
+        r = h.lig + 1
+        while f.texte(h.col + str(r)).strip():
+            lignes[normalise(f.texte(h.col + str(r)))] = (vc + str(r), f.texte(vc + str(r)).strip())
+            r += 1
+        return h, lignes
+
+    def reglages(self):
+        if "reglages" in self.memo:
+            return self.memo["reglages"]
+        reg = dict(self.REGLAGES_DEFAUT)
+        _, lignes = self._bloc_reglages()
+        for k, (adr, v) in lignes.items():
+            cle = self.CLES_REGLAGES.get(k)
+            if not cle:
+                continue
+            if cle == "pourboires":
+                reg[cle] = normalise(v) in ("oui", "o", "vrai")
+            elif cle == "configuration_a_faire":
+                reg[cle] = normalise(v).startswith("à faire") or normalise(v).startswith("a faire")
+            elif cle == "descriptions_revenu_principal":
+                reg[cle] = [x.strip() for x in v.split(";") if x.strip()]
+            elif v:
+                reg[cle] = v
+        self.memo["reglages"] = reg
+        return reg
+
+    def re_revenu_principal(self):
+        try:
+            return re.compile(self.reglages()["mots_revenu_principal"], re.I)
+        except re.error:
+            return self.RE_FIORELLINO
+
     def etat(self):
-        return {"mois": self.mois, "categories": self.categories, "types": self.types,
+        return {"mois": self.mois, "categories": self.categories, "types": self.types, "reglages": self.reglages(),
                 "types_invest": self.types_invest,
                 "motscles": [{"mot": k, "categorie": v} for k, v in self.motscles],
                 "fichier": self.chemin, "excel_ouvert": self.excel_ouvert(),
@@ -779,7 +843,7 @@ class Application:
                 r += 1
                 while r <= f.max_lig() and "total" not in normalise(f.texte("A%d" % r)):
                     d = re.sub(r"\s+", " ", f.texte("C%d" % r)).strip()
-                    if d and num(f.val("B%d" % r)) is not None and not self.RE_FIORELLINO.search(d):
+                    if d and num(f.val("B%d" % r)) is not None and not self.re_revenu_principal().search(d):
                         k = cle(d)
                         freq[k] += 1
                         variantes[k][d] += 1
@@ -1244,11 +1308,45 @@ class Application:
             for k, adr in cibles.items():
                 if k in data and adr:
                     self._ecrit_montant(f, adr, data[k])
+            if ("revenu_marika" in data or "revenu_zach" in data) and d.a_pct:
+                self._retablit_formule_pct(f, d)
             # retraits par compte : {"retraits": {"B159": "1250", ...}}
             adrs = {x["adr"] for x in d.retraits}
             for adr, v in (data.get("retraits") or {}).items():
                 if adr in adrs:
                     self._ecrit_montant(f, adr, v)
+        return self._ecriture(op)
+
+    def _retablit_formule_pct(self, f, d):
+        """% du partenaire saisi à la main (configuration de départ) → formule du Canvas (répartition des revenus)."""
+        c = f.cell(d.a_pct)
+        if c is not None and c.formule:
+            return
+        modele_c = self.wb.feuille("Canvas").cell(d.a_pct) if "Canvas" in self.wb.par_nom else None
+        if modele_c is not None and modele_c.formule:
+            f.ecrit(d.a_pct, formule=modele_c.formule)
+
+    def configuration_depart(self, feuille, data):
+        """Premier mois d'un fichier vierge : solde de départ, placements et % du partenaire."""
+        def op():
+            f, d = self._verifie_modifiable(feuille)
+            if data.get("solde_debut") in (None, ""):
+                raise Erreur("Indique le solde du compte au début du mois.")
+            self._ecrit_montant(f, d.a_debut, data["solde_debut"])
+            for r in d.invest:
+                x = (data.get("placements") or {}).get(str(r)) or {}
+                if x.get("investi") not in (None, ""):
+                    self._ecrit_montant(f, "B" + str(r), x["investi"])
+                if x.get("jv") not in (None, ""):
+                    self._ecrit_montant(f, "C" + str(r), x["jv"])
+            if data.get("pct_partenaire") not in (None, "") and d.a_pct:
+                v, _ = self.montant_saisi(data["pct_partenaire"])
+                if v is None or not 0 <= v <= 100:
+                    raise Erreur("Pourcentage invalide")
+                f.ecrit(d.a_pct, round(v / 100.0, 4))
+            h, lignes = self._bloc_reglages()
+            if "configuration de départ" in lignes:
+                self.wb.feuille("Listes").ecrit(lignes["configuration de départ"][0], "Faite")
         return self._ecriture(op)
 
     def enregistre_investissement(self, feuille, data):
@@ -1445,8 +1543,9 @@ class Application:
                     a_ecrire.append((fp0, x["adr"], requis(None, lib, saisis.get(x["adr"], ""))))
                 if dp0.a_reel:
                     a_ecrire.append((fp0, dp0.a_reel, requis("solde_reel", "Solde réel au compte")))
-            requis("revenu_marika", "Revenus Marika")
-            requis("revenu_zach", "Revenus Zach")
+            reg = self.reglages()
+            requis("revenu_marika", "Revenus " + reg["partenaire"])
+            requis("revenu_zach", "Revenus " + reg["prenom"])
             for fp0, adr, v in a_ecrire:
                 self._ecrit_montant(fp0, adr, v)
             f = self.wb.copie_feuille("Canvas", nom)

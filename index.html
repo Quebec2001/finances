@@ -196,7 +196,7 @@ svg text{fill:var(--ink-3);font-size:11px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=9032ac8697"></script>
+<script src="web.js?v=335a74f2a8"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -264,6 +264,77 @@ async function chargeMois(){
   S.mois = await api("/api/mois?f=" + encodeURIComponent(S.feuille));
   $("#fab").disabled = !S.info.modifiable;
   rend();
+  if(REG().configuration_a_faire && S.info.modifiable && S.info.canvas) dlgConfiguration();
+}
+// ---------------------------------------------------------------- configuration de départ (fichier vierge)
+function dlgConfiguration(){
+  const m = S.mois, inv = m.investissements || [];
+  const champ = (nom, lib, v, aide) => `<label class="f">${lib}<input name="${nom}" inputmode="decimal" value="${esc(v2(v))}" placeholder="0,00" autocomplete="off">${aide?`<span class="hint" style="margin:2px 0 0">${aide}</span>`:""}</label>`;
+  ouvre(`<form id="fcfg" novalidate><div class="dlg-h"><h2>Bienvenue ${MOI()} !</h2></div>
+   <div class="dlg-b">
+     <p class="small" style="margin:0">Quelques montants de départ pour ${esc(S.info.nom)}. Ils restent dans ton fichier, dans ton OneDrive.</p>
+     ${champ("solde_debut", "Solde de ton compte au début de " + esc(S.info.nom), m.solde_debut, "Le solde de ton compte chèques le 1<sup>er</sup> du mois.")}
+     ${inv.map(x=>`<div class="row2">${champ("inv_"+x.ligne, esc(x.type)+" – montant investi", x.investi)}${champ("jv_"+x.ligne, esc(x.type)+" – valeur actuelle", x.jv)}</div>`).join("")}
+     ${champ("pct", "Part de " + PART() + " des dépenses partagées au prorata (%)", m.pct_marika!=null ? Math.round(m.pct_marika*1000)/10 : null, "Ta part est le reste. Les mois suivants, le % sera calculé avec vos revenus.")}
+     <div id="cfgErr" class="banner err" style="display:none;margin:0"></div>
+   </div>
+   <div class="dlg-f"><span class="grow"></span><button class="btn primary" id="okCfg">Commencer</button></div></form>`, d => {
+    d.oncancel = ev => ev.preventDefault();          // fenêtre obligatoire
+    const f = $("#fcfg", d), champs = [...f.querySelectorAll("input")];
+    f.pct.addEventListener("input", () => {});
+    f.onsubmit = async ev => { ev.preventDefault();
+      const vides = champs.filter(i=>!i.value.trim());
+      champs.forEach(i => i.style.borderColor = i.value.trim() ? "" : "var(--neg)");
+      if(vides.length){ const z=$("#cfgErr",d); z.textContent = "Inscris tous les montants (0 si aucun)."; z.style.display="block"; return; }
+      const placements = {}; inv.forEach(x => placements[x.ligne] = {investi: f["inv_"+x.ligne].value, jv: f["jv_"+x.ligne].value});
+      $("#okCfg",d).disabled = true;
+      try { await ecrit("/api/configuration", {solde_debut: f.solde_debut.value, placements, pct_partenaire: f.pct.value}, "C'est prêt !");
+        d.oncancel = null; d.close(); }
+      catch(e){ $("#okCfg",d).disabled = false; }
+    };
+  });
+}
+// ---------------------------------------------------------------- revenus et capacité d'épargne (sans pourboires)
+async function graphEpargne(el){
+  el.innerHTML = `<h3>Revenus et capacité d'épargne</h3><div id="gEp"><div class="empty">Chargement…</div></div>`;
+  try { if(!S.tend) S.tend = await api("/api/tendances"); } catch(e){ return; }
+  const g = $("#gEp", el); if(!g || !g.isConnected) return;
+  const T = S.tend; let k = T.findIndex(m=>m.feuille===S.feuille); if(k<0) k = T.length-1;
+  const M = T.slice(Math.max(0,k-5), k+1).map(m=>{ const r = m.revenus||0, dep = m.total_depenses||0, net = r - dep, pl = Math.max(0, m.epargne_placee||0);
+    return {nom:m.nom, lab:etiquetteMois(m), r, dep, net, pl: Math.min(pl, Math.max(net,0)), reste: Math.max(0, net - pl), taux: r>0 ? net/r : null}; });
+  const n = M.length, W = Math.max(300, Math.round(g.clientWidth||600)), H = 240, pl = 44, pr = 6, pt = 22, pb = 26;
+  const brut = Math.max(...M.flatMap(x=>[x.r, x.dep])) || 1, e10 = Math.pow(10, Math.floor(Math.log10(brut/4)));
+  const pasY = [1,2,2.5,5,10].map(f=>f*e10).find(p=>p*4>=brut*1.04), mx = pasY*4, Y = v => H-pb-(H-pb-pt)*v/mx;
+  const slot = (W-pl-pr)/n, bw = Math.max(10, Math.min(44, slot*.5));
+  const kd = v => (Math.round(v/100)/10).toString().replace(".",",")+" k$";
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Revenus, dépenses et épargne des 6 derniers mois">`;
+  for(let i=0;i<=4;i++){ const v=mx/4*i, y=Y(v); s+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${pl-6}" y="${y+4}" text-anchor="end">${kd(v)}</text>`; }
+  M.forEach((x,i)=>{
+    const x0 = pl+slot*i, cx = x0+slot/2, bx = cx-bw/2, sel = i===n-1;
+    if(sel) s += `<rect x="${x0+1}" y="${pt-14}" width="${slot-2}" height="${H-pb-pt+14}" rx="4" fill="var(--surface-2)"/>`;
+    // segments empilés (2 px d'écart) : dépenses, épargne placée, reste au compte ; total = revenus (ou dépenses si déficit)
+    const segs = [[Math.min(x.dep, Math.max(x.r, x.dep)), "var(--neg)"], [x.pl, "var(--accent)"], [x.reste, "var(--pos)"]];
+    let base = 0;
+    segs.forEach(([v,c],j)=>{ if(v<=0) return; const y1 = Y(base+v), y0 = Y(base), h = Math.max(0, y0-y1-(base>0?2:0)); if(h>0){
+      const haut = !segs.slice(j+1).some(([w])=>w>0), r = haut ? Math.min(4,h/2) : 0;
+      s += haut ? `<path d="M${bx},${y0-(base>0?2:0)} V${y1+r} Q${bx},${y1} ${bx+r},${y1} H${bx+bw-r} Q${bx+bw},${y1} ${bx+bw},${y1+r} V${y0-(base>0?2:0)} Z" fill="${c}"/>`
+                : `<rect x="${bx}" y="${y1}" width="${bw}" height="${h}" fill="${c}"/>`; }
+      base += v; });
+    if(x.r > 0 && x.dep > x.r) s += `<line x1="${bx-3}" x2="${bx+bw+3}" y1="${Y(x.r)}" y2="${Y(x.r)}" stroke="var(--ink)" stroke-width="2"/>`;
+    const tTxt = x.taux==null ? "—" : Math.round(x.taux*100)+" %";
+    s += `<text x="${cx}" y="${Y(Math.max(x.r,x.dep))-6}" text-anchor="middle" style="font-weight:650;fill:var(--ink-2)">${tTxt}</text>`;
+    s += `<rect x="${x0}" y="${pt-14}" width="${slot}" height="${H-pt+14}" fill="transparent"><title>${esc(x.nom)}\nRevenus : ${$$(x.r)}\nDépenses (ta part) : ${$$(x.dep)}\nÉpargne placée : ${$$(x.pl)}\nReste au compte : ${$$(x.net - x.pl)}\nTaux d'épargne : ${tTxt}</title></rect>`;
+    s += `<text x="${cx}" y="${H-8}" text-anchor="middle" style="font-weight:${sel?700:400}">${esc(x.lab)}</text>`;
+  });
+  const enCours = k===T.length-1 && n>1, F = (enCours ? M.slice(0,-1) : M).filter(x=>x.r>0);
+  const moyTaux = F.length ? F.reduce((a,x)=>a+x.net,0) / F.reduce((a,x)=>a+x.r,0) : null;
+  const moyEp = F.length ? F.reduce((a,x)=>a+x.net,0)/F.length : null, cour = M[n-1];
+  g.innerHTML = s + `</svg><div class="legend"><span><i style="background:var(--neg)"></i>Dépenses (ta part)</span><span><i style="background:var(--accent)"></i>Épargne placée (CÉLI, CÉLIAPP…)</span><span><i style="background:var(--pos)"></i>Reste au compte</span></div>
+    <div class="grid kpis" style="margin-top:10px">
+      ${kpi("Taux d'épargne – " + esc(cour.nom), cour.taux==null ? "—" : pct(cour.taux), cour.r>0 ? $$(cour.net)+" épargnés sur "+$$(cour.r) : "Aucun revenu inscrit", cour.net<0?"neg":"pos")}
+      ${kpi("Taux d'épargne moyen", moyTaux==null ? "—" : pct(moyTaux), F.length ? F.length+" mois complet"+(F.length>1?"s":"") : "Pas encore de mois complet")}
+      ${kpi("Épargne moyenne par mois", moyEp==null ? "—" : $$(moyEp), enCours ? "mois en cours exclu" : "", moyEp!=null&&moyEp<0?"neg":"pos")}
+    </div>`;
 }
 $("#mois").onchange = e => { S.feuille = e.target.value; chargeMois(); };
 $("#prev").onclick = () => bouge(-1);
@@ -307,10 +378,15 @@ function couleurCat(c){
   }
   return COUL[c];
 }
+// réglages propres au fichier (prénom, partenaire, pourboires…) — par défaut ceux de Zach
+const REG_DEFAUT = {prenom:"Zach", partenaire:"Marika", pourboires:true, revenu_principal:"Revenu Fiorellino",
+  descriptions_revenu_principal:["Dépôts d'espèces","Salaire horaire","Pourboire"], mots_revenu_principal:"fiorellino|esp[eè]ces|salaire horaire|pourboire", configuration_a_faire:false};
+const REG = () => Object.assign({}, REG_DEFAUT, (S.etat && S.etat.reglages) || {});
+const PART = () => esc(REG().partenaire), MOI = () => esc(REG().prenom);
 function marikaTexte(v){
   if(v===null||v===undefined) return "—";
   if(Math.abs(v) < 0.005) return "Rien à régler";
-  return v > 0 ? `Marika te doit ${$$(v)}` : `Tu dois ${$$(-v)} à Marika`;
+  return v > 0 ? `${PART()} te doit ${$$(v)}` : `Tu dois ${$$(-v)} à ${PART()}`;
 }
 
 function resumeGlobalHTML(m, mod){
@@ -388,7 +464,7 @@ async function graphRevDep(z){
 // ---------------------------------------------------------------- transactions
 function carteMarikaHTML(m){
   return `<div class="card cadre clic" id="cardMarika" role="button" tabindex="0" title="Voir le détail">
-        <h3>Split avec Marika <span class="sp pill neutral">% Marika ${pct(m.pct_marika)}</span><span class="chev">›</span></h3>
+        <h3>Split avec ${PART()} <span class="sp pill neutral">% ${PART()} ${pct(m.pct_marika)}</span><span class="chev">›</span></h3>
         <div class="val num" style="font-size:20px;font-weight:650">${marikaTexte(m.du_total)}</div>
         <div class="kv small" style="margin-top:8px">
           <div class="k">Depuis le dernier remboursement</div><div class="num">${$$(m.du_depuis_reglement)}</div>
@@ -413,7 +489,7 @@ function dlgConfirmeReglement(m, der){
   const autres = m.reports.reduce((a,r)=>a+(r.montant||0),0);
   ouvre(`<div class="dlg-h"><h2>Confirmer le remboursement</h2><button type="button" class="x" data-close>✕</button></div>
    <div class="dlg-b">
-     <p style="margin:0">Confirmes-tu que le solde avec Marika est réglé ?</p>
+     <p style="margin:0">Confirmes-tu que le solde avec ${PART()} est réglé ?</p>
      <div class="card" style="padding:12px 14px;background:var(--surface-2);border:0">
        <div class="num" style="font-size:18px;font-weight:650">${marikaTexte(m.du_total)}</div>
        <div class="kv small" style="margin-top:6px">
@@ -680,13 +756,13 @@ function dlgTransaction(t, apres, catDefaut){
       let h = "";
       if(v===null) h = "";
       else if(isNaN(v)) h = "<span class='neg'>Montant invalide</span>";
-      else if(prop==null) h = "Le % Marika n'est pas encore défini pour ce mois (onglet Revenus).";
+      else if(prop==null) h = `Le % ${PART()} n'est pas encore défini pour ce mois (onglet Revenus).`;
       else {
         const part = v*prop;
         h = `Ma part : <b class="num">${$$(part)}</b> (${pct(prop)})`;
-        if(st==="SP") h += ` · Marika me doit ${$$(v*p)}`;
-        if(st==="50") h += ` · Marika me doit ${$$(part)}`;
-        if(st==="R") h += ` · Je dois ${$$(part)} à Marika`;
+        if(st==="SP") h += ` · ${PART()} me doit ${$$(v*p)}`;
+        if(st==="50") h += ` · ${PART()} me doit ${$$(part)}`;
+        if(st==="R") h += ` · Je dois ${$$(part)} à ${PART()}`;
       }
       $("#pv", d).innerHTML = h; $("#pv", d).style.display = h ? "" : "none";
     };
@@ -715,7 +791,7 @@ function dlgMarika(){
   const split = m.transactions.filter(t=>t.utilise && semType(t.type) && semType(t.type)!=="P");
   const der = m.ligne_dernier_reglement;
   const pctTxt = m.pct_manuel ? "Saisi à la main dans le fichier."
-    : (m.revenu_marika!=null && m.revenu_zach!=null ? `Revenu Marika ${$$(m.revenu_marika)} ÷ (Marika ${$$(m.revenu_marika)} + Zach ${$$(m.revenu_zach)})`
+    : (m.revenu_marika!=null && m.revenu_zach!=null ? `Revenu ${PART()} ${$$(m.revenu_marika)} ÷ (${PART()} ${$$(m.revenu_marika)} + ${MOI()} ${$$(m.revenu_zach)})`
     : "À saisir dans l'onglet Revenus (Répartition).");
   let lignes = "";
   split.forEach(t=>{
@@ -726,11 +802,11 @@ function dlgMarika(){
   const sousTot2 = m.du_depuis_reglement;
   const sousTot3 = m.reports.reduce((a,r)=>a+(r.montant||0),0);
   const sec = (n, titre, extra="") => `<div class="sec-h"><span class="sec-n">${n}</span><b>${titre}</b>${extra}</div>`;
-  ouvre(`<div class="dlg-h"><h2>Split avec Marika – ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
+  ouvre(`<div class="dlg-h"><h2>Split avec ${PART()} – ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
   <div class="dlg-b">
     <section>
       ${sec(1, "Transactions partagées du mois")}
-      ${split.length?`<div class="scroll-x"><table class="t"><thead><tr><th>Date</th><th style="text-align:left">Description</th><th class="c-type" style="text-align:left">Type</th><th>Payé</th><th>Marika</th></tr></thead><tbody>${lignes}</tbody></table></div>`:`<div class="small muted">Aucune transaction partagée.</div>`}
+      ${split.length?`<div class="scroll-x"><table class="t"><thead><tr><th>Date</th><th style="text-align:left">Description</th><th class="c-type" style="text-align:left">Type</th><th>Payé</th><th>${PART()}</th></tr></thead><tbody>${lignes}</tbody></table></div>`:`<div class="small muted">Aucune transaction partagée.</div>`}
       <div class="kv small sous"><div class="k">${der!=null?"Total depuis le dernier remboursement":"Total"}</div><div class="num"><b>${$$(sousTot2)}</b></div></div>
     </section>
     <section>
@@ -753,8 +829,8 @@ function dlgAjust(r){
   const brut = !r ? "" : (fx && !/^=-?\d+(\.\d+)?$/.test(fx) ? fx.replace(/^=-\((.*)\)$/,"$1").replace(/^=/,"") : v2(Math.abs(base)));
   ouvre(`<form id="fa"><div class="dlg-h"><h2>${edit?"Modifier le montant":"Montant externe à l'app"}</h2><button type="button" class="x" data-close>✕</button></div>
    <div class="dlg-b">
-     <label class="f">Description<input name="libelle" required value="${esc(r?r.libelle:"")}" placeholder="ex. Billets de spectacle payés par Marika"></label>
-     <div><div class="hint" style="margin-bottom:6px">Sens</div><div class="seg" id="sens"><button type="button" data-s="marika_doit">Marika me doit</button><button type="button" data-s="je_dois">Je dois à Marika</button></div></div>
+     <label class="f">Description<input name="libelle" required value="${esc(r?r.libelle:"")}" placeholder="ex. Billets de spectacle payés par ${PART()}"></label>
+     <div><div class="hint" style="margin-bottom:6px">Sens</div><div class="seg" id="sens"><button type="button" data-s="marika_doit">${PART()} me doit</button><button type="button" data-s="je_dois">Je dois à ${PART()}</button></div></div>
      <label class="f">Montant<input name="montant" inputmode="decimal" required value="${esc(brut)}" placeholder="0,00"></label>
      <div class="hint">Saisis le montant dû (pas le total payé). Tu peux additionner : 40+20.</div>
    </div>
@@ -788,18 +864,18 @@ function vueRev(el){
       <div class="kv" style="margin-top:8px"><div class="k total">Total des revenus</div><div class="num total">${$$(m.total_revenus)}</div></div>
     </div>
     <div class="grid" style="align-content:start">
-    <div class="card cadre"><h3>Répartition avec Marika <span class="sp">${mod?`<button class="btn small" id="edRep">Modifier</button>`:""}</span></h3>
-      ${m.revenu_marika===null && m.revenu_zach===null && m.pct_manuel ? `<div class="small muted">% Marika saisi à la main dans le fichier : ${pct(m.pct_marika)}</div>` : `
-      <div class="kv"><div class="k">Revenu Marika</div><div class="num">${$$(m.revenu_marika)}</div><div class="k">Revenu Zach</div><div class="num">${$$(m.revenu_zach)}</div><div class="k total">% Marika</div><div class="num total">${pct(m.pct_marika)}</div></div>`}
+    <div class="card cadre"><h3>Répartition avec ${PART()} <span class="sp">${mod?`<button class="btn small" id="edRep">Modifier</button>`:""}</span></h3>
+      ${m.revenu_marika===null && m.revenu_zach===null && m.pct_manuel ? `<div class="small muted">% ${PART()} saisi à la main dans le fichier : ${pct(m.pct_marika)}</div>` : `
+      <div class="kv"><div class="k">Revenu ${PART()}</div><div class="num">${$$(m.revenu_marika)}</div><div class="k">Revenu ${MOI()}</div><div class="num">${$$(m.revenu_zach)}</div><div class="k total">% ${PART()}</div><div class="num total">${pct(m.pct_marika)}</div></div>`}
     </div>
     </div>
    </div>
    <div class="spacer"></div>
    <div class="card cadre" id="calPb"></div>`;
   el.querySelectorAll(".grp-h").forEach(h=>h.onclick=()=>dlgGroupeRevenus(h.parentNode.dataset.g));
-  calendrierPourboires($("#calPb", el));
+  if(REG().pourboires) calendrierPourboires($("#calPb", el)); else graphEpargne($("#calPb", el));
   if(!mod) return;
-  $("#edRep").onclick = () => dlgChamps("Répartition avec Marika", [["revenu_marika","Revenu Marika",m.revenu_marika],["revenu_zach","Revenu Zach",m.revenu_zach]], "/api/parametres");
+  $("#edRep").onclick = () => dlgChamps("Répartition avec " + REG().partenaire, [["revenu_marika","Revenu " + REG().partenaire,m.revenu_marika],["revenu_zach","Revenu " + REG().prenom,m.revenu_zach]], "/api/parametres");
 }
 
 // ---------------------------------------------------------------- calendrier des pourboires
@@ -895,12 +971,13 @@ function dlgChamps(titre, champs, route, extra={}){
     $("#fc", d).onsubmit = async ev => { ev.preventDefault(); const o = Object.assign({}, extra); champs.forEach(([k])=>o[k]=$("#fc",d)[k].value); try{ await ecrit(route, o, "Enregistré"); d.close(); }catch(e){} };
   });
 }
-const estFio = r => /fiorellino|esp[eè]ces|salaire horaire|pourboire/i.test(r.description||"");
-const DESC_FIO = ["Dépôts d'espèces", "Salaire horaire", "Pourboire"];
+const reFio = () => { try { return new RegExp(REG().mots_revenu_principal, "i"); } catch(e){ return /fiorellino|esp[eè]ces|salaire horaire|pourboire/i; } };
+const estFio = r => reFio().test(r.description||"");
+const DESC_FIO_ = () => REG().descriptions_revenu_principal;
 function groupesRevenus(){
   const revs = S.mois.revenus.filter(r=>r.utilise);
   return [
-    {cle:"fio", titre:"Revenu Fiorellino", sous:"Paye, paye (pourboires) et dépôts d'espèces", lignes:revs.filter(estFio)},
+    {cle:"fio", titre:esc(REG().revenu_principal), sous:"", lignes:revs.filter(estFio)},
     {cle:"autres", titre:"Autres revenus", sous:"Tout le reste", lignes:revs.filter(r=>!estFio(r))},
   ];
 }
@@ -921,17 +998,17 @@ function dlgGroupeRevenus(cle){
   });
 }
 // colonne du calendrier des pourboires additionnée selon la description (espèces → reçu, pourboires → à recevoir)
-const colonneCases = desc => /esp[eè]ces/i.test(desc||"") ? "recu" : /pourboire/i.test(desc||"") ? "arec" : null;
+const colonneCases = desc => !REG().pourboires ? null : /esp[eè]ces/i.test(desc||"") ? "recu" : /pourboire/i.test(desc||"") ? "arec" : null;
 const JOURS_SEM = ["dim.","lun.","mar.","mer.","jeu.","ven.","sam."];
 function dlgRevenu(r, apres, groupe){
   const edit = !!r;
-  const choix = groupe==="fio" ? DESC_FIO : [];
+  const choix = groupe==="fio" ? DESC_FIO_() : [];
   const libre = groupe!=="fio";
   const actuelle = r ? (r.description||"") : "";
   let desc = edit ? (choix.find(c=>c.toLowerCase()===actuelle.toLowerCase()) || (libre ? "__autre" : actuelle)) : choix[0] || "__autre";
   let mode = r && r.cases ? "cases" : (!edit && colonneCases(desc) ? "cases" : "montant");
   const choisies = new Set(r && r.cases ? r.cases.lignes : []);
-  const titreG = groupe==="fio" ? "Revenu Fiorellino" : "Autre revenu";
+  const titreG = groupe==="fio" ? esc(REG().revenu_principal) : "Autre revenu";
   const pourb = (S.mois.pourboires||[]).filter(p=>p.utilise).slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"") || a.ligne-b.ligne);
   ouvre(`<form id="fr"><div class="dlg-h"><h2>${edit?"Modifier – ":"Nouveau – "}${titreG}</h2><button type="button" class="x" data-close>✕</button></div>
    <div class="dlg-b">
@@ -1075,10 +1152,10 @@ async function dlgNouveauMois(){
      ${cloture ? `${etape(1, "Clôture de "+esc(dern.nom))}
        <div class="row2">${prec.retraits.map(x=>champ("ret_"+x.adr, "Épargne "+esc(x.compte||x.libelle), x.montant)).join("")}</div>
        ${champ("solde_reel", "Solde réel au compte", prec.solde_reel, "Solde du relevé bancaire à la fin de "+esc(dern.nom)+" : devient le solde de départ de "+esc(e.prochain_mois)+".")}` : ""}
-     ${etape(cloture?2:1, "Répartition de "+esc(e.prochain_mois)+" (calcul du % Marika)")}
-     <div class="row2">${champ("revenu_marika", "Revenus Marika", null)}${champ("revenu_zach", "Revenus Zach", prec ? prec.total_fiorellino : null, "Revenu Fiorellino de "+esc(dern.nom))}</div>
+     ${etape(cloture?2:1, "Répartition de "+esc(e.prochain_mois)+" (calcul du % "+PART()+")")}
+     <div class="row2">${champ("revenu_marika", "Revenus "+PART(), null)}${champ("revenu_zach", "Revenus "+MOI(), prec ? prec.total_fiorellino : null, esc(REG().revenu_principal)+" de "+esc(dern.nom))}</div>
      <div id="manque" class="banner err" style="display:none;margin:0"></div>
-     <div class="kv small" style="margin-top:4px"><div class="k">Solde Marika reporté</div><div class="num">${prec?$$(prec.du_total):"—"}</div>
+     <div class="kv small" style="margin-top:4px"><div class="k">Solde ${PART()} reporté</div><div class="num">${prec?$$(prec.du_total):"—"}</div>
        <div class="k">Montants investis</div><div>montant précédent + épargne du mois</div></div>
    </div>
    <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary" id="okNm">Créer ${esc(e.prochain_mois)}</button></div></form>`, d => {

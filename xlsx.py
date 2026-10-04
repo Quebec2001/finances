@@ -701,6 +701,96 @@ class Classeur:
         return f
 
     # ------------------------------------------------------------------
+    # Suppression d'une feuille (comme « Supprimer » sur l'onglet)
+    # ------------------------------------------------------------------
+    def supprime_feuille(self, nom):
+        f = self.feuille(nom)
+        idx = self.feuilles.index(f)
+        wb = self._txt("xl/workbook.xml")
+        rels = self._txt("xl/_rels/workbook.xml.rels")
+        cible = f.chemin[3:] if f.chemin.startswith("xl/") else "/" + f.chemin
+        m = re.search(r'<Relationship [^>]*?Id="(\w+)"[^>]*?Target="/?(?:xl/)?%s"[^>]*/>' % re.escape(f.chemin[3:]), rels) or \
+            re.search(r'<Relationship [^>]*?Target="/?(?:xl/)?%s"[^>]*?Id="(\w+)"[^>]*/>' % re.escape(f.chemin[3:]), rels)
+        rid = m.group(1)
+        rels = rels.replace(m.group(0), "")
+        wb = re.sub(r'<sheet [^>]*?r:id="%s"[^>]*/>' % rid, "", wb)
+        nom_q = "'" + nom.replace("'", "''") + "'"
+
+        def dn(mm):
+            tout, loc, txt = mm.group(0), mm.group(1), mm.group(2)
+            if loc is not None:
+                k = int(loc)
+                if k == idx:
+                    return ""
+                if k > idx:
+                    return tout.replace('localSheetId="%d"' % k, 'localSheetId="%d"' % (k - 1))
+                return tout
+            t = unesc(txt)
+            if (nom_q + "!") in t or re.search(r"(^|[^\w'])%s!" % re.escape(nom), t):
+                return ""
+            return tout
+        wb = re.sub(r'<definedName [^>]*?(?:localSheetId="(\d+)")?[^>]*>(.*?)</definedName>', dn, wb)
+        wb = re.sub(r"<definedNames>\s*</definedNames>", "", wb)
+        nb = len(re.findall(r"<sheet ", wb))
+        wb = re.sub(r'activeTab="(\d+)"', lambda mm: 'activeTab="%d"' % min(int(mm.group(1)), nb - 1), wb)
+        wb = re.sub(r'firstSheet="(\d+)"', lambda mm: 'firstSheet="%d"' % min(int(mm.group(1)), nb - 1), wb)
+        self._ecrit_txt("xl/workbook.xml", wb)
+        self._ecrit_txt("xl/_rels/workbook.xml.rels", rels)
+
+        # parties liées (dessins, graphiques, commentaires…) qui ne servent qu'à cette feuille
+        def liens(partie):
+            r = self.rels_de(partie)
+            if r not in self.parties:
+                return []
+            out = []
+            for mm in re.finditer(r'<Relationship [^>]*/>', self._txt(r)):
+                if 'TargetMode="External"' in mm.group(0):
+                    continue
+                t = re.search(r'Target="([^"]+)"', mm.group(0)).group(1)
+                out.append(t.lstrip("/") if t.startswith("/") else
+                           os.path.normpath(os.path.join(os.path.dirname(partie), t)).replace("\\", "/"))
+            return out
+        a_retirer = set()
+        pile = [f.chemin]
+        while pile:
+            p = pile.pop()
+            if p in a_retirer:
+                continue
+            a_retirer.add(p)
+            pile.extend(x for x in liens(p) if x in self.parties)
+        gardees = set()
+        for p in self.parties:
+            if p in a_retirer or p.endswith(".rels"):
+                continue
+            for x in liens(p):
+                gardees.add(x)
+        gardees.update(x for x in liens("xl/workbook.xml"))
+        a_retirer -= gardees
+        ct = self._txt("[Content_Types].xml")
+        for p in a_retirer:
+            for q in (p, self.rels_de(p)):
+                if q in self.parties:
+                    del self.parties[q]
+                    self.ordre.remove(q)
+            ct = re.sub(r'<Override PartName="/%s"[^>]*/>' % re.escape(p), "", ct)
+        self._ecrit_txt("[Content_Types].xml", ct)
+        # docProps/app.xml
+        if "docProps/app.xml" in self.parties:
+            a = self._txt("docProps/app.xml")
+            mm = re.search(r"(<TitlesOfParts><vt:vector size=\")(\d+)(\"[^>]*>)(.*?)(</vt:vector>)", a, re.S)
+            if mm:
+                items = re.findall(r"<vt:lpstr>.*?</vt:lpstr>", mm.group(4), re.S)
+                lp = "<vt:lpstr>%s</vt:lpstr>" % esc(nom)
+                if lp in items:
+                    items.remove(lp)
+                    a = a[:mm.start()] + mm.group(1) + str(len(items)) + mm.group(3) + "".join(items) + mm.group(5) + a[mm.end():]
+                    a = re.sub(r"(<vt:lpstr>(?:Feuilles de calcul|Worksheets)</vt:lpstr></vt:variant><vt:variant><vt:i4>)(\d+)",
+                               lambda x: x.group(1) + str(int(x.group(2)) - 1), a)
+                    self._ecrit_txt("docProps/app.xml", a)
+        self.feuilles.remove(f)
+        del self.par_nom[nom]
+
+    # ------------------------------------------------------------------
     def remplace_dans_parties(self, prefixe, ancien, nouveau):
         for nom in list(self.parties):
             if nom.startswith(prefixe) and nom.endswith(".xml"):

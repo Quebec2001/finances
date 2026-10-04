@@ -28,6 +28,8 @@ def post(app, chemin, data):
         return app.supprime_transaction(f, int(data["ligne"]))
     if chemin == "/api/reglement":
         return app.marque_reglement(f, data.get("ligne"))
+    if chemin == "/api/configuration":
+        return app.configuration_depart(f, data)
     if chemin == "/api/revenu":
         return app.enregistre_ligne_bloc(f, "revenus", data)
     if chemin == "/api/revenu/supprimer":
