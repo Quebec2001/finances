@@ -544,7 +544,8 @@ class Application:
             revs.append({"ligne": r, "utilise": True, "date": date_de(dv).isoformat() if date_de(dv) else None,
                          "montant": num(ev("B" + str(r))),
                          "montant_txt": ("=" + b.formule) if b is not None and b.formule else None,
-                         "description": desc})
+                         "description": desc,
+                         "cases": self._cases_formule(b.formule if b is not None else None, d)})
         total_rev = sum(x.get("montant") or 0 for x in revs if x["utilise"])
         total_fio = sum(x.get("montant") or 0 for x in revs if x["utilise"] and self.RE_FIORELLINO.search(x.get("description") or ""))
         # investissements
@@ -1058,6 +1059,84 @@ class Application:
                 continue
             f.ecrit(adr, valeur=0.0, formule="IF(%s,0,%s)" % (cond, expr))
 
+    # --- revenus calculés à partir des jours du calendrier des pourboires ---
+    RX_REF = re.compile(r"\$?([A-Z]{1,3})\$?(\d+)(?::\$?([A-Z]{1,3})\$?(\d+))?")
+
+    def _cases_formule(self, formule, d):
+        """« SUM(C68:C71,C73)+0.06 » → {"colonne": "arec", "lignes": [68,69,70,71,73], "ajout": 0.06} si la
+        formule n'additionne que des cases d'une même colonne du calendrier des pourboires (plus une constante)."""
+        if not formule or not d.pourboires:
+            return None
+        cols = {d.pb["recu"]: "recu", d.pb["arec"]: "arec"}
+        t = formule.replace(" ", "").upper()
+        lignes, col = [], None
+        for m in self.RX_REF.finditer(t):
+            c1, r1, c2, r2 = m.group(1), int(m.group(2)), m.group(3) or m.group(1), int(m.group(4) or m.group(2))
+            if c1 != c2 or c1 not in cols or (col and c1 != col):
+                return None
+            col = c1
+            lignes += list(range(min(r1, r2), max(r1, r2) + 1))
+        if not lignes or any(r not in d.pourboires for r in lignes):
+            return None
+        reste = self.RX_REF.sub("", t)
+        reste = re.sub(r"SUM\((,)*\)", "", reste)
+        reste = reste.replace(",", "")
+        ajout = 0.0
+        if reste:
+            if not re.fullmatch(r"(\+\d+(\.\d+)?)+", reste):
+                return None
+            ajout = sum(float(x) for x in re.findall(r"\d+(?:\.\d+)?", reste))
+        return {"colonne": cols[col], "lignes": sorted(set(lignes)), "ajout": round(ajout, 2)}
+
+    @staticmethod
+    def _formule_cases(col, lignes, ajout=0.0):
+        """[68,69,70,71,73] → « SUM(C68:C71,C73) » (+ constante éventuelle)."""
+        lignes = sorted(set(lignes))
+        plages, debut = [], None
+        for i, r in enumerate(lignes):
+            if debut is None:
+                debut = r
+            if i == len(lignes) - 1 or lignes[i + 1] != r + 1:
+                plages.append("%s%d" % (col, debut) if debut == r else "%s%d:%s%d" % (col, debut, col, r))
+                debut = None
+        f = "SUM(%s)" % ",".join(plages)
+        if ajout:
+            f += "+" + ("%.2f" % ajout).rstrip("0").rstrip(".")
+        return f
+
+    def _ecrit_revenu_cases(self, f, d, r, cases, colonne, ajout=0.0):
+        if colonne not in ("recu", "arec"):
+            raise Erreur("Colonne invalide")
+        lignes = sorted({int(x) for x in cases})
+        if not lignes:
+            raise Erreur("Sélectionne au moins un jour")
+        utilisees = {x["ligne"] for x in self.modele(f.nom)["pourboires"] if x["utilise"]}
+        if any(x not in d.pourboires or x not in utilisees for x in lignes):
+            raise Erreur("Jour du calendrier invalide")
+        col = d.pb[colonne]
+        cle = "recu" if colonne == "recu" else "a_recevoir"
+        valeurs = {x["ligne"]: x.get(cle) or 0 for x in self.modele(f.nom)["pourboires"] if x["utilise"]}
+        total = round(sum(valeurs[x] for x in lignes) + (ajout or 0), 2)
+        f.ecrit("B" + str(r), valeur=total, formule=self._formule_cases(col, lignes, ajout))
+
+    def _recale_revenus_apres_suppression(self, f, d, ligne_suppr, der):
+        """Une ligne du calendrier des pourboires a été retirée (les suivantes remontent d'une ligne) :
+        les revenus qui additionnaient des jours du calendrier suivent leurs jours."""
+        for r in d.revenus:
+            c = f.cell("B" + str(r))
+            cases = self._cases_formule(c.formule if c is not None else None, d)
+            if not cases:
+                continue
+            nouvelles = [x - 1 if ligne_suppr < x <= der else x for x in cases["lignes"] if x != ligne_suppr]
+            if nouvelles == cases["lignes"]:
+                continue
+            col = d.pb[cases["colonne"]]
+            if not nouvelles:
+                f.ecrit("B" + str(r), valeur=cases["ajout"] or None)
+                continue
+            total = sum(num(f.val(col + str(x))) or 0 for x in nouvelles) + cases["ajout"]
+            f.ecrit("B" + str(r), valeur=round(total, 2), formule=self._formule_cases(col, nouvelles, cases["ajout"]))
+
     # --- revenus / pourboires (lignes compactées vers le haut) ---
     def _bloc(self, d, bloc):
         return {"revenus": d.revenus, "pourboires": d.pourboires}[bloc]
@@ -1076,7 +1155,14 @@ class Application:
                 raise Erreur("Ligne invalide")
             f.ecrit("A" + str(r), self._date(data.get("date")))
             if bloc == "revenus":
-                self._ecrit_montant(f, "B" + str(r), data.get("montant"))
+                actuelle = f.cell("B" + str(r))
+                if data.get("cases") is not None:
+                    self._ecrit_revenu_cases(f, d, r, data["cases"], data.get("colonne"), num(data.get("ajout")) or 0)
+                elif actuelle is not None and actuelle.formule and \
+                        str(data.get("montant") or "").replace(" ", "") == ("=" + actuelle.formule).replace(" ", ""):
+                    pass                                        # formule inchangée (ex. =SUM(C68:C71))
+                else:
+                    self._ecrit_montant(f, "B" + str(r), data.get("montant"))
                 f.ecrit("C" + str(r), (data.get("description") or "").strip() or None)
             else:
                 pb = d.pb
@@ -1145,6 +1231,8 @@ class Application:
                         if col == "A" and isinstance(v, float):
                             v = serie_en_date(v)
                         f.ecrit(col + str(r), v)
+            if bloc == "pourboires":
+                self._recale_revenus_apres_suppression(f, d, ligne, der)
         return self._ecriture(op)
 
     # --- paramètres du mois ---

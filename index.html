@@ -160,6 +160,10 @@ svg text{fill:var(--ink-3);font-size:11px}
 .small{font-size:13px}
 .spacer{height:12px}
 .loading{opacity:.55;pointer-events:none;transition:opacity .15s}
+.jours{display:grid;gap:4px;max-height:42vh;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:6px}
+.jour{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:7px 8px;border-radius:9px;cursor:pointer;font-size:14px}
+.jour:hover{background:var(--surface-2)}.jour.pris{opacity:.5;cursor:not-allowed}.jour .sous-t{display:block;font-size:12px;color:var(--ink-3)}
+.jour input{width:19px;height:19px;accent-color:var(--accent)}
 .imp-liste{display:grid;gap:8px;max-height:58vh;overflow:auto;margin-top:4px}
 .imp-l{border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:grid;gap:6px}.imp-l.off{opacity:.55}
 .imp-r1{display:grid;grid-template-columns:auto 1fr 96px;gap:8px;align-items:center}.imp-r2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
@@ -192,7 +196,7 @@ svg text{fill:var(--ink-3);font-size:11px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=ccf1731c16"></script>
+<script src="web.js?v=9032ac8697"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -916,29 +920,85 @@ function dlgGroupeRevenus(cle){
     d.querySelectorAll("[data-r]").forEach(tr => tr.onclick = () => dlgRevenu(S.mois.revenus.find(r=>r.ligne==tr.dataset.r), () => dlgGroupeRevenus(cle), cle));
   });
 }
+// colonne du calendrier des pourboires additionnée selon la description (espèces → reçu, pourboires → à recevoir)
+const colonneCases = desc => /esp[eè]ces/i.test(desc||"") ? "recu" : /pourboire/i.test(desc||"") ? "arec" : null;
+const JOURS_SEM = ["dim.","lun.","mar.","mer.","jeu.","ven.","sam."];
 function dlgRevenu(r, apres, groupe){
   const edit = !!r;
   const choix = groupe==="fio" ? DESC_FIO : [];
   const libre = groupe!=="fio";
   const actuelle = r ? (r.description||"") : "";
   let desc = edit ? (choix.find(c=>c.toLowerCase()===actuelle.toLowerCase()) || (libre ? "__autre" : actuelle)) : choix[0] || "__autre";
+  let mode = r && r.cases ? "cases" : (!edit && colonneCases(desc) ? "cases" : "montant");
+  const choisies = new Set(r && r.cases ? r.cases.lignes : []);
   const titreG = groupe==="fio" ? "Revenu Fiorellino" : "Autre revenu";
+  const pourb = (S.mois.pourboires||[]).filter(p=>p.utilise).slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"") || a.ligne-b.ligne);
   ouvre(`<form id="fr"><div class="dlg-h"><h2>${edit?"Modifier – ":"Nouveau – "}${titreG}</h2><button type="button" class="x" data-close>✕</button></div>
    <div class="dlg-b">
      <div ${libre?'style="display:none"':""}><div class="hint" style="margin-bottom:6px">Description</div>
        <div class="seg seg-desc" id="sdesc">${choix.map(c=>`<button type="button" data-d="${esc(c)}">${esc(c)}</button>`).join("")}${!libre && edit && !choix.some(c=>c.toLowerCase()===actuelle.toLowerCase()) ? `<button type="button" data-d="${esc(actuelle)}">${esc(actuelle)}</button>` : ""}</div></div>
      ${libre?`<label class="f" id="lautre">Description<input name="autre" autocomplete="off" value="${esc(actuelle)}" placeholder="ex. Crédit d'impôts" required></label>`:""}
-     <div class="row2"><label class="f">Montant<input name="montant" inputmode="decimal" value="${esc(r?(r.montant_txt||v2(r.montant)):"")}" required></label><label class="f">Date<input type="date" name="date" value="${r&&r.date||today()}" required></label></div></div>
+     <div id="bmode"><div class="hint" style="margin-bottom:6px">Calcul du montant</div>
+       <div class="seg" id="smode"><button type="button" data-m="montant">Montant</button><button type="button" data-m="cases">Jours du calendrier</button></div></div>
+     <div id="bcases" style="display:none">
+       <div class="hint" id="hcases" style="margin-bottom:6px"></div>
+       <div class="jours" id="jours"></div>
+       <div style="display:flex;gap:8px;align-items:center;margin-top:6px"><button type="button" class="btn small" id="nonComptes">Jours non comptés</button><button type="button" class="btn small" id="aucun">Aucun</button><span class="grow"></span></div>
+       <label class="f" style="margin-top:8px">Ajustement (facultatif)<input name="ajout" inputmode="decimal" value="${esc(r&&r.cases&&r.cases.ajout?v2(r.cases.ajout):"")}" placeholder="ex. 0,06"></label>
+       <div class="preview total-du" style="margin-top:6px"><span>Total</span><b class="num" id="tcases">—</b></div>
+     </div>
+     <div class="row2"><label class="f" id="lmontant">Montant<input name="montant" inputmode="decimal" value="${esc(r?(r.montant_txt||v2(r.montant)):"")}"></label><label class="f">Date<input type="date" name="date" value="${r&&r.date||today()}" required></label></div></div>
    <div class="dlg-f">${edit?`<button type="button" class="btn danger" id="del">Supprimer</button>`:""}<span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary">${edit?"Enregistrer":"Ajouter"}</button></div></form>`, d => {
     const f = $("#fr", d), sg = $("#sdesc", d), la = $("#lautre", d);
-    const maj = () => { sg.querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.d===desc)); if(la) la.style.display = desc==="__autre" ? "" : "none"; };
-    sg.onclick = ev => { const b = ev.target.closest("button"); if(b){ desc = b.dataset.d; maj(); if(desc==="__autre") f.autre.focus(); } };
+    // jours déjà additionnés dans un autre revenu (même colonne)
+    const prisPar = col => { const m = {}; S.mois.revenus.filter(x=>x.utilise && x.cases && x.cases.colonne===col && (!r || x.ligne!==r.ligne))
+      .forEach(x => x.cases.lignes.forEach(l => m[l] = x)); return m; };
+    const col = () => colonneCases(desc);
+    const montantJour = (p, c) => c==="recu" ? p.recu : p.a_recevoir;
+    const total = () => { const c = col(); let t = pourb.filter(p=>choisies.has(p.ligne)).reduce((a,p)=>a+(montantJour(p,c)||0),0);
+      const aj = parseFloat(String(f.ajout.value||"").replace(",",".").replace(/\s/g,"")); if(!isNaN(aj)) t += aj; return Math.round(t*100)/100; };
+    const dessineJours = () => {
+      const c = col(), pris = prisPar(c);
+      $("#hcases", d).textContent = c==="recu" ? "Coche les jours dont tu déposes les espèces (seul le montant en espèces est additionné)."
+                                             : "Coche les jours payés sur cette paye (seuls les pourboires à recevoir sont additionnés).";
+      $("#jours", d).innerHTML = pourb.length ? pourb.map(p => { const x = pris[p.ligne], dt = p.date ? new Date(p.date+"T12:00") : null;
+        return `<label class="jour ${x?"pris":""}"><input type="checkbox" data-l="${p.ligne}" ${choisies.has(p.ligne)?"checked":""} ${x?"disabled":""}>
+          <span>${dt?JOURS_SEM[dt.getDay()]+" "+dateFR(p.date).slice(0,5):"(sans date)"}${x?`<span class="sous-t">déjà dans « ${esc(x.description)} » du ${dateFR(x.date).slice(0,5)}</span>`:""}</span>
+          <b class="num">${$$(montantJour(p,c))}</b></label>`; }).join("")
+        : `<div class="small muted" style="padding:8px">Aucun jour inscrit dans le calendrier des pourboires de ce mois.</div>`;
+      $("#jours", d).querySelectorAll("input").forEach(i => i.onchange = () => { i.checked ? choisies.add(+i.dataset.l) : choisies.delete(+i.dataset.l); $("#tcases", d).textContent = $$(total()); });
+      $("#tcases", d).textContent = $$(total());
+    };
+    const maj = () => {
+      sg.querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.d===desc));
+      if(la) la.style.display = desc==="__autre" ? "" : "none";
+      const avecCases = !!col();
+      if(!avecCases) mode = "montant";
+      $("#bmode", d).style.display = avecCases ? "" : "none";
+      $("#smode", d).querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.m===mode));
+      $("#bcases", d).style.display = mode==="cases" ? "" : "none";
+      $("#lmontant", d).style.display = mode==="cases" ? "none" : "";
+      if(mode==="cases") dessineJours();
+    };
+    sg.onclick = ev => { const b = ev.target.closest("button"); if(b){ const avant = col(); desc = b.dataset.d; if(col()!==avant) choisies.clear(); if(!edit && col()) mode = "cases"; maj(); if(desc==="__autre") f.autre.focus(); } };
+    $("#smode", d).onclick = ev => { const b = ev.target.closest("button"); if(b){ mode = b.dataset.m; maj(); } };
+    $("#nonComptes", d).onclick = () => { const pris = prisPar(col()); pourb.forEach(p => { if(!pris[p.ligne] && (montantJour(p,col())||0) > 0) choisies.add(p.ligne); }); dessineJours(); };
+    $("#aucun", d).onclick = () => { choisies.clear(); dessineJours(); };
+    f.ajout.oninput = () => $("#tcases", d).textContent = $$(total());
     maj();
-    if(!edit) setTimeout(()=>(libre ? f.autre : f.montant).focus(), 50);
+    if(!edit && mode==="montant") setTimeout(()=>(libre ? f.autre : f.montant).focus(), 50);
     f.onsubmit = async ev => { ev.preventDefault();
       const description = desc==="__autre" ? (f.autre.value||"").trim() : desc;
       if(!description) return toast("Indique une description", true);
-      try{ await ecrit("/api/revenu",{ligne:r?r.ligne:null,date:f.date.value,montant:f.montant.value,description},"Revenu enregistré"); apres ? apres() : d.close(); }catch(e){} };
+      const corps = {ligne:r?r.ligne:null, date:f.date.value, description};
+      if(mode==="cases"){
+        if(!choisies.size) return toast("Coche au moins un jour", true);
+        Object.assign(corps, {cases:[...choisies], colonne:col(), ajout:(f.ajout.value||"").replace(",",".").replace(/\s/g,"") || null});
+      } else {
+        if(!(f.montant.value||"").trim()) return toast("Indique un montant", true);
+        corps.montant = f.montant.value;
+      }
+      try{ await ecrit("/api/revenu", corps, "Revenu enregistré"); apres ? apres() : d.close(); }catch(e){} };
     if(edit) $("#del",d).onclick = async()=>{ if(confirm("Supprimer ce revenu ?")){ try{ await ecrit("/api/revenu/supprimer",{ligne:r.ligne},"Revenu supprimé"); apres ? apres() : d.close(); }catch(e){} } };
   });
 }
