@@ -15,7 +15,7 @@
   /* Palette « indigo clair » : fond blanc, accent indigo, vert émeraude (revenus), rose (dépenses), ciel (solde) */
   --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F1F5F9; --ink:#0F172A; --ink-2:#475569; --ink-3:#64748B;
   --line:#E2E8F0; --accent:#4F46E5; --accent-ink:#FFFFFF; --accent-soft:#EEF2FF;
-  --pos:#059669; --neg:#E11D48; --warn:#B45309; --warn-soft:#FEF3C7; --neg-soft:#FFE4E6; --pos-soft:#D1FAE5;--info-soft:#E0F2FE;--cadre:#CBD5E1;
+  --pos:#059669; --neg:#E11D48; --warn:#B45309; --warn-soft:#FEF3C7; --neg-soft:#FFE4E6; --pos-soft:#D1FAE5;--info-soft:#E0F2FE;--cadre:#CBD5E1;--autre-soft:#E9D5FF;--autre:#7C3AED;--warn-2:#D97706;
   --b-rev:#6EE7B7; --b-dep:#FDA4AF; --b-net:#A5B4FC; --b-sol:#7DD3FC;
   --shadow:0 1px 2px rgba(15,23,42,.05),0 4px 14px rgba(15,23,42,.04);
   --r:14px;
@@ -23,11 +23,39 @@
 }
 @media (prefers-color-scheme: dark){
   :root{--bg:#0B1120;--surface:#111827;--surface-2:#1E293B;--ink:#F1F5F9;--ink-2:#CBD5E1;--ink-3:#94A3B8;--line:#1F2937;
-  --accent:#818CF8;--accent-ink:#0B1120;--accent-soft:#1E1B4B;--pos:#34D399;--neg:#FB7185;--warn:#FBBF24;--warn-soft:#3A2E12;--neg-soft:#4C0519;--pos-soft:#064E3B;--info-soft:#0C4A6E;--cadre:#334155;
+  --accent:#818CF8;--accent-ink:#0B1120;--accent-soft:#1E1B4B;--pos:#34D399;--neg:#FB7185;--warn:#FBBF24;--warn-soft:#3A2E12;--neg-soft:#4C0519;--pos-soft:#064E3B;--info-soft:#0C4A6E;--cadre:#334155;--autre-soft:#2E1065;--autre:#A78BFA;--warn-2:#FBBF24;
   --b-rev:#047857; --b-dep:#9F1239; --b-net:#4338CA; --b-sol:#0369A1;
   --c1:#3987E5;--c2:#D95926;--c3:#199E70;--c4:#C98500;--c5:#D55181;--c6:#008300;--c7:#9085E9;--c8:#E66767;--c9:#22B8CF;--c10:#CA8A04;--c11:#EC4899;--c12:#14B8A6;--c13:#A78BFA;--c14:#94A3B8;
   --shadow:none;}
 }
+/* Thème « rose » (app de Marika) */
+:root[data-theme="rose"]{--bg:#FFFBFD;--surface-2:#FDF2F8;--line:#F6E3EC;--cadre:#F0C6D9;--accent:#DB2777;--accent-ink:#FFFFFF;--accent-soft:#FCE7F3;
+  --info-soft:#FDF2F8;--b-sol:#F9A8D4;--b-net:#F9A8D4;--b-rev:#86EFAC;--shadow:0 1px 2px rgba(157,23,77,.06),0 6px 18px rgba(219,39,119,.06)}
+@media (prefers-color-scheme: dark){:root[data-theme="rose"]{--bg:#1A0F16;--surface:#22131D;--surface-2:#2E1A27;--line:#3B2232;--cadre:#4D2C41;
+  --accent:#F472B6;--accent-ink:#1A0F16;--accent-soft:#4A1631;--info-soft:#3B1730;--b-sol:#9D174D;--b-net:#9D174D;--shadow:none}}
+.hero{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;background:linear-gradient(135deg,var(--accent-soft),var(--surface) 75%);border:1px solid var(--cadre)}
+.hero .gros{font-size:34px;font-weight:750;letter-spacing:-.5px;margin:2px 0}
+.hero .citation{font-size:13.5px;color:var(--ink-2);font-style:italic;margin-top:8px;max-width:420px}
+.hero svg{width:120px;height:auto}
+@media (max-width:600px){.hero{grid-template-columns:1fr 92px}.hero svg{width:92px}.hero .gros{font-size:28px}}
+.sous-onglets{display:flex;gap:6px;background:var(--surface-2);padding:4px;border-radius:12px;margin-bottom:12px}
+.sous-onglets button{flex:1;border:0;background:transparent;border-radius:9px;padding:8px 6px;font:inherit;font-weight:600;font-size:14px;color:var(--ink-2);cursor:pointer}
+.sous-onglets button.on{background:var(--surface);color:var(--accent);box-shadow:var(--shadow)}
+.bud{margin-top:4px}.bud .barre{height:7px;border-radius:99px;background:var(--surface-2);overflow:hidden;position:relative}
+.bud .barre i{position:absolute;left:0;top:0;bottom:0;border-radius:99px}
+.bud .barre b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-3)}
+.bud .txt{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2);margin-top:3px}
+.bud.ok i{background:var(--pos)}.bud.ko i{background:var(--neg)}.bud.ok .etat{color:var(--pos)}.bud.ko .etat{color:var(--neg)}
+.btn.gros{width:100%;padding:13px;font-size:16px;border-radius:12px}
+.regle-banniere{background:var(--pos-soft);color:var(--ink);border-radius:10px;padding:9px 12px;font-size:13.5px;display:flex;gap:8px;align-items:center}
+.semaine{display:grid;grid-template-columns:110px 1fr 92px;gap:10px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line);cursor:pointer}
+.semaine.cour{background:var(--accent-soft);border-radius:10px;padding:9px 8px}
+.sem-det{border-left:3px solid var(--accent-soft);margin:4px 0 10px 8px;padding-left:10px;display:grid;gap:6px}
+.sem-jour{padding:4px 0;border-bottom:1px dashed var(--line)}.sem-jh{display:flex;justify-content:space-between;font-size:13.5px}
+.sem-tx{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:13.5px;padding:3px 0;cursor:pointer}.sem-tx .d{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sem-add{margin-top:4px;padding:2px 8px;font-size:12px}
+.semaine.sem2{grid-template-columns:1fr auto;row-gap:6px}.semaine.sem2 .sem-barre,.semaine.sem2 .sem-et{grid-column:1/-1}.semaine.sem2 .sem-et:empty{display:none}.semaine.sem2 .et{margin-top:0}
+.semaine .tr{height:10px;border-radius:99px;background:var(--surface-2);overflow:hidden}.semaine .tr i{display:block;height:100%;background:var(--accent);border-radius:99px}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -67,7 +95,8 @@ dialog section{display:flex;flex-direction:column}
 .grp-h .main{flex:1;min-width:0}.grp-h .t1{font-weight:600}.grp-h .t2{font-size:12.5px;color:var(--ink-3)}.grp-h .amt{font-weight:600}
 .chev2{display:inline-block;transition:transform .15s;color:var(--ink-3);font-size:18px;width:12px}.chev2.on{transform:rotate(90deg)}
 .grp-h .chev{margin-left:4px}.pastille{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}table.t tr.tr-clic{cursor:pointer}table.t tr.tr-clic:hover td{background:var(--surface-2)}
-.cal-tot{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.cal-tot{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}.cal-tot.cal-tot4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:600px){.cal-tot.cal-tot4{grid-template-columns:1fr 1fr}.cal-tot.cal-tot4 div:first-child{grid-column:auto}}
 .cal-tot div{background:var(--surface-2);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column}
 .cal-tot span{font-size:12px;color:var(--ink-2)}.cal-tot b{font-size:15px;font-weight:600}.cal-tot small{font-size:11.5px;color:var(--ink-3);margin-top:2px}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line)}
@@ -78,7 +107,50 @@ dialog section{display:flex;flex-direction:column}
 .cal .jour .e{font-weight:600;margin-top:2px;white-space:nowrap}.cal .jour .r{color:var(--ink-2);font-size:12px;white-space:nowrap}.cal .jour{overflow:hidden}
 .cal .jour.clic{cursor:pointer}.cal .jour.clic:hover{outline:2px solid var(--cadre);outline-offset:-2px}
 .cal .jour.auj .n{background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:0 6px}
-.cal-oui{background:var(--pos-soft)}.cal-non{background:var(--neg-soft)}.cal-vide{background:var(--warn-soft)}
+.cal-oui{background:var(--pos-soft)}.cal-autre{background:var(--autre-soft)}.cal-non{background:var(--neg-soft)}.cal-vide{background:var(--warn-soft)}
+
+/* calendrier des dépenses : bandes par catégorie */
+.cal-tot.cal-tot2{grid-template-columns:1fr 1fr}.cal-tot.cal-tot2 div:first-child{grid-column:auto}
+.cal.cal-dep .jour{align-items:stretch;min-height:76px;gap:2px}
+.cal-dep .bandes{display:grid;gap:2px;margin-top:1px}
+.cal-dep .bande{background:color-mix(in srgb,var(--c) 17%,var(--surface));border-left:3px solid var(--c);border-radius:4px;padding:1px 3px;display:grid;gap:1px}
+.cal-dep .bl{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.cal-dep .bl .d{font-size:10px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-dep .bl .m{font-size:10px;font-weight:650;color:var(--ink-2);white-space:nowrap}
+.cal-dep .tot{margin-top:auto;align-self:flex-end;font-size:11.5px;font-weight:700;color:var(--ink);white-space:nowrap;padding-top:2px}
+@media (min-width:601px){.cal-dep .bl{flex-direction:row;justify-content:space-between;gap:4px}.cal-dep .bl .d,.cal-dep .bl .m{font-size:11px}}
+@media (max-width:600px){.cal-dep .bl .d,.cal-dep .bl .m{font-size:9px}.cal-dep .bande{padding:1px 2px;border-left-width:2px}.cal-dep .tot{font-size:10.5px}}
+.legend.leg-cat{flex-wrap:wrap;gap:6px 12px;margin-top:10px}.legend.leg-cat i{border-radius:3px}
+/* barres empilées par catégorie (semaines, budgets) */
+.tr-s{position:relative;display:flex;gap:2px;height:12px;border-radius:99px;background:var(--surface-2);overflow:visible}
+.tr-s i{display:block;height:100%;border-radius:3px}.tr-s i:first-child{border-radius:99px 3px 3px 99px}.tr-s i:last-of-type{border-radius:3px 99px 99px 3px}.tr-s i:only-of-type{border-radius:99px}
+.tr-s b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink-3);border-radius:2px}
+.tr-s.gros{height:16px;margin-top:8px}
+.et{display:inline-block;font-size:11.5px;font-weight:650;border-radius:99px;padding:1px 8px;margin-top:5px}
+.et.ok{background:var(--pos-soft);color:var(--pos)}.et.ko{background:var(--neg-soft);color:var(--neg)}.et.att{background:var(--warn-soft);color:var(--warn)}.et.neutre{background:var(--surface-2);color:var(--ink-3)}
+/* budgets en anneaux */
+.anneau{flex:none}.anneau-t{font-size:12px;font-weight:700;fill:var(--ink)}
+.bres{background:var(--surface-2);border-radius:12px;padding:10px 12px;margin-bottom:12px}.bres-h{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px}
+.bgrille{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.bcarte{display:flex;gap:12px;align-items:center;border-radius:14px;padding:10px 12px;background:linear-gradient(135deg,color-mix(in srgb,var(--c) 12%,var(--surface)),var(--surface) 80%);border:1px solid color-mix(in srgb,var(--c) 28%,var(--surface))}
+.bc-txt{min-width:0;flex:1}.bc-nom{font-weight:650;font-size:14.5px}.bc-mt{font-size:15px;font-weight:700;margin-top:1px}.bc-mt span{font-weight:500;color:var(--ink-3);font-size:13px}
+.bc-et{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px}.bc-et .et{margin-top:3px}
+@media (max-width:600px){.bgrille{grid-template-columns:1fr 1fr;gap:8px}.bcarte{flex-direction:column;text-align:center;gap:6px;padding:12px 8px}.bc-et{justify-content:center;flex-direction:column;gap:2px}.bc-nom{font-size:14px}.bc-mt{font-size:14px}}
+/* par catégorie */
+.donut-z{display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:center;margin:2px 0 14px}.donut .dn-v{font-size:17px;font-weight:750;fill:var(--ink)}.donut .dn-s{font-size:11px;fill:var(--ink-3)}
+.grp-h.ccarte{border-radius:14px;margin:6px 0;padding:8px 10px;background:linear-gradient(135deg,color-mix(in srgb,var(--c) 11%,var(--surface)),var(--surface) 85%);border:1px solid color-mix(in srgb,var(--c) 25%,var(--surface));gap:12px}
+.grp-h.ccarte .t1{font-size:15px}.grp-h.ccarte .bc-et{flex-direction:row!important;justify-content:flex-start!important;gap:6px!important}.grp-h.ccarte .t2b{font-size:12.5px;color:var(--ink-3)}
+/* couple */
+.cp-bloc{border-radius:14px;padding:10px 12px;margin-top:10px}
+.cp-bloc.moi{background:color-mix(in srgb,var(--pos) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--pos) 25%,var(--surface))}
+.cp-bloc.lui{background:color-mix(in srgb,var(--accent) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 25%,var(--surface))}
+.cp-titre{display:flex;justify-content:space-between;gap:8px;align-items:baseline;font-weight:700;font-size:15px}.cp-titre small{display:block;font-weight:500;color:var(--ink-3);font-size:12.5px}
+.cp-l{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 0;border-top:1px dashed color-mix(in srgb,var(--ink-3) 30%,transparent)}
+.cp-l:first-of-type{border-top:0}.cp-l .d{font-weight:600;font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cp-l .s{font-size:12px;color:var(--ink-3)}
+.cp-l .v{text-align:right;font-weight:700;font-size:14.5px;white-space:nowrap}.cp-l .v small{display:block;font-weight:500;font-size:11.5px;color:var(--ink-3)}
+.cp-calc{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:14.5px;margin-top:4px}.cp-calc .tot{font-weight:750;font-size:16px;border-top:2px solid var(--line);padding-top:6px}
+.cp-ico{width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:15px;background:color-mix(in srgb,var(--c) 18%,var(--surface))}
+details.cp-vieux{margin-top:12px}details.cp-vieux summary{cursor:pointer;color:var(--ink-2);font-size:13.5px;font-weight:600}details.cp-vieux .cp-l{opacity:.75}details.cp-vieux .cp-bloc{margin-top:8px}
 .seg.seg3{grid-template-columns:repeat(3,1fr)}.seg.seg-desc{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
 @media (max-width:600px){.cal .jour{min-height:58px;padding:3px 3px;font-size:11.5px}.cal .jour .r{font-size:10.5px}.cal-tot{grid-template-columns:1fr 1fr}.cal-tot div:first-child{grid-column:1/-1}.cal .jour .e{font-size:10.5px}.cal .jour .r{font-size:10px}.cal .jour{padding:3px 3px}}
 .kpi,.card.cadre{border:1px solid var(--cadre);box-shadow:none}
@@ -187,6 +259,7 @@ svg text{fill:var(--ink-3);font-size:11px}
     <button data-v="bord" class="on">Tableau de bord</button>
     <button data-v="rev">Revenus</button>
     <button data-v="trans">Dépenses</button>
+    <button data-v="couple" hidden>Couple</button>
     <button data-v="inv">Investissements</button>
     <button data-v="regl">Réglages</button>
   </nav>
@@ -196,7 +269,7 @@ svg text{fill:var(--ink-3);font-size:11px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=457f4353f8"></script>
+<script src="web.js?v=e017e80d62"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -211,7 +284,12 @@ const $$ = v => (v === null || v === undefined || v === "") ? "—" : fmtCAD.for
 const pct = v => (v === null || v === undefined) ? "—" : fmtPct.format(v);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const dateFR = iso => { if(!iso) return ""; const [y,m,d] = iso.split("-"); return `${d}-${m}-${y}`; };
-const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+// app de Marika : dates toujours en mots (« 5 octobre »)
+const MOIS_MOTS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+const jourMots = iso => { if(!iso || !/^\d{4}-\d\d-\d\d/.test(iso)) return iso || ""; const [y,m,d] = iso.split("-").map(Number); return `${d===1?"1er":d} ${MOIS_MOTS[m-1]}`; };
+const dC = iso => MODE_PAYE() ? jourMots(iso) : dateFR(iso).slice(0,5);
+const dL = iso => MODE_PAYE() ? jourMots(iso) : dateFR(iso);
+const today = () => { if(S.etat && S.etat.date_demo) return S.etat.date_demo; const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 const TYPES_COURTS = {P:"Personnel", "50":"50/50", SP:"Proportionnel", R:"Remboursement"};
 function semType(t){ t=(t||"").toLowerCase().trim(); if(t.startsWith("personnel"))return"P"; if(t.startsWith("split 50"))return"50"; if(t.startsWith("split prop"))return"SP"; if(t.startsWith("rembo"))return"R"; return null; }
 const PALETTE = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8","--c9","--c10","--c11","--c12","--c13","--c14"].map(v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim());
@@ -283,13 +361,14 @@ function decodePartage(t){
 }
 function dlgPartage(){
   const m = S.mois;
-  const lignes = m.transactions.filter(t => t.utilise && (t.marika||0) > 0.004 && ["SP","50"].includes(semType(t.type)) && t.date)
+  const der = m.ligne_dernier_reglement;          // seulement ce qui n'a pas encore été remboursé
+  const lignes = m.transactions.filter(t => t.utilise && (t.marika||0) > 0.004 && ["SP","50"].includes(semType(t.type)) && t.date && (der == null || t.ligne > der))
     .sort((a,b) => a.date.localeCompare(b.date));
   ouvre(`<div class="dlg-h"><h2>Partager avec ${PART()} – ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
    <div class="dlg-b">
-     <p class="small" style="margin:0">${PART()} reçoit sa part de tes dépenses partagées : elle s'ajoute à ses dépenses du mois (marquée « carte ${MOI()} »). Les dépenses qu'elle a déjà reçues sont ignorées, tu peux donc repartager tout le mois. Le solde entre vous reste suivi ici.</p>
+     <p class="small" style="margin:0">${PART()} reçoit sa part de tes dépenses partagées depuis le dernier remboursement. Elle s'ajoute au solde du couple dans son app ; ce qu'elle a déjà reçu est ignoré. Pour que vos deux apps affichent le même solde, partagez-vous vos dépenses dans les deux sens et marquez le solde réglé le même jour.</p>
      ${lignes.length ? `<div class="imp-liste">${lignes.map(t => `<label class="imp-l" style="grid-template-columns:auto 1fr auto;display:grid;align-items:center;gap:10px"><input type="checkbox" class="imp-c" data-l="${t.ligne}" checked>
-        <span><b style="font-weight:550">${esc(t.description)}</b><span class="sous-t" style="display:block;font-size:12px;color:var(--ink-3)">${dateFR(t.date).slice(0,5)} · ${esc(TYPES_COURTS[semType(t.type)])} · payé ${$$(t.deboursement)}</span></span>
+        <span><b style="font-weight:550">${esc(t.description)}</b><span class="sous-t" style="display:block;font-size:12px;color:var(--ink-3)">${dC(t.date)} · ${esc(TYPES_COURTS[semType(t.type)])} · payé ${$$(t.deboursement)}</span></span>
         <b class="num">${$$(t.marika)}</b></label>`).join("")}</div>
         <div class="preview total-du"><span>Part de ${PART()}</span><b class="num" id="ptot"></b></div>`
       : `<div class="small muted">Aucune dépense partagée (SPLIT) ce mois-ci.</div>`}
@@ -302,7 +381,8 @@ function dlgPartage(){
     d.querySelectorAll(".imp-c").forEach(c => c.onchange = maj); maj();
     $("#pOk", d).onclick = async () => {
       const ch = choisies(); if(!ch.length) return toast("Coche au moins une dépense", true);
-      const o = {v:1, de:REG().prenom, pour:REG().partenaire, t: ch.map(t => [t.date, t.description, Math.round(t.marika*100)/100, t.categorie||""])};
+      const o = {v:1, de:REG().prenom, pour:REG().partenaire, mois:S.info.cle, net: Math.round((S.mois.total_a_rembourser ? S.mois.du_net : S.mois.du_total)*100)/100,
+                 t: ch.map(t => [t.date, t.description, Math.round(t.marika*100)/100, t.categorie||""])};
       const url = SITE_EN_LIGNE + "#partage=" + encodePartage(o);
       const texte = `${REG().prenom} t'envoie ta part de ${ch.length} dépense${ch.length>1?"s":""} (${S.info.nom}). Touche le lien, ou copie-le dans ton app : Dépenses › Split › Recevoir un partage.`;
       $("#plien", d).style.display = ""; $("#plienT", d).value = url;
@@ -336,7 +416,7 @@ async function dlgRecoitPartage(o){
     let mm = null; if(mo && mo.modifiable){ try { mm = await api("/api/mois?f=" + encodeURIComponent(mo.feuille)); } catch(e){} }
     infos[k] = {mo, mm};
   }
-  const suffixe = ` (carte ${o.de})`;
+  const suffixe = ` (carte ${o.de} – à rembourser)`;
   const lignes = o.t.map(([date, desc, part, cat], i) => {
     const k = String(date).slice(0,7), inf = infos[k];
     let etat = "", ok = true;
@@ -350,21 +430,30 @@ async function dlgRecoitPartage(o){
   ouvre(`<div class="dlg-h"><h2>Dépenses partagées par ${de}</h2><button type="button" class="x" data-close>✕</button></div>
    <div class="dlg-b">
      ${o.pour && o.pour !== moi ? `<div class="banner err" style="margin:0">Ce partage était destiné à ${esc(o.pour)}.</div>` : ""}
-     <p class="small" style="margin:0">Ta part de ces dépenses payées par ${de} s'ajoute à tes dépenses (type Personnel, marquée « carte ${de} »). Le remboursement à ${de} reste suivi dans son app.</p>
+     <p class="small" style="margin:0">Ta part de ces dépenses payées par ${de} s'ajoute au solde du couple (onglet Couple). Elle comptera dans tes dépenses une fois le solde réglé.</p>
+     <div id="verif"></div>
      <div class="imp-liste">${lignes.map(l => `<div class="imp-l ${l.ok?"":"off"}" data-i="${l.i}">
-        <div class="imp-r1"><input type="checkbox" class="imp-c" ${l.ok?"checked":"disabled"}><div><b style="font-weight:550">${esc(l.desc)}</b><div class="small muted">${dateFR(l.date).slice(0,5)}${l.etat?` · <span class="warn-t">${esc(l.etat)}</span>`:""}</div></div><b class="num" style="text-align:right">${$$(l.part)}</b></div>
+        <div class="imp-r1"><input type="checkbox" class="imp-c" ${l.ok?"checked":"disabled"}><div><b style="font-weight:550">${esc(l.desc)}</b><div class="small muted">${dC(l.date)}${l.etat?` · <span class="warn-t">${esc(l.etat)}</span>`:""}</div></div><b class="num" style="text-align:right">${$$(l.part)}</b></div>
         ${l.ok ? `<div class="imp-r2" style="grid-template-columns:1fr"><select class="imp-cat">${S.etat.categories.map(c=>`<option ${c===l.cat?"selected":""}>${esc(c)}</option>`).join("")}</select></div>` : ""}
       </div>`).join("")}</div>
    </div>
    <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button>${nb?`<button type="button" class="btn primary" id="rOk">Ajouter</button>`:""}</div>`, d => {
     const maj = () => { const n = d.querySelectorAll(".imp-c:checked").length; const b = $("#rOk", d); if(b){ b.textContent = `Ajouter ${n} dépense${n>1?"s":""}`; b.disabled = !n; }
-      d.querySelectorAll(".imp-l").forEach(x => x.classList.toggle("off", !x.querySelector(".imp-c").checked)); };
+      d.querySelectorAll(".imp-l").forEach(x => x.classList.toggle("off", !x.querySelector(".imp-c").checked));
+      // vérification : après l'ajout, les deux apps doivent afficher le même solde (dans des sens opposés)
+      const inf = o.mois && infos[o.mois], v = $("#verif", d);
+      if(!v || !inf || !inf.mm || typeof o.net !== "number") { if(v) v.innerHTML = ""; return; }
+      const ajout = [...d.querySelectorAll(".imp-l")].filter(x => x.querySelector(".imp-c").checked).map(x => lignes[+x.dataset.i]).filter(l => l.k === o.mois).reduce((a,l)=>a+l.part,0);
+      const base = inf.mm.total_a_rembourser ? inf.mm.du_net : inf.mm.du_total, apres = Math.round((base - ajout)*100)/100, ecart = Math.round((apres + o.net)*100)/100;
+      v.innerHTML = Math.abs(ecart) < 0.01
+        ? `<div class="regle-banniere">✓ <span>Après l'ajout, vos deux apps afficheront le même solde : <b>${marikaTexte(apres)}</b>.</span></div>`
+        : `<div class="banner err" style="margin:0">Après l'ajout : ton app → <b>${marikaTexte(apres)}</b> ; l'app de ${de} → <b>${o.net >= 0 ? `tu lui dois ${$$(o.net)}` : `il te doit ${$$(-o.net)}`}</b>. Écart de ${$$(Math.abs(ecart))} : il manque des dépenses à partager (ex. tes dépenses partagées à envoyer à ${de}, ou un solde réglé d'un seul côté).</div>`; };
     d.querySelectorAll(".imp-c").forEach(c => c.onchange = maj); maj();
     const b = $("#rOk", d); if(!b) return;
     b.onclick = async () => {
       const groupes = {};
       d.querySelectorAll(".imp-l").forEach(x => { if(!x.querySelector(".imp-c").checked) return; const l = lignes[+x.dataset.i];
-        (groupes[l.k] = groupes[l.k] || []).push({description: l.desc + suffixe, montant: String(l.part), date: l.date, type: "Personnel", categorie: x.querySelector(".imp-cat").value}); });
+        (groupes[l.k] = groupes[l.k] || []).push({description: l.desc + suffixe, montant: String(l.part), date: l.date, type: "", categorie: x.querySelector(".imp-cat").value}); });
       b.disabled = true;
       try {
         let n = 0;
@@ -462,7 +551,10 @@ function bandeaux(){
 }
 function rend(){
   const m = $("#main");
-  const v = {bord:vueBord, trans:vueTrans, rev:vueRev, inv:vueInv, regl:vueRegl}[S.vue] || vueBord;
+  const btnC = document.querySelector('#tabs [data-v=couple]'); if(btnC) btnC.hidden = !MODE_PAYE();
+  if(MODE_PAYE()) document.documentElement.dataset.theme = "rose"; else delete document.documentElement.dataset.theme;
+  if(S.vue === "couple" && !MODE_PAYE()) S.vue = "bord";
+  const v = {bord:MODE_PAYE()?vueBordPaye:vueBord, trans:MODE_PAYE()?vueTransPaye:vueTrans, rev:vueRev, couple:vueCouple, inv:vueInv, regl:vueRegl}[S.vue] || vueBord;
   m.innerHTML = bandeaux() + `<div id="vue"></div>`;
   v($("#vue"));
 }
@@ -491,6 +583,7 @@ const REG_DEFAUT = {prenom:"Zach", partenaire:"Marika", pourboires:true, revenu_
   descriptions_revenu_principal:["Dépôts d'espèces","Salaire horaire","Pourboire"], mots_revenu_principal:"fiorellino|esp[eè]ces|salaire horaire|pourboire", configuration_a_faire:false};
 const REG = () => Object.assign({}, REG_DEFAUT, (S.etat && S.etat.reglages) || {});
 const PART = () => esc(REG().partenaire), MOI = () => esc(REG().prenom);
+const MODE_PAYE = () => !REG().pourboires;       // app de Marika : payes aux 2 semaines au lieu des pourboires
 function marikaTexte(v){
   if(v===null||v===undefined) return "—";
   if(Math.abs(v) < 0.005) return "Rien à régler";
@@ -573,7 +666,8 @@ async function graphRevDep(z){
 function carteMarikaHTML(m){
   return `<div class="card cadre clic" id="cardMarika" role="button" tabindex="0" title="Voir le détail">
         <h3>Split avec ${PART()} <span class="sp pill neutral">% ${PART()} ${pct(m.pct_marika)}</span><span class="chev">›</span></h3>
-        <div class="val num" style="font-size:20px;font-weight:650">${marikaTexte(m.du_total)}</div>
+        <div class="val num" style="font-size:20px;font-weight:650">${marikaTexte(m.total_a_rembourser ? m.du_net : m.du_total)}</div>
+        ${m.total_a_rembourser ? `<div class="small muted">dont − ${$$(m.total_a_rembourser)} que tu dois à ${PART()} (dépenses payées par ${PART()})</div>` : ""}
         <div class="kv small" style="margin-top:8px">
           <div class="k">Depuis le dernier remboursement</div><div class="num">${$$(m.du_depuis_reglement)}</div>
           <div class="k">Autres montants</div><div class="num">${$$(m.reports.reduce((a,r)=>a+(r.montant||0),0))}</div>
@@ -599,13 +693,14 @@ function dlgConfirmeReglement(m, der){
    <div class="dlg-b">
      <p style="margin:0">Confirmes-tu que le solde avec ${PART()} est réglé ?</p>
      <div class="card" style="padding:12px 14px;background:var(--surface-2);border:0">
-       <div class="num" style="font-size:18px;font-weight:650">${marikaTexte(m.du_total)}</div>
+       <div class="num" style="font-size:18px;font-weight:650">${marikaTexte(m.total_a_rembourser ? m.du_net : m.du_total)}</div>
        <div class="kv small" style="margin-top:6px">
          <div class="k">Depuis le dernier remboursement</div><div class="num">${$$(m.du_depuis_reglement)} → 0,00 $</div>
          <div class="k">Autres montants</div><div class="num">${$$(autres)} → 0,00 $</div>
+         ${m.total_a_rembourser ? `<div class="k">Ce que tu dois à ${PART()} (dépenses payées par ${PART()})</div><div class="num">${$$(m.total_a_rembourser)} → dans tes dépenses</div>` : ""}
        </div>
      </div>
-     <p class="small" style="margin:0">Le marqueur « Solde réglé » sera placé après la dernière dépense : <b>${esc(der.description)}</b> (${dateFR(der.date)}). Les dépenses ajoutées ensuite compteront pour le prochain remboursement.</p>
+     <p class="small" style="margin:0">Le marqueur « Solde réglé » sera placé après la dernière dépense : <b>${esc(der.description)}</b> (${dL(der.date)}). Les dépenses ajoutées ensuite compteront pour le prochain remboursement.</p>
    </div>
    <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primary" id="okRegle">Confirmer</button></div>`, d => {
     $("#okRegle", d).onclick = async () => { $("#okRegle", d).disabled = true;
@@ -655,7 +750,7 @@ function vueTrans(el){
     z.innerHTML = `<div class="card cadre"><div class="list">${l.length ? l.map(t=>{
         const st = semType(t.type);
         return `<div class="item" ${t.hist||!mod?'style="cursor:default"':`data-l="${t.ligne}"`}><div class="main"><div class="t1">${esc(t.description)}</div>
-          <div class="t2"><span>${dateFR(t.date)}</span>${st?`<span class="chip t-${st}">${esc(TYPES_COURTS[st])}</span>`:""}<span class="chip">${esc(t.categorie)}</span></div></div>
+          <div class="t2"><span>${dL(t.date)}</span>${st?`<span class="chip t-${st}">${esc(TYPES_COURTS[st])}</span>`:""}<span class="chip">${esc(t.categorie)}</span></div></div>
           <div class="amt num">${$$(t.depense)}${st && st!=="P" ? `<small>sur ${$$(t.deboursement)}</small>`:""}</div></div>`; }).join("") : `<div class="empty">Aucune dépense trouvée.</div>`}</div></div>`;
     z.querySelectorAll("[data-l]").forEach(it => it.onclick = () => dlgTransaction(m.transactions.find(t=>t.ligne==it.dataset.l), () => draw()));
   };
@@ -800,7 +895,7 @@ function dlgCategorieDepenses(cat){
   ouvre(`<div class="dlg-h"><h2>${esc(cat)} – ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
   <div class="dlg-b">
     ${lignes.length?`<div class="scroll-x"><table class="t"><thead><tr><th>Date</th><th style="text-align:left">Description</th>${hist?"":`<th class="c-type" style="text-align:left">Type</th><th>Payé</th>`}<th>${hist?"Montant":"Ma part"}</th></tr></thead><tbody>
-      ${lignes.map(t=>`<tr ${mod?`data-l="${t.ligne}" class="tr-clic"`:""}><td>${dateFR(t.date).slice(0,5)}</td><td class="desc" style="text-align:left">${esc(t.description)}</td>${hist?"":`<td class="c-type" style="text-align:left">${esc(TYPES_COURTS[semType(t.type)]||t.type||"")}</td><td class="num">${$$(t.deboursement)}</td>`}<td class="num">${$$(t.depense)}</td></tr>`).join("")}
+      ${lignes.map(t=>`<tr ${mod?`data-l="${t.ligne}" class="tr-clic"`:""}><td>${dC(t.date)}</td><td class="desc" style="text-align:left">${esc(t.description)}</td>${hist?"":`<td class="c-type" style="text-align:left">${esc(TYPES_COURTS[semType(t.type)]||t.type||"")}</td><td class="num">${$$(t.deboursement)}</td>`}<td class="num">${$$(t.depense)}</td></tr>`).join("")}
     </tbody></table></div>`:`<div class="small muted">Aucune dépense.</div>`}
     <div class="preview total-du"><span>Total</span><b class="num">${$$(g.total)}</b></div>
   </div>
@@ -828,11 +923,11 @@ function ouvre(html, onReady){
   d.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>d.close());
 }
 
-function dlgTransaction(t, apres, catDefaut){
+function dlgTransaction(t, apres, catDefaut, dateDef){
   const m = S.mois, e = S.etat;
   const edit = !!t;
   const t0 = today();
-  const dDef = (t && t.date) || (t0.slice(0,7)===S.info.cle ? t0 : S.info.cle + "-01");
+  const dDef = (t && t.date) || dateDef || (t0.slice(0,7)===S.info.cle ? t0 : S.info.cle + "-01");
   ouvre(`<form method="dialog" id="ft">
     <div class="dlg-h"><h2>${edit?"Modifier la transaction":"Nouvelle dépense"}</h2><button type="button" class="x" data-close>✕</button></div>
     <div class="dlg-b">
@@ -904,7 +999,7 @@ function dlgMarika(){
   let lignes = "";
   split.forEach(t=>{
     const regle = der!=null && t.ligne<=der;
-    lignes += `<tr class="${regle?"regle":""}"><td>${dateFR(t.date).slice(0,5)}</td><td class="desc" style="text-align:left">${esc(t.description)}</td><td class="c-type" style="text-align:left">${esc(TYPES_COURTS[semType(t.type)])}</td><td class="num">${$$(t.deboursement)}</td><td class="num ${t.marika<0?"neg":""}">${$$(t.marika)}</td></tr>`;
+    lignes += `<tr class="${regle?"regle":""}"><td>${dC(t.date)}</td><td class="desc" style="text-align:left">${esc(t.description)}</td><td class="c-type" style="text-align:left">${esc(TYPES_COURTS[semType(t.type)])}</td><td class="num">${$$(t.deboursement)}</td><td class="num ${t.marika<0?"neg":""}">${$$(t.marika)}</td></tr>`;
     if(t.marqueur) lignes += `<tr><td colspan="5" style="padding:0"><div class="marq" style="padding:4px 0">Remboursement</div></td></tr>`;
   });
   const sousTot2 = m.du_depuis_reglement;
@@ -922,7 +1017,8 @@ function dlgMarika(){
       ${m.reports.length?`<div class="list">${m.reports.map(r=>`<div class="item" ${mod&&!r.auto?`data-aj="${r.ligne}"`:'style="cursor:default"'}><div class="main"><div class="t1">${esc(r.libelle||"(sans description)")}</div><div class="t2">${r.auto?"Report automatique":"Ajout manuel"}${r.regle?` · <span class="chip">réglé</span> (était ${$$(r.montant_origine)})`:""}</div></div><div class="amt num ${r.montant<0?"neg":""} ${r.regle?"muted":""}">${$$(r.montant)}</div></div>`).join("")}</div>`:`<div class="small muted">Aucun montant.</div>`}
       <div class="kv small sous"><div class="k">Total</div><div class="num"><b>${$$(sousTot3)}</b></div></div>
     </section>
-    <div class="preview total-du"><span>Remboursement dû</span><b class="num">${marikaTexte(m.du_total)}</b></div>
+    ${m.total_a_rembourser ? `<div class="kv small"><div class="k">Ta part des dépenses payées par ${PART()} (à rembourser)</div><div class="num">− ${$$(m.total_a_rembourser)}</div></div>` : ""}
+    <div class="preview total-du"><span>Remboursement dû (net)</span><b class="num">${marikaTexte(m.total_a_rembourser ? m.du_net : m.du_total)}</b></div>
   </div>
   <div class="dlg-f"><button type="button" class="btn" id="btnPartage">Partager avec ${PART()}</button><button type="button" class="btn" id="btnRecoit">Recevoir un partage</button><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button></div>`, d => {
     $("#btnPartage", d).onclick = () => dlgPartage();
@@ -969,24 +1065,433 @@ function vueRev(el){
    <div class="grid two">
     <div class="card cadre"><h3>Revenus globaux</h3>
       ${groupes.map(g=>`<div class="grp" data-g="${g.cle}">
-        <div class="grp-h" role="button" tabindex="0"><div class="main"><div class="t1">${g.titre}</div></div><div class="amt num">${$$(g.lignes.reduce((a,r)=>a+(r.montant||0),0))}</div><span class="chev">›</span></div>
+        <div class="grp-h" role="button" tabindex="0"><div class="main"><div class="t1">${esc(g.titre)}</div></div><div class="amt num">${$$(g.lignes.reduce((a,r)=>a+(r.montant||0),0))}</div><span class="chev">›</span></div>
       </div>`).join("")}
       <div class="kv" style="margin-top:8px"><div class="k total">Total des revenus</div><div class="num total">${$$(m.total_revenus)}</div></div>
     </div>
-    <div class="grid" style="align-content:start">
-    <div class="card cadre"><h3>Répartition avec ${PART()} <span class="sp">${mod?`<button class="btn small" id="edRep">Modifier</button>`:""}</span></h3>
-      ${m.revenu_marika===null && m.revenu_zach===null && m.pct_manuel ? `<div class="small muted">% ${PART()} saisi à la main dans le fichier : ${pct(m.pct_marika)}</div>` : `
-      <div class="kv"><div class="k">Revenu ${PART()}</div><div class="num">${$$(m.revenu_marika)}</div><div class="k">Revenu ${MOI()}</div><div class="num">${$$(m.revenu_zach)}</div><div class="k total">% ${PART()}</div><div class="num total">${pct(m.pct_marika)}</div></div>`}
-    </div>
-    </div>
+    ${MODE_PAYE() ? "" : `<div class="grid" style="align-content:start">${carteRepartitionHTML(m, mod)}</div>`}
    </div>
    <div class="spacer"></div>
    <div class="card cadre" id="calPb"></div>`;
   el.querySelectorAll(".grp-h").forEach(h=>h.onclick=()=>dlgGroupeRevenus(h.parentNode.dataset.g));
-  if(REG().pourboires) calendrierPourboires($("#calPb", el)); else graphEpargne($("#calPb", el));
-  if(!mod) return;
-  $("#edRep").onclick = () => dlgChamps("Répartition avec " + REG().partenaire, [["revenu_marika","Revenu " + REG().partenaire,m.revenu_marika],["revenu_zach","Revenu " + REG().prenom,m.revenu_zach]], "/api/parametres");
+  if(MODE_PAYE()) calendrierPaye($("#calPb", el)); else calendrierPourboires($("#calPb", el));
+  if(mod && !MODE_PAYE()) brancheRepartition(el, m);
 }
+function carteRepartitionHTML(m, mod){
+  return `<div class="card cadre"><h3>Répartition avec ${PART()} <span class="sp">${mod?`<button class="btn small" id="edRep">Modifier</button>`:""}</span></h3>
+      ${m.revenu_marika===null && m.revenu_zach===null && m.pct_manuel ? `<div class="small muted">% ${PART()} saisi à la main dans le fichier : ${pct(m.pct_marika)}</div>` : `
+      <div class="kv"><div class="k">Revenu ${PART()}</div><div class="num">${$$(m.revenu_marika)}</div><div class="k">Revenu ${MOI()}</div><div class="num">${$$(m.revenu_zach)}</div><div class="k total">% ${PART()}</div><div class="num total">${pct(m.pct_marika)}</div></div>`}
+    </div>`;
+}
+function brancheRepartition(el, m){
+  const b = $("#edRep", el); if(!b) return;
+  b.onclick = () => dlgChamps("Répartition avec " + REG().partenaire, [["revenu_marika","Revenu " + REG().partenaire,m.revenu_marika],["revenu_zach","Revenu " + REG().prenom,m.revenu_zach]], "/api/parametres");
+}
+
+// ================================================================ app de Marika (MODE_PAYE)
+const CITATIONS = ["Chaque dollar mis de côté est un pas vers tes rêves.", "Petit à petit, l'épargne fait son nid.",
+  "Tu ne contrôles pas tout, mais tu contrôles ton budget.", "Investis en toi : c'est le meilleur rendement.",
+  "Un budget, c'est te donner la permission de dépenser sans culpabilité.", "Ton futur toi te remercie déjà.",
+  "La confiance, ça commence par un compte bien tenu."];
+// illustration originale : tirelire cochon avec pièces, cœur et brillants
+const ILLU = `<svg viewBox="0 0 140 120" aria-hidden="true">
+  <circle cx="112" cy="22" r="3" fill="var(--accent)" opacity=".5"/><circle cx="20" cy="30" r="2.5" fill="var(--accent)" opacity=".4"/>
+  <path d="M100 8 l2 6 6 2 -6 2 -2 6 -2 -6 -6 -2 6 -2z" fill="#F9A8D4"/>
+  <ellipse cx="66" cy="74" rx="44" ry="32" fill="#F9A8D4"/><ellipse cx="66" cy="70" rx="40" ry="28" fill="#FBCFE8"/>
+  <circle cx="104" cy="70" r="11" fill="#F9A8D4"/><ellipse cx="106" cy="70" rx="6" ry="5" fill="#F472B6"/><circle cx="104" cy="68" r="1.3" fill="#9D174D"/><circle cx="108" cy="68" r="1.3" fill="#9D174D"/>
+  <circle cx="86" cy="58" r="3" fill="#831843"/><path d="M50 44 q8 -14 18 0" fill="#F472B6"/>
+  <rect x="56" y="40" width="20" height="4" rx="2" fill="#BE185D"/>
+  <rect x="36" y="98" width="10" height="12" rx="3" fill="#F472B6"/><rect x="80" y="98" width="10" height="12" rx="3" fill="#F472B6"/>
+  <path d="M22 66 q-10 -2 -8 8" stroke="#F472B6" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <circle cx="66" cy="22" r="10" fill="#FDE68A"/><circle cx="66" cy="22" r="7" fill="#FCD34D"/><text x="66" y="26" text-anchor="middle" font-size="10" font-weight="700" fill="#B45309">$</text>
+  <path d="M28 18 c-4 -6 -12 0 -6 6 l6 6 6 -6 c6 -6 -2 -12 -6 -6z" fill="var(--accent)"/>
+</svg>`;
+const MOIS_FR = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+// « du 5 au 11 octobre », « du 28 septembre au 4 octobre »
+function periodeMots(a, b){ const [ , ma, ja] = a.split("-").map(Number), [ , mb, jb] = b.split("-").map(Number);
+  const j = n => n === 1 ? "1er" : String(n);
+  return ma === mb ? `du ${j(ja)} au ${j(jb)} ${MOIS_FR[mb-1]}` : `du ${j(ja)} ${MOIS_FR[ma-1]} au ${j(jb)} ${MOIS_FR[mb-1]}`; }
+function moisISO(j){ return `${S.info.annee}-${String(S.info.mois).padStart(2,"0")}-${String(j).padStart(2,"0")}`; }
+function depensesDuMois(){ return S.mois.transactions.filter(t => t.utilise && t.date && (t.depense||0) > 0); }
+// semaine (lundi → dimanche) contenant la date
+function lundiDe(iso){ const d = new Date(iso + "T12:00:00"); const k = (d.getDay() + 6) % 7; d.setDate(d.getDate() - k); return d; }
+const isoD = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+function semainesDuMois(){
+  const nb = new Date(S.info.annee, S.info.mois, 0).getDate(), out = [];
+  let j = 1;
+  while(j <= nb){ const deb = moisISO(j), l = lundiDe(deb); const dim = new Date(l); dim.setDate(l.getDate() + 6);
+    const finJ = Math.min(nb, dim.getMonth() === S.info.mois - 1 ? dim.getDate() : nb);
+    out.push({debut: deb, fin: moisISO(finJ)}); j = finJ + 1; }
+  return out;
+}
+function jourReference(){ const t = today(); return t.slice(0,7) === S.info.cle ? t : (t > S.info.cle ? moisISO(new Date(S.info.annee, S.info.mois, 0).getDate()) : moisISO(1)); }
+// budgets : projection selon les jours écoulés
+function suiviBudgets(){
+  const b = (S.etat && S.etat.budgets) || {}, nb = new Date(S.info.annee, S.info.mois, 0).getDate();
+  const jr = jourReference(), jours = Math.max(1, +jr.slice(8,10)), frac = jours / nb;
+  const parCat = {}; depensesDuMois().forEach(t => parCat[t.categorie] = (parCat[t.categorie]||0) + t.depense);
+  return Object.entries(b).map(([cat, max]) => { const dep = parCat[cat] || 0, proj = dep / frac;
+    return {cat, max, dep, proj, frac, ok: proj <= max + 0.005 && dep <= max + 0.005}; });
+}
+function barreBudget(x){
+  return `<div class="bud ${x.ok?"ok":"ko"}"><div class="barre"><i style="width:${Math.min(100, x.dep / x.max * 100).toFixed(1)}%"></i><b style="left:${(x.frac*100).toFixed(1)}%" title="Rythme prévu aujourd'hui"></b></div>
+    <div class="txt"><span>${$$(x.dep)} sur ${$$(x.max)}</span><span class="etat">${x.ok ? "Ça va ✓" : (x.dep > x.max ? "Dépassé" : "Risque de dépasser (" + $$(x.proj) + " prévus)")}</span></div></div>`;
+}
+// ---------------------------------------------------------------- tableau de bord
+function vueBordPaye(el){
+  const m = S.mois, mod = S.info.modifiable, jr = jourReference();
+  const l = lundiDe(jr), dim = new Date(l); dim.setDate(l.getDate() + 6);
+  const semDep = depensesDuMois().filter(t => t.date >= isoD(l) && t.date <= isoD(dim)).reduce((a,t)=>a+t.depense,0);
+  const cit = CITATIONS[(new Date().getDate() + S.info.mois) % CITATIONS.length];
+  const bud = suiviBudgets();
+  el.innerHTML = `
+  <div class="card hero"><div><div class="lbl" style="font-weight:600;color:var(--ink-2)">Solde au compte</div>
+      <div class="gros num">${$$(m.solde_fin)}</div>
+      <div class="small muted">Début du mois : ${$$(m.solde_debut)}${mod?` · <a href="#" id="edSol">modifier</a>`:""}</div>
+      <div class="citation">« ${esc(cit)} »</div></div>${ILLU}</div>
+  <div class="spacer"></div>
+  <div class="grid kpis">
+    ${kpi("Dépenses – semaine en cours", $$(semDep), "Semaine " + periodeMots(isoD(l), isoD(dim)), "", "k-dep")}
+    ${kpi("Dépenses du mois", $$(m.total_depenses), m.total_a_rembourser ? `+ ${$$(m.total_a_rembourser)} à rembourser à ${PART()}` : "Cumul depuis le 1er", "", "k-net")}
+    ${kpi("Investissements", $$(m.total_jv || m.total_investi), m.total_investi ? `Investi : ${$$(m.total_investi)}` : "", "", "k-rev")}
+  </div>
+  <div class="spacer"></div>
+  <div class="grid two">
+    <div class="card cadre"><h3>Dépenses cumulées du mois</h3><div id="gCum"></div></div>
+    <div class="card cadre"><h3>Budgets du mois</h3>${bud.length ? resumeBudgets(bud) + `<div class="bgrille">${bud.map(carteBudget).join("")}</div>`
+      : `<div class="small muted">Aucun budget pour l'instant. Ajoute-les dans Réglages › Budgets.</div>`}</div>
+  </div>`;
+  graphCumul($("#gCum", el));
+  const es = $("#edSol", el); if(es) es.onclick = ev => { ev.preventDefault(); dlgSoldes(m); };
+}
+function graphCumul(g){
+  const nb = new Date(S.info.annee, S.info.mois, 0).getDate(), jr = jourReference(), jmax = +jr.slice(8,10);
+  const parJ = Array(nb + 1).fill(0); depensesDuMois().forEach(t => parJ[+t.date.slice(8,10)] += t.depense);
+  const cum = []; let c = 0; for(let j=1;j<=nb;j++){ c += parJ[j]; cum.push(c); }
+  const totBud = Object.values((S.etat && S.etat.budgets) || {}).reduce((a,v)=>a+v,0);
+  const W = Math.max(300, Math.round(g.clientWidth||560)), H = 200, pl = 44, pr = 8, pt = 10, pb = 24;
+  const mx = Math.max(totBud, c, 1) * 1.08, X = j => pl + (W-pl-pr) * (j-1) / (nb-1), Y = v => H - pb - (H-pb-pt) * v / mx;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Dépenses cumulées du mois">`;
+  for(let i=0;i<=3;i++){ const v = mx/3*i, y = Y(v); s += `<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${pl-6}" y="${y+4}" text-anchor="end">${fmtCourt.format(v)} $</text>`; }
+  if(totBud) s += `<line x1="${X(1)}" y1="${Y(0)}" x2="${X(nb)}" y2="${Y(totBud)}" stroke="var(--ink-3)" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${X(nb)-2}" y="${Y(totBud)-6}" text-anchor="end" style="fill:var(--ink-3)">Budget ${fmtCourt.format(totBud)} $</text>`;
+  const pts = cum.slice(0, jmax).map((v,i) => `${X(i+1)},${Y(v)}`).join(" ");
+  s += `<polyline fill="none" stroke="var(--accent)" stroke-width="2.4" points="${pts}"/>`;
+  if(jmax >= 1) s += `<circle cx="${X(jmax)}" cy="${Y(cum[jmax-1])}" r="4.5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"><title>${dL(jr)} : ${$$(cum[jmax-1])}</title></circle>`;
+  [1, 8, 15, 22, nb].forEach(j => s += `<text x="${X(j)}" y="${H-6}" text-anchor="middle">${j}</text>`);
+  g.innerHTML = s + `</svg><div class="small muted" style="margin-top:4px">${$$(cum[jmax-1] || 0)} dépensés au ${dC(jr)}${totBud ? ` · budget total ${$$(totBud)}` : ""}</div>`;
+}
+// ---------------------------------------------------------------- dépenses : calendrier / par semaine / par catégorie
+function vueTransPaye(el){
+  const m = S.mois, hist = S.info.groupe==="historique", mod = S.info.modifiable;
+  S.sousDep = S.sousDep || "cal";
+  el.innerHTML = `<div class="sous-onglets" id="sous">${[["cal","Calendrier"],["sem","Par semaine"],["cat","Par catégorie"]].map(([k,t])=>`<button data-s="${k}" class="${S.sousDep===k?"on":""}">${t}</button>`).join("")}</div>
+    <div style="display:flex;gap:8px"><input class="search" id="q" placeholder="Rechercher une dépense…">${mod && !hist ? `<button class="btn small" id="btnImport">Importer des captures</button>` : ""}</div>
+    <div class="spacer"></div><div id="zone"></div>`;
+  $("#sous", el).onclick = ev => { const b = ev.target.closest("button"); if(b){ S.sousDep = b.dataset.s; vueTransPaye(el); } };
+  const bi = $("#btnImport", el); if(bi) bi.onclick = () => dlgImportCaptures();
+  const z = $("#zone", el);
+  const draw = () => {
+    const q = $("#q", el).value.toLowerCase().trim();
+    if(q){ // recherche : comme l'app de Zach
+      const l = lignesDepenses().filter(t=>(t.description+" "+t.categorie).toLowerCase().includes(q)).reverse();
+      z.innerHTML = `<div class="card cadre"><div class="list">${l.length ? l.map(t=>`<div class="item" ${mod?`data-l="${t.ligne}"`:'style="cursor:default"'}><div class="main"><div class="t1">${esc(t.description)}</div><div class="t2">${dL(t.date)} · ${esc(t.categorie)}</div></div><div class="amt num">${$$(t.depense)}</div></div>`).join("") : `<div class="empty">Aucun résultat.</div>`}</div></div>`;
+      z.querySelectorAll("[data-l]").forEach(it => it.onclick = () => dlgTransaction(S.mois.transactions.find(t=>t.ligne==it.dataset.l)));
+      return;
+    }
+    if(S.sousDep === "cal") return calendrierDepenses(z);
+    if(S.sousDep === "sem") return depensesParSemaine(z);
+    return depensesParCategorie(z);
+  };
+  $("#q", el).oninput = draw; draw();
+}
+function dlgJourDepenses(titre, lignes, dateAjout){
+  const mod = S.info.modifiable;
+  ouvre(`<div class="dlg-h"><h2>${esc(titre)}</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">${lignes.length ? `<div class="list">${lignes.map(t=>`<div class="item" ${mod?`data-l="${t.ligne}"`:'style="cursor:default"'}><i class="pastille" style="background:${couleurCat(t.categorie)}"></i><div class="main"><div class="t1">${esc(t.description)}</div><div class="t2">${dC(t.date)} · ${esc(t.categorie)}${t.type && semType(t.type)!=="P" ? " · " + esc(TYPES_COURTS[semType(t.type)]||t.type) : ""}</div></div><div class="amt num">${$$(t.depense)}</div></div>`).join("")}</div>` : `<div class="small muted">Aucune dépense.</div>`}
+     <div class="preview total-du"><span>Total</span><b class="num">${$$(lignes.reduce((a,t)=>a+t.depense,0))}</b></div></div>
+   <div class="dlg-f">${mod && dateAjout ? `<button type="button" class="btn primary" id="addJ">+ Ajouter une dépense</button>` : ""}<span class="grow"></span><button type="button" class="btn" data-close>Fermer</button></div>`, d => {
+    const aj = $("#addJ", d); if(aj) aj.onclick = () => dlgTransaction(null, null, null, dateAjout);
+    d.querySelectorAll("[data-l]").forEach(it => it.onclick = () => dlgTransaction(S.mois.transactions.find(t=>t.ligne==it.dataset.l)));
+  });
+}
+function calendrierDepenses(z){
+  const an = S.info.annee, mo = S.info.mois, nb = new Date(an, mo, 0).getDate(), debut = new Date(an, mo-1, 1).getDay(), t0 = today();
+  const par = {}; depensesDuMois().forEach(t => (par[t.date] = par[t.date] || []).push(t));
+  const cats = new Set();
+  let cells = ""; for(let i=0;i<debut;i++) cells += `<div class="jour hors"></div>`;
+  for(let j=1;j<=nb;j++){ const k = moisISO(j), l = par[k] || [], tot = l.reduce((a,t)=>a+t.depense,0);
+    // une bande par catégorie (couleur de la catégorie), un achat par ligne dans la bande
+    const grp = []; l.forEach(t => { let g = grp.find(x => x.cat === t.categorie); if(!g) grp.push(g = {cat: t.categorie, l: []}); g.l.push(t); cats.add(t.categorie); });
+    const bandes = grp.map(g => `<div class="bande" style="--c:${couleurCat(g.cat)}" title="${esc(g.cat)}">${g.l.map(t => `<div class="bl"><span class="d">${esc(descCourte(t.description))}</span><span class="m num">${fmtCourt.format(t.depense)} $</span></div>`).join("")}</div>`).join("");
+    cells += `<div class="jour dep clic ${k===t0?"auj":""}" data-j="${k}"><span class="n">${j}</span>${bandes ? `<div class="bandes">${bandes}</div>` : ""}${tot ? `<span class="tot num">${fmtCourt.format(tot)} $</span>` : ""}</div>`; }
+  const fin = (debut + nb) % 7; if(fin) for(let i=fin;i<7;i++) cells += `<div class="jour hors"></div>`;
+  const total = Object.values(par).flat().reduce((a,t)=>a+t.depense,0);
+  const ordre = (S.etat.categories || []).filter(c => cats.has(c)).concat([...cats].filter(c => !(S.etat.categories||[]).includes(c)));
+  z.innerHTML = `<div class="card cadre"><h3>Calendrier des dépenses</h3>
+    <div class="cal-tot cal-tot2"><div><span>Dépensé ce mois</span><b class="num">${$$(total)}</b></div><div><span>Moyenne par jour</span><b class="num">${$$(total / Math.max(1, +jourReference().slice(8,10)))}</b></div></div>
+    <div class="cal cal-dep">${["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"].map(x=>`<div class="jsem">${x}</div>`).join("")}${cells}</div>
+    ${ordre.length ? `<div class="legend leg-cat">${ordre.map(c=>`<span><i style="background:${couleurCat(c)}"></i>${esc(c)}</span>`).join("")}</div>` : ""}
+    <p class="hint" style="margin:8px 0 0">Chaque couleur = une catégorie. Le total du jour est en bas à droite. Touche un jour pour voir le détail ou ajouter une dépense.</p></div>`;
+  z.querySelectorAll(".jour.clic").forEach(c => c.onclick = () => (par[c.dataset.j] || []).length || !S.info.modifiable
+    ? dlgJourDepenses(new Date(c.dataset.j+"T12:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"}), par[c.dataset.j] || [], c.dataset.j)
+    : dlgTransaction(null, null, null, c.dataset.j));
+}
+// description courte pour les cases du calendrier (« Épicerie Maxi » → « Maxi »)
+function descCourte(d){
+  d = String(d || "").replace(/\s*\(carte [^()]+\)\s*$/, "").trim();
+  const c = d.replace(/^(épicerie|epicerie|restaurant|resto|souper|dîner|diner|brunch|café|cafe)\s+/i, "");
+  return c || d;
+}
+function depensesParSemaine(z){
+  const sem = semainesDuMois(), jr = jourReference(), deps = depensesDuMois(), nbJ = new Date(S.info.annee, S.info.mois, 0).getDate();
+  const totBud = Object.values((S.etat && S.etat.budgets) || {}).reduce((a,v)=>a+v,0);
+  const rows = sem.map(w => { const l = deps.filter(t => t.date >= w.debut && t.date <= w.fin), jours = +w.fin.slice(8,10) - +w.debut.slice(8,10) + 1;
+    const parCat = {}; l.forEach(t => parCat[t.categorie] = (parCat[t.categorie]||0) + t.depense);
+    return Object.assign({}, w, {l, jours, parCat, tot: l.reduce((a,t)=>a+t.depense,0), bud: totBud ? totBud * jours / nbJ : null}); });
+  const mx = Math.max(1, ...rows.map(r => Math.max(r.tot, r.bud || 0))), passees = rows.filter(r => r.debut <= jr);
+  const moy = passees.length ? passees.reduce((a,r)=>a+r.tot,0) / passees.length : 0;
+  S.semOuverte = S.semOuverte ?? rows.findIndex(r => r.debut <= jr && jr <= r.fin);
+  const ordre = S.etat.categories || [];
+  const barre = r => { const segs = Object.entries(r.parCat).sort((a,b)=>ordre.indexOf(a[0])-ordre.indexOf(b[0]));
+    return `<div class="tr-s">${segs.map(([c,v])=>`<i style="width:${(v / mx * 100).toFixed(2)}%;background:${couleurCat(c)}" title="${esc(c)} : ${$$(v)}"></i>`).join("")}${r.bud ? `<b style="left:${(r.bud / mx * 100).toFixed(2)}%" title="Budget de la semaine"></b>` : ""}</div>`; };
+  const etat = r => { if(!r.bud) return ""; const futur = r.debut > jr;
+    if(futur) return `<span class="et neutre">Budget ${$$(r.bud)}</span>`;
+    return r.tot <= r.bud + 0.005 ? `<span class="et ok">✓ Sous le budget de ${$$(r.bud)}</span>` : `<span class="et ko">▲ ${$$(r.tot - r.bud)} de plus que le budget (${$$(r.bud)})</span>`; };
+  const detail = r => { const jours = []; for(let d = new Date(r.debut+"T12:00"); isoD(d) <= r.fin; d.setDate(d.getDate()+1)) jours.push(isoD(d));
+    return `<div class="sem-det">${jours.map(k => { const l = r.l.filter(t => t.date === k), tot = l.reduce((a,t)=>a+t.depense,0);
+      const titreJ = MODE_PAYE() ? new Date(k+"T12:00").toLocaleDateString("fr-CA",{weekday:"long"}) + " " + jourMots(k) : `${JOURS_SEM[new Date(k+"T12:00").getDay()]} ${+k.slice(8,10)}`;
+      return `<div class="sem-jour"><div class="sem-jh"><b>${titreJ}</b><span class="num">${tot ? $$(tot) : "—"}</span></div>
+        ${l.map(t=>`<div class="sem-tx" ${S.info.modifiable?`data-l="${t.ligne}"`:""}><i class="pastille" style="background:${couleurCat(t.categorie)}"></i><span class="d">${esc(t.description)}</span><span class="num">${$$(t.depense)}</span></div>`).join("")}
+        ${S.info.modifiable ? `<button class="btn small sem-add" data-j="${k}">+ Ajouter</button>` : ""}</div>`; }).join("")}</div>`; };
+  z.innerHTML = `<div class="card cadre"><h3>Dépenses par semaine</h3>
+    ${rows.map((r,i) => `<div class="semaine sem2 ${r.debut <= jr && jr <= r.fin ? "cour" : ""}" data-i="${i}"><div><b style="font-weight:600">Semaine ${i+1} <span class="chev" style="display:inline-block;transform:rotate(${S.semOuverte===i?90:0}deg)">›</span></b> <span class="small muted">${periodeMots(r.debut, r.fin)}</span></div>
+      <div class="num" style="text-align:right;font-weight:700">${$$(r.tot)}</div><div class="sem-barre">${barre(r)}</div><div class="sem-et">${etat(r)}</div></div>
+      ${S.semOuverte===i ? detail(r) : ""}`).join("")}
+    <p class="hint" style="margin:8px 0 0">Chaque barre montre les dépenses de la semaine par catégorie (mêmes couleurs que le calendrier).${totBud ? " Le trait gris = ton budget pour cette semaine (budget du mois réparti selon le nombre de jours)." : " Ajoute des budgets dans Réglages pour voir ta limite de la semaine."}</p>
+    <div class="kv" style="margin-top:10px"><div class="k">Moyenne par semaine</div><div class="num">${$$(moy)}</div><div class="k total">Total du mois</div><div class="num total">${$$(rows.reduce((a,r)=>a+r.tot,0))}</div></div></div>`;
+  z.querySelectorAll(".semaine").forEach(e => e.onclick = () => { const i = +e.dataset.i; S.semOuverte = S.semOuverte === i ? -1 : i; depensesParSemaine(z); });
+  z.querySelectorAll(".sem-tx[data-l]").forEach(e => e.onclick = () => dlgTransaction(S.mois.transactions.find(t=>t.ligne==e.dataset.l)));
+  z.querySelectorAll(".sem-add").forEach(b => b.onclick = () => dlgTransaction(null, null, null, b.dataset.j));
+}
+// ---- éléments visuels partagés : anneau de progression, cartes de budget, icônes de catégories
+const ICONES_CAT = {"logement":"🏠","transport":"🚌","nourriture":"🛒","restaurant/dép":"🍽️","restaurant":"🍽️","abonnement":"📺","divertissement":"🎬","vêtements":"👗","autres":"✨","santé":"💊","beauté":"💄","voyage":"✈️","cadeaux":"🎁"};
+const iconeCat = c => ICONES_CAT[String(c||"").toLowerCase()] || "💸";
+function anneau(frac, coul, centre, taille=58){
+  const r = (taille - 8) / 2, C = 2 * Math.PI * r, f = Math.max(0, Math.min(1, frac || 0));
+  return `<svg class="anneau" width="${taille}" height="${taille}" viewBox="0 0 ${taille} ${taille}" aria-hidden="true">
+    <circle cx="${taille/2}" cy="${taille/2}" r="${r}" fill="none" stroke="color-mix(in srgb, ${coul} 18%, var(--surface))" stroke-width="7"/>
+    <circle cx="${taille/2}" cy="${taille/2}" r="${r}" fill="none" stroke="${coul}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${(C*f).toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 ${taille/2} ${taille/2})"/>
+    <text x="50%" y="50%" dy=".35em" text-anchor="middle" class="anneau-t" style="font-size:${String(centre).length > 4 ? (taille < 56 ? 10 : 11) : (taille < 56 ? 11 : 12)}px">${centre}</text></svg>`;
+}
+function etatBudget(x){
+  if(x.dep > x.max + 0.005) return {cl:"ko", txt:"✕ Dépassé", sous:`${$$(x.dep - x.max)} au-dessus`};
+  return {cl:"ok", txt:"✓ Ça va", sous:`Il reste ${$$(x.max - x.dep)}`};
+}
+function carteBudget(x){
+  const e = etatBudget(x), c = couleurCat(x.cat);
+  return `<div class="bcarte" style="--c:${c}">${anneau(x.dep / x.max, c, Math.round(x.dep / x.max * 100) + " %")}
+    <div class="bc-txt"><div class="bc-nom">${iconeCat(x.cat)} ${esc(x.cat)}</div><div class="bc-mt num">${$$(x.dep)} <span>/ ${$$(x.max)}</span></div>
+      <div class="bc-et"><span class="et ${e.cl}">${e.txt}</span> <span class="muted">${e.sous}</span></div></div></div>`;
+}
+function resumeBudgets(bud){
+  const tb = bud.reduce((a,x)=>a+x.max,0), td = bud.reduce((a,x)=>a+x.dep,0), frac = bud.length ? bud[0].frac : 0;
+  const ordre = S.etat.categories || [], mx = Math.max(tb, td);
+  return `<div class="bres"><div class="bres-h"><span><b class="num">${$$(td)}</b> dépensés sur <b class="num">${$$(tb)}</b></span><span class="${td <= tb ? "pos" : "neg"}" style="font-weight:600">${td <= tb ? "Il reste " + $$(tb - td) : $$(td - tb) + " de trop"}</span></div>
+    <div class="tr-s gros">${bud.slice().sort((a,b)=>ordre.indexOf(a.cat)-ordre.indexOf(b.cat)).map(x=>`<i style="width:${(x.dep / mx * 100).toFixed(2)}%;background:${couleurCat(x.cat)}" title="${esc(x.cat)} : ${$$(x.dep)}"></i>`).join("")}<b style="left:${(frac * tb / mx * 100).toFixed(2)}%" title="Rythme prévu aujourd'hui"></b></div>
+    <div class="small muted" style="margin-top:4px">Le trait = où tu devrais être aujourd'hui pour finir le mois dans ton budget.</div></div>`;
+}
+function depensesParCategorie(z){
+  const m = S.mois, g = groupesDepenses().filter(x => x.total > 0.004), bud = Object.fromEntries(suiviBudgets().map(x => [x.cat, x]));
+  const tot = g.reduce((a,x)=>a+x.total,0) || 1;
+  z.innerHTML = `<div class="grid two"><div class="card cadre"><h3>Dépenses par catégorie</h3>
+      ${g.length ? `<div class="donut-z">${donut(g.map(x=>({v:x.total, c:couleurCat(x.categorie), n:x.categorie})), $$(m.total_depenses), "ce mois-ci")}</div>` : ""}
+      ${g.length ? g.map(x=>{ const b = bud[x.categorie], c = couleurCat(x.categorie), e = b ? etatBudget(b) : null;
+        return `<div class="grp" data-c="${esc(x.categorie)}"><div class="grp-h ccarte" role="button" tabindex="0" style="--c:${c}">
+        ${b ? anneau(b.dep / b.max, c, Math.round(b.dep / b.max * 100) + " %", 50) : anneau(x.total / tot, c, Math.round(x.total / tot * 100) + " %", 50)}
+        <div class="main"><div class="t1">${iconeCat(x.categorie)} ${esc(x.categorie)}</div><div class="t2b">${x.lignes.filter(t=>t.depense).length} dépense${x.lignes.length>1?"s":""} · ${b ? "budget " + $$(b.max) : "du total"}</div>${e ? `<div class="bc-et"><span class="et ${e.cl}">${e.txt}</span> <span class="muted">${e.sous}</span></div>` : ""}</div>
+        <div class="amt num">${$$(x.total)}</div><span class="chev">›</span></div></div>`; }).join("") : `<div class="empty">Aucune dépense ce mois-ci.</div>`}
+      <div class="kv" style="margin-top:8px"><div class="k total">Total des dépenses</div><div class="num total">${$$(m.total_depenses)}</div></div>
+      <p class="hint" style="margin:6px 0 0">L'anneau montre le budget utilisé (ou la part du total si la catégorie n'a pas de budget).</p>
+    </div>
+    <div class="card cadre"><h3>Dépenses des 6 derniers mois</h3><div id="g6"><div class="empty">Chargement…</div></div></div></div>`;
+  graphDepenses6(z);
+  z.querySelectorAll(".grp-h").forEach(h=>h.onclick=()=>dlgCategorieDepenses(h.parentNode.dataset.c));
+}
+// beigne : parts du total (catégories), total au centre
+function donut(parts, centre, sous){
+  const T = 168, r = 62, w = 22, C = 2 * Math.PI * r, tot = parts.reduce((a,p)=>a+p.v,0) || 1, gap = parts.length > 1 ? 2.5 : 0;
+  let off = 0, arcs = "";
+  parts.forEach(p => { const L = C * p.v / tot; arcs += `<circle cx="${T/2}" cy="${T/2}" r="${r}" fill="none" stroke="${p.c}" stroke-width="${w}" stroke-dasharray="${Math.max(0, L - gap).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 ${T/2} ${T/2})"><title>${esc(p.n)} : ${$$(p.v)} (${Math.round(p.v/tot*100)} %)</title></circle>`; off += L; });
+  return `<svg class="donut" viewBox="0 0 ${T} ${T}" width="${T}" height="${T}" role="img" aria-label="Répartition des dépenses par catégorie">${arcs}
+    <text x="50%" y="47%" text-anchor="middle" class="dn-v">${centre}</text><text x="50%" y="60%" text-anchor="middle" class="dn-s">${sous}</text></svg>
+    <div class="legend leg-cat" style="flex-direction:column;gap:5px">${parts.map(p=>`<span><i style="background:${p.c}"></i>${iconeCat(p.n)} ${esc(p.n)} <b class="num" style="margin-left:auto;padding-left:10px">${Math.round(p.v/tot*100)} %</b></span>`).join("")}</div>`;
+}
+// ---------------------------------------------------------------- budgets (réglages)
+function carteBudgetsHTML(){
+  const b = (S.etat && S.etat.budgets) || {};
+  return `<div class="card"><h3>Budgets par catégorie <span class="sp"><button class="btn small" id="edBud">Modifier</button></span></h3>
+    ${Object.keys(b).length ? `<div class="kv">${Object.entries(b).map(([c,v])=>`<div class="k">${esc(c)}</div><div class="num">${$$(v)} / mois</div>`).join("")}</div>` : `<div class="small muted">Aucun budget. Fixe un maximum par catégorie (ex. Restaurant : 150 $) : l'app te dira pendant le mois si tu es dans les temps (vert) ou si tu risques de dépasser (rouge).</div>`}</div>`;
+}
+function dlgBudgets(){
+  const b = (S.etat && S.etat.budgets) || {}, cats = S.etat.categories;
+  ouvre(`<form id="fb"><div class="dlg-h"><h2>Budgets par mois</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b"><p class="small muted" style="margin:0">Laisse vide pour ne pas suivre une catégorie.</p>
+     ${cats.map(c=>`<label class="f" style="display:grid;grid-template-columns:1fr 130px;align-items:center;gap:10px;margin:0"><span>${esc(c)}</span><input data-c="${esc(c)}" inputmode="decimal" placeholder="—" value="${esc(v2(b[c]))}" autocomplete="off"></label>`).join("")}</div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary">Enregistrer</button></div></form>`, d => {
+    $("#fb", d).onsubmit = async ev => { ev.preventDefault(); const budgets = {};
+      d.querySelectorAll("[data-c]").forEach(i => budgets[i.dataset.c] = i.value.trim() || null);
+      try { await ecrit("/api/budgets", {budgets}, "Budgets enregistrés"); d.close(); } catch(e){} };
+  });
+}
+// ---------------------------------------------------------------- fonds d'urgence (investissements)
+function dlgFondsUrgence(){
+  ouvre(`<div class="dlg-h"><h2>Ajouter le fonds d'urgence</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b"><p style="margin:0">Une ligne « Fonds d'urgence » sera ajoutée à tes investissements, avec son épargne du mois (comme le CÉLI et le CÉLIAPP).</p>
+     <p class="small muted" style="margin:0">Ça modifie la structure de ton fichier Excel (le gabarit et ce mois-ci). Une copie de sécurité est faite avant.</p></div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primary" id="okFu">Ajouter</button></div>`, d => {
+    $("#okFu", d).onclick = async () => { $("#okFu", d).disabled = true;
+      try { await ecrit("/api/compte-epargne", {nom: "Fonds d'urgence"}, "Fonds d'urgence ajouté"); S.tend = null; d.close(); } catch(e){ $("#okFu", d).disabled = false; } };
+  });
+}
+// ---------------------------------------------------------------- section Couple (app sans pourboires)
+function vueCouple(el){
+  const m = S.mois, mod = S.info.modifiable;
+  if(S.info.groupe==="historique"){ el.innerHTML = `<div class="card"><div class="empty">Mois d'historique : pas de détail du couple.</div></div>`; return; }
+  const p = m.pct_marika, util = m.transactions.filter(t=>t.utilise);
+  const marq = util.filter(t => t.marqueur).pop(), apres = t => !marq || t.ligne > marq.ligne;
+  const split = util.filter(t => semType(t.type) && semType(t.type) !== "P" && (t.marika || 0) !== 0);
+  const arem = util.filter(t => t.a_rembourser);
+  const net = m.total_a_rembourser ? m.du_net : m.du_total;
+  // ce que le partenaire me doit (j'ai payé) / ce que je lui dois (il a payé)
+  const moi = split.filter(t => apres(t) && t.marika > 0), lui = split.filter(t => apres(t) && t.marika < 0);
+  const reps = (m.reports || []).filter(r => r.montant);
+  const totMoi = moi.reduce((a,t)=>a+t.marika,0) + reps.filter(r=>r.montant>0).reduce((a,r)=>a+r.montant,0);
+  const totLui = arem.reduce((a,t)=>a+t.deboursement,0) - lui.reduce((a,t)=>a+t.marika,0) - reps.filter(r=>r.montant<0).reduce((a,r)=>a+r.montant,0);
+  const RX_CZ = /\(carte [^()]+\)\s*$/;
+  const regMoi = split.filter(t => !apres(t) && t.marika > 0);                       // tu avais payé → ${PART()} t'a remboursé sa part
+  const regLui = util.filter(t => marq && t.ligne <= marq.ligne && ((semType(t.type) === "P" && RX_CZ.test(t.description)) || (semType(t.type) && semType(t.type) !== "P" && t.marika < 0)));  // ${PART()} avait payé → tu lui as remboursé ta part
+  const vLui = t => semType(t.type) === "P" ? t.depense : -t.marika;
+  const typeTxt = t => semType(t.type) === "50" ? "50/50" : semType(t.type) === "SP" ? `selon vos revenus (${PART()} ${pct(p)})` : "remboursement";
+  const ico = c => `<span class="cp-ico" style="--c:${couleurCat(c)}">${iconeCat(c)}</span>`;
+  const lMoi = t => `<div class="cp-l">${ico(t.categorie)}<div style="min-width:0"><div class="d">${esc(descCourte(t.description))}</div><div class="s">${dC(t.date)} · tu as payé ${$$(t.deboursement)} · ${typeTxt(t)}</div></div><div class="v num">${$$(t.marika)}<small>sa part</small></div></div>`;
+  const lLui = t => { const v = t.a_rembourser ? t.deboursement : -t.marika;
+    return `<div class="cp-l">${ico(t.categorie)}<div style="min-width:0"><div class="d">${esc(descCourte(t.description))}</div><div class="s">${dC(t.date)} · payé par ${PART()}${t.a_rembourser ? "" : " · " + typeTxt(t)}</div></div><div class="v num">${$$(v)}<small>ta part</small></div></div>`; };
+  const lRep = r => `<div class="cp-l">${ico("Autres")}<div style="min-width:0"><div class="d">${esc(r.libelle || "Autre montant")}</div><div class="s">montant ajouté à la main</div></div><div class="v num">${$$(Math.abs(r.montant))}</div></div>`;
+  const phrase = Math.abs(net) < 0.005 ? "Vous êtes quittes 🎉" : net > 0 ? `${PART()} te doit ${$$(net)}` : `Tu dois ${$$(-net)} à ${PART()}`;
+  el.innerHTML = `<div class="grid two">
+   <div class="grid" style="align-content:start">
+    <div class="card cadre"><h3>Solde avec ${PART()}</h3>
+      <div class="num" style="font-size:26px;font-weight:750;margin:2px 0 10px;color:${net >= 0 ? "var(--pos)" : "var(--accent)"}">${phrase}</div>
+      <div class="cp-calc">
+        <div>💚 Ce que ${PART()} te doit</div><div class="num pos" style="font-weight:650">${$$(totMoi)}</div>
+        <div>💗 Ce que tu dois à ${PART()}</div><div class="num" style="font-weight:650;color:var(--accent)">− ${$$(totLui)}</div>
+        <div class="tot">${net >= 0 ? `${PART()} te doit` : `Tu dois à ${PART()}`}</div><div class="num tot">${$$(Math.abs(net))}</div>
+      </div>
+      <div style="margin-top:12px">${marq ? `<div class="regle-banniere">✓ <span>Dernier remboursement : <b>${dL(marq.date)}</b></span></div>` : `<div class="small muted">Aucun remboursement inscrit ce mois-ci.</div>`}</div>
+      ${mod ? `<button class="btn primary gros" id="btnRegle" style="margin-top:12px">✓ Marquer le solde réglé</button>` : ""}
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn small" id="cpPart">Partager avec ${PART()}</button><button class="btn small" id="cpRec">Recevoir un partage</button><button class="btn small" id="cpDet">Détail et autres montants</button></div>
+    </div>
+    ${carteRepartitionHTML(m, mod)}
+   </div>
+   <div class="card cadre"><h3>Dépenses de couple${marq ? ` depuis le ${dL(marq.date)}` : ` – ${esc(S.info.nom)}`}</h3>
+     <div class="cp-bloc moi"><div class="cp-titre"><span>💚 Tu as payé<small>${PART()} te doit sa part</small></span><span class="num pos">${$$(totMoi)}</span></div>
+       ${moi.length || reps.some(r=>r.montant>0) ? moi.map(lMoi).join("") + reps.filter(r=>r.montant>0).map(lRep).join("") : `<div class="small muted" style="padding:6px 0">Rien pour l'instant.</div>`}</div>
+     <div class="cp-bloc lui"><div class="cp-titre"><span>💗 ${PART()} a payé<small>tu lui dois ta part</small></span><span class="num" style="color:var(--accent)">${$$(totLui)}</span></div>
+       ${arem.length || lui.length || reps.some(r=>r.montant<0) ? arem.map(lLui).join("") + lui.map(lLui).join("") + reps.filter(r=>r.montant<0).map(lRep).join("") : `<div class="small muted" style="padding:6px 0">Rien en attente. Quand ${PART()} te partage ses dépenses, elles apparaissent ici.</div>`}</div>
+     <div class="cp-calc" style="margin-top:12px"><div>💚 ${$$(totMoi)} − 💗 ${$$(totLui)}</div><div></div><div class="tot">${net >= 0 ? `${PART()} te doit` : `Tu dois à ${PART()}`}</div><div class="num tot">${$$(Math.abs(net))}</div></div>
+     ${regMoi.length || regLui.length ? `<details class="cp-vieux"><summary>Déjà remboursé (jusqu'au ${dL(marq.date)})</summary>
+       <div class="cp-bloc moi"><div class="cp-titre"><span>💚 ${PART()} t'a remboursé<small>tu avais payé, ${PART()} t'a remis sa part</small></span><span class="num pos">${$$(regMoi.reduce((a,t)=>a+t.marika,0))}</span></div>
+         ${regMoi.length ? regMoi.map(lMoi).join("") : `<div class="small muted" style="padding:6px 0">Aucune.</div>`}</div>
+       <div class="cp-bloc lui"><div class="cp-titre"><span>💗 Tu as remboursé ${PART()}<small>${PART()} avait payé, tu lui as remis ta part</small></span><span class="num" style="color:var(--accent)">${$$(regLui.reduce((a,t)=>a+vLui(t),0))}</span></div>
+         ${regLui.length ? regLui.map(t => `<div class="cp-l"><span class="cp-ico" style="--c:${couleurCat(t.categorie)}">${iconeCat(t.categorie)}</span><div style="min-width:0"><div class="d">${esc(descCourte(t.description))}</div><div class="s">${dC(t.date)} · payé par ${PART()}</div></div><div class="v num">${$$(vLui(t))}<small>ta part</small></div></div>`).join("") : `<div class="small muted" style="padding:6px 0">Aucune.</div>`}</div>
+     </details>` : ""}
+     <p class="hint" style="margin:10px 0 0">Les dépenses payées par ${PART()} comptent dans tes dépenses (et dans ton solde) seulement quand tu touches « Marquer le solde réglé ».</p>
+   </div></div>`;
+  if(mod) brancheRepartition(el, m);
+  $("#cpPart", el).onclick = () => dlgPartage();
+  $("#cpRec", el).onclick = () => dlgCollePartage();
+  $("#cpDet", el).onclick = () => dlgMarika();
+  const b = $("#btnRegle", el);
+  if(b) b.onclick = () => { if(!util.length) return toast("Aucune transaction", true); dlgConfirmeReglement(m, util[util.length-1]); };
+}
+// ---------------------------------------------------------------- calendrier des payes (aux 2 semaines)
+function joursDePaye(an, mo){
+  const ref = new Date((REG().paye_reference || "2026-10-01") + "T12:00:00"), pas = (REG().paye_intervalle || 14);
+  const out = [], nb = new Date(an, mo, 0).getDate();
+  for(let j=1;j<=nb;j++){ const d = new Date(an, mo-1, j, 12); const diff = Math.round((d - ref) / 86400000);
+    if(((diff % pas) + pas) % pas === 0) out.push(`${an}-${String(mo).padStart(2,"0")}-${String(j).padStart(2,"0")}`); }
+  return out;
+}
+function payesParDate(){
+  const par = {};
+  S.mois.revenus.filter(r => r.utilise && estFio(r) && r.date).forEach(r => (par[r.date] = par[r.date] || []).push(r));
+  return par;
+}
+function revenusParDate(){
+  const par = {};
+  S.mois.revenus.filter(r => r.utilise && r.date).forEach(r => (par[r.date] = par[r.date] || []).push(r));
+  return par;
+}
+function calendrierPaye(el){
+  const mod = S.info.modifiable, an = S.info.annee, mo = S.info.mois;
+  const par = revenusParDate(), payesPar = payesParDate(), payes = joursDePaye(an, mo);
+  const nbJours = new Date(an, mo, 0).getDate(), debut = new Date(an, mo-1, 1).getDay();
+  const iso = j => `${an}-${String(mo).padStart(2,"0")}-${String(j).padStart(2,"0")}`, t0 = today(), cle = iso(1).slice(0,7);
+  let cells = "";
+  for(let i=0;i<debut;i++) cells += `<div class="jour hors"></div>`;
+  for(let j=1;j<=nbJours;j++){
+    const k = iso(j), lst = par[k] || [], tot = lst.reduce((a,r)=>a+(r.montant||0),0);
+    const cl = lst.length ? (lst.some(r => estFio(r)) ? "cal-oui" : "cal-autre") : (payes.includes(k) ? "cal-non" : "");
+    const lib = lst.length ? (lst.some(r => estFio(r)) ? (lst.length > 1 ? "Paye +" : "Paye") : "Autre") : (payes.includes(k) ? "Paye" : "");
+    cells += `<div class="jour ${cl} ${k===t0?"auj":""} ${mod?"clic":""}" data-j="${k}"><span class="n">${j}</span>${lst.length?`<span class="e num" title="${$$(tot)}">${fmtCourt.format(tot)} $</span>`:""}${lib?`<span class="r">${lib}</span>`:""}</div>`;
+  }
+  const fin = (debut + nbJours) % 7; if(fin) for(let i=fin;i<7;i++) cells += `<div class="jour hors"></div>`;
+  const recues = payes.filter(k => payesPar[k]).length;
+  const revMois = S.mois.revenus.filter(r => r.utilise && (r.date||"").startsWith(cle));
+  const totPaye = revMois.filter(estFio).reduce((a,r)=>a+(r.montant||0),0), totAutres = revMois.filter(r=>!estFio(r)).reduce((a,r)=>a+(r.montant||0),0);
+  const prochaine = payes.find(k => !payesPar[k] && k >= t0) || payes.find(k => !payesPar[k]);
+  el.innerHTML = `<h3>Calendrier des revenus</h3>
+    <div class="cal-tot cal-tot4">
+      <div><span>Payes reçues</span><b class="num">${recues} sur ${payes.length}</b></div>
+      <div><span>${esc(REG().revenu_principal)} du mois</span><b class="num">${$$(totPaye)}</b></div>
+      <div><span>Autres revenus du mois</span><b class="num">${$$(totAutres)}</b></div>
+      <div><span>Prochaine paye</span><b>${prochaine ? (MODE_PAYE() ? new Date(prochaine+"T12:00").toLocaleDateString("fr-CA",{weekday:"long"}) + " " + jourMots(prochaine) : `${JOURS_SEM[new Date(prochaine+"T12:00").getDay()]} ${dC(prochaine)}`) : "—"}</b></div>
+    </div>
+    <div class="cal">${["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"].map(x=>`<div class="jsem">${x}</div>`).join("")}${cells}</div>
+    <div class="legend"><span><i style="background:var(--pos-soft);border:1px solid var(--cadre)"></i>Paye reçue</span><span><i style="background:var(--autre-soft);border:1px solid var(--cadre)"></i>Autre revenu</span><span><i style="background:var(--neg-soft);border:1px solid var(--cadre)"></i>Paye pas encore reçue</span></div>
+    ${mod ? `<p class="hint" style="margin:8px 0 0">Touche un jour pour inscrire une paye ou un autre revenu.</p>` : ""}`;
+  if(!mod) return;
+  el.querySelectorAll(".jour.clic").forEach(c => c.onclick = () => dlgRevenuJour(c.dataset.j));
+}
+function dlgRevenuJour(k){
+  const lst = revenusParDate()[k] || [], descPaye = (DESC_FIO_()[0] || "Paye"), estPaye = joursDePaye(S.info.annee, S.info.mois).includes(k);
+  const titre = new Date(k+"T12:00:00").toLocaleDateString("fr-CA", {weekday:"long", day:"numeric", month:"long"});
+  const sugg = (S.etat.descriptions_autres_revenus || []);
+  let sorte = lst.some(estFio) || (!lst.length && estPaye) ? "paye" : "autre", edit = null;
+  ouvre(`<form id="frj"><div class="dlg-h"><h2>Revenus – ${esc(titre)}</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     ${lst.length ? `<div class="list">${lst.map(r=>`<div class="item" data-r="${r.ligne}"><div class="main"><div class="t1">${esc(r.description||"(sans description)")}</div><div class="t2">${estFio(r) ? esc(REG().revenu_principal) : "Autre revenu"} · touche pour modifier</div></div><div class="amt num">${$$(r.montant)}</div></div>`).join("")}</div>` : ""}
+     <div class="sec-h" style="margin-top:4px"><b id="frjT">Ajouter un revenu</b></div>
+     <div class="seg" id="srt"><button type="button" data-s="paye">${esc(descPaye)}</button><button type="button" data-s="autre">Autre revenu</button></div>
+     <label class="f" id="lAut">Description<input name="autre" autocomplete="off" placeholder="ex. Crédit d'impôts" list="dlAut"><datalist id="dlAut">${sugg.map(x=>`<option value="${esc(x)}">`).join("")}</datalist></label>
+     <label class="f">Montant reçu<input name="montant" inputmode="decimal" required placeholder="0,00" autocomplete="off"></label>
+   </div>
+   <div class="dlg-f"><button type="button" class="btn danger" id="del" style="display:none">Supprimer</button><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button><button class="btn primary" id="frjOk">Ajouter</button></div></form>`, d => {
+    const f = $("#frj", d);
+    const maj = () => { $("#srt", d).querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.s===sorte)); $("#lAut", d).style.display = sorte==="autre" ? "" : "none"; };
+    $("#srt", d).onclick = ev => { const b = ev.target.closest("button"); if(b){ sorte = b.dataset.s; maj(); } };
+    d.querySelectorAll("[data-r]").forEach(it => it.onclick = () => { edit = lst.find(r => r.ligne == it.dataset.r);
+      sorte = estFio(edit) ? "paye" : "autre"; f.autre.value = estFio(edit) ? "" : (edit.description||""); f.montant.value = edit.montant_txt || v2(edit.montant);
+      $("#frjT", d).textContent = "Modifier : " + (edit.description||""); $("#frjOk", d).textContent = "Enregistrer"; $("#del", d).style.display = ""; maj(); f.montant.focus(); });
+    maj(); setTimeout(() => f.montant.focus(), 50);
+    f.onsubmit = async ev => { ev.preventDefault();
+      const description = sorte === "paye" ? (edit && estFio(edit) ? edit.description : descPaye) : (f.autre.value||"").trim();
+      if(!description) return toast("Indique une description", true);
+      try { await ecrit("/api/revenu", {ligne: edit ? edit.ligne : null, date: k, montant: f.montant.value, description}, "Revenu enregistré"); d.close(); } catch(e){} };
+    $("#del", d).onclick = async () => { if(edit && confirm("Supprimer ce revenu ?")){ try { await ecrit("/api/revenu/supprimer", {ligne: edit.ligne}, "Revenu supprimé"); d.close(); } catch(e){} } };
+  });
+}
+function dlgPayeJour(k){ dlgRevenuJour(k); }
 
 // ---------------------------------------------------------------- calendrier des pourboires
 const fmtCourt = new Intl.NumberFormat("fr-CA", {maximumFractionDigits:0});
@@ -1031,7 +1536,7 @@ function calendrierPourboires(el){
     </div>
     <div class="cal">${["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"].map(x=>`<div class="jsem">${x}</div>`).join("")}${cells}</div>
     <div class="legend"><span><i style="background:var(--pos-soft);border:1px solid var(--cadre)"></i>Reçu</span><span><i style="background:var(--neg-soft);border:1px solid var(--cadre)"></i>Non reçu</span></div>
-    ${horsMois.length?`<div class="small muted" style="margin-top:8px">Hors du mois : ${horsMois.map(k=>`<a href="#" data-hm="${k}">${k==="sans-date"?"sans date":dateFR(k)}</a>`).join(", ")}</div>`:""}`;
+    ${horsMois.length?`<div class="small muted" style="margin-top:8px">Hors du mois : ${horsMois.map(k=>`<a href="#" data-hm="${k}">${k==="sans-date"?"sans date":dL(k)}</a>`).join(", ")}</div>`:""}`;
   if(!mod) return;
   el.querySelectorAll(".jour.clic").forEach(c=>c.onclick=()=>dlgPourboireJour(c.dataset.j));
   el.querySelectorAll("[data-hm]").forEach(a=>a.onclick=ev=>{ ev.preventDefault(); dlgPourboireJour(a.dataset.hm); });
@@ -1087,7 +1592,7 @@ const DESC_FIO_ = () => REG().descriptions_revenu_principal;
 function groupesRevenus(){
   const revs = S.mois.revenus.filter(r=>r.utilise);
   return [
-    {cle:"fio", titre:esc(REG().revenu_principal), sous:"", lignes:revs.filter(estFio)},
+    {cle:"fio", titre:REG().revenu_principal, sous:"", lignes:revs.filter(estFio)},
     {cle:"autres", titre:"Autres revenus", sous:"Tout le reste", lignes:revs.filter(r=>!estFio(r))},
   ];
 }
@@ -1098,7 +1603,7 @@ function dlgGroupeRevenus(cle){
   ouvre(`<div class="dlg-h"><h2>${esc(g.titre)} – ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
   <div class="dlg-b">
     ${lignes.length?`<div class="scroll-x"><table class="t"><thead><tr><th>Date</th><th style="text-align:left">Description</th><th>Montant</th></tr></thead><tbody>
-      ${lignes.map(r=>`<tr ${mod?`data-r="${r.ligne}" class="tr-clic"`:""}><td>${dateFR(r.date).slice(0,5)}</td><td class="desc" style="text-align:left">${esc(r.description||"(sans description)")}</td><td class="num">${$$(r.montant)}</td></tr>`).join("")}
+      ${lignes.map(r=>`<tr ${mod?`data-r="${r.ligne}" class="tr-clic"`:""}><td>${dC(r.date)}</td><td class="desc" style="text-align:left">${esc(r.description||"(sans description)")}</td><td class="num">${$$(r.montant)}</td></tr>`).join("")}
     </tbody></table></div>`:`<div class="small muted">Aucun revenu enregistré.</div>`}
     <div class="preview total-du"><span>Total</span><b class="num">${$$(total)}</b></div>
   </div>
@@ -1150,7 +1655,7 @@ function dlgRevenu(r, apres, groupe){
                                              : "Coche les jours payés sur cette paye (seuls les pourboires à recevoir sont additionnés).";
       $("#jours", d).innerHTML = pourb.length ? pourb.map(p => { const x = pris[p.ligne], dt = p.date ? new Date(p.date+"T12:00") : null;
         return `<label class="jour ${x?"pris":""}"><input type="checkbox" data-l="${p.ligne}" ${choisies.has(p.ligne)?"checked":""} ${x?"disabled":""}>
-          <span>${dt?JOURS_SEM[dt.getDay()]+" "+dateFR(p.date).slice(0,5):"(sans date)"}${x?`<span class="sous-t">déjà dans « ${esc(x.description)} » du ${dateFR(x.date).slice(0,5)}</span>`:""}</span>
+          <span>${dt?JOURS_SEM[dt.getDay()]+" "+dC(p.date):"(sans date)"}${x?`<span class="sous-t">déjà dans « ${esc(x.description)} » du ${dC(x.date)}</span>`:""}</span>
           <b class="num">${$$(montantJour(p,c))}</b></label>`; }).join("")
         : `<div class="small muted" style="padding:8px">Aucun jour inscrit dans le calendrier des pourboires de ce mois.</div>`;
       $("#jours", d).querySelectorAll("input").forEach(i => i.onchange = () => { i.checked ? choisies.add(+i.dataset.l) : choisies.delete(+i.dataset.l); $("#tcases", d).textContent = $$(total()); });
@@ -1196,25 +1701,29 @@ function vueInv(el){
   if(!inv.length){ el.innerHTML = `<div class="card"><div class="empty">Aucun investissement pour ce mois.</div></div>`; return; }
   const ti = inv.reduce((s,x)=>s+(x.investi||0),0), tj = inv.reduce((s,x)=>s+(x.jv||0),0);
   el.innerHTML = `<div class="grid kpis">${kpi("Montant investi", $$(ti))}${kpi("Valeur marchande", $$(tj))}${kpi("Variation", $$(tj-ti), ti?pct((tj-ti)/ti):"", tj-ti<0?"neg":"pos")}</div><div class="spacer"></div>
-   <div class="card cadre"><h3>Par compte</h3><div class="scroll-x"><table class="t"><thead><tr><th>Compte</th><th>Investi</th><th>Valeur marchande</th><th>Variation</th>${mod?"<th></th>":""}</tr></thead><tbody>
-   ${inv.map(x=>`<tr><td>${esc(x.type)}</td><td class="num">${$$(x.investi)}${x.investi_auto===false && x.investi_auto_possible ? ` <span class="chip" title="Saisi à la main">manuel</span>` : ""}</td><td class="num">${$$(x.jv)}</td><td class="num ${x.variation<0?"neg":"pos"}">${$$(x.variation)}</td>${mod&&x.ligne?`<td><button class="btn small" data-i="${x.ligne}">Modifier</button></td>`:mod?"<td></td>":""}</tr>`).join("")}
-   </tbody></table></div></div>
+   ${MODE_PAYE() ? `<div class="card cadre"><h3>Par compte</h3><div class="list">${inv.map(x=>`<div class="item"${mod&&x.ligne?` data-i="${x.ligne}"`:""}><div class="main"><div class="t1">${esc(x.type)}${x.valeur_fixe?` <span class="chip" title="Pas en bourse : la valeur égale le montant mis de côté">valeur fixe</span>`:""}${x.investi_auto===false && x.investi_auto_possible ? ` <span class="chip">manuel</span>` : ""}</div>
+     <div class="t2"><span>${x.valeur_fixe ? "Mis de côté – pas en bourse" : `Investi ${$$(x.investi)} · <span class="${x.variation<0?"neg":"pos"}">${x.variation<0?"":"+"}${$$(x.variation)}</span>`}${mod&&x.ligne?" · touche pour modifier":""}</span></div></div><div class="amt num">${$$(x.jv)}</div></div>`).join("")}</div></div>` :
+   `<div class="card cadre"><h3>Par compte</h3><div class="scroll-x"><table class="t"><thead><tr><th>Compte</th><th>Investi</th><th>Valeur marchande</th><th>Variation</th>${mod?"<th></th>":""}</tr></thead><tbody>
+   ${inv.map(x=>`<tr><td>${esc(x.type)}</td><td class="num">${$$(x.investi)}${x.investi_auto===false && x.investi_auto_possible ? ` <span class="chip" title="Saisi à la main">manuel</span>` : ""}</td><td class="num">${$$(x.jv)}${x.valeur_fixe?` <span class="chip" title="Pas en bourse : la valeur égale le montant mis de côté">fixe</span>`:""}</td><td class="num ${x.variation<0?"neg":"pos"}">${x.valeur_fixe ? "—" : $$(x.variation)}</td>${mod&&x.ligne?`<td><button class="btn small" data-i="${x.ligne}">Modifier</button></td>`:mod?"<td></td>":""}</tr>`).join("")}
+   </tbody></table></div></div>`}
+   ${MODE_PAYE() && mod && !inv.some(x=>/urgence/i.test(x.type)) ? `<div class="spacer"></div><div class="card"><h3>Fonds d'urgence</h3><p class="small muted" style="margin:0 0 10px">Suis ton fonds d'urgence avec tes autres placements : montant mis de côté, épargne du mois et valeur actuelle.</p><button class="btn primary" id="addFu">Ajouter mon fonds d'urgence</button></div>` : ""}
    <div class="spacer"></div>
    <div class="card cadre"><h3>Évolution des investissements</h3><div id="g3"><div class="empty">Chargement…</div></div><div class="legend"><span><i style="background:var(--accent)"></i>Valeur marchande</span><span><i style="background:var(--ink-3)"></i>Montant investi</span></div></div>`;
   (async () => { try { if(!S.tend) S.tend = await api("/api/tendances"); const g = $("#g3", el); if(g) graphLignes(g, S.tend, [{f:x=>x.jv||null,c:"var(--accent)",n:"Valeur marchande"},{f:x=>x.investi||null,c:"var(--ink-3)",n:"Montant investi"}]); } catch(e){} })();
   el.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>dlgInvest(inv.find(i=>i.ligne==b.dataset.i)));
+  const fu = $("#addFu", el); if(fu) fu.onclick = () => dlgFondsUrgence();
 }
 function dlgInvest(x){
   // capital investi : calculé normalement (mois précédent + épargne du mois) ; modifiable à la main au besoin
-  let manuel = !x.investi_auto;
+  let manuel = !x.investi_auto; const LIB = x.valeur_fixe ? "Montant mis de côté" : "Capital investi";
   ouvre(`<form id="fi"><div class="dlg-h"><h2>${esc(x.type)} – ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
    <div class="dlg-b">
-     <label class="f">Valeur marchande (JV)<input name="jv" inputmode="decimal" value="${esc(v2(x.jv))}" autocomplete="off"></label>
+     ${x.valeur_fixe ? `<p class="small muted" style="margin:0">Compte d'épargne (pas en bourse) : sa valeur est égale au montant mis de côté.</p>` : `<label class="f">Valeur marchande (JV)<input name="jv" inputmode="decimal" value="${esc(v2(x.jv))}" autocomplete="off"></label>`}
      <div class="card" style="padding:12px 14px;background:var(--surface-2);border:0;display:grid;gap:8px">
-       <div style="display:flex;align-items:center;gap:8px"><b>Capital investi</b><span class="grow" style="flex:1"></span><b class="num">${$$(x.investi)}</b></div>
+       <div style="display:flex;align-items:center;gap:8px"><b>${LIB}</b><span class="grow" style="flex:1"></span><b class="num">${$$(x.investi)}</b></div>
        <div class="small muted" id="iMode"></div>
-       <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="iMan" style="width:18px;height:18px;accent-color:var(--accent)" ${manuel?"checked":""} ${x.investi_auto_possible?"":"disabled"}> Modifier manuellement le capital investi</label>
-       <label class="f" id="iChamp" style="margin:0">Capital investi<input name="investi" inputmode="decimal" value="${esc(v2(x.investi))}" autocomplete="off"></label>
+       <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="iMan" style="width:18px;height:18px;accent-color:var(--accent)" ${manuel?"checked":""} ${x.investi_auto_possible?"":"disabled"}> Modifier manuellement ${x.valeur_fixe ? "le montant mis de côté" : "le capital investi"}</label>
+       <label class="f" id="iChamp" style="margin:0">${LIB}<input name="investi" inputmode="decimal" value="${esc(v2(x.investi))}" autocomplete="off"></label>
      </div>
    </div>
    <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary">Enregistrer</button></div></form>`, d => {
@@ -1228,7 +1737,7 @@ function dlgInvest(x){
     };
     $("#iMan", d).onchange = maj; maj();
     f.onsubmit = async ev => { ev.preventDefault();
-      const corps = {ligne: x.ligne, jv: f.jv.value};
+      const corps = {ligne: x.ligne}; if(f.jv) corps.jv = f.jv.value;
       if(manuel){ if(!(f.investi.value||"").trim()) return toast("Indique le capital investi", true); corps.investi = f.investi.value; }
       else if(!x.investi_auto) corps.investi_auto = true;      // retour au calcul normal
       try { await ecrit("/api/investissement", corps, "Enregistré"); d.close(); } catch(e){}
@@ -1266,6 +1775,7 @@ function vueRegl(el){
     ${window.WEB ? WEB.carteReglages() : ""}
    </div>
    <div class="grid" style="align-content:start">
+    ${carteBudgetsHTML()}
     <div class="card"><h3>Catégories <span class="sp"><button class="btn small" id="addCat">Ajouter</button></span></h3><div style="display:flex;flex-wrap:wrap;gap:6px">${e.categories.map(c=>`<span class="chip" style="font-size:13px;padding:3px 9px"><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${couleurCat(c)};margin-right:5px"></i>${esc(c)}</span>`).join("")}</div></div>
     <div class="card"><h3>Mots-clés → catégorie <span class="sp"><button class="btn small" id="addMot">Ajouter</button></span></h3>
       <input class="search" id="qm" placeholder="Rechercher un mot-clé…"><div class="list" id="lm" style="max-height:340px;overflow:auto;margin-top:6px"></div>
@@ -1274,6 +1784,7 @@ function vueRegl(el){
   const draw = () => { const q=$("#qm").value.toLowerCase(); $("#lm").innerHTML = e.motscles.map((k,i)=>[k,i]).filter(([k])=>!q||(k.mot+" "+k.categorie).toLowerCase().includes(q)).map(([k,i])=>`<div class="item" style="cursor:default;padding:6px 2px"><div class="main"><div class="t1" style="font-weight:500">${esc(k.mot)}</div></div><span class="chip">${esc(k.categorie)}</span><span class="muted small num" style="width:28px;text-align:right">${i+1}</span></div>`).join(""); };
   $("#qm").oninput = draw; draw();
   $("#nm").onclick = () => dlgNouveauMois();
+  $("#edBud").onclick = () => dlgBudgets();
   if(window.WEB) WEB.brancheReglages(el);
   $("#addCat").onclick = () => ouvre(`<form id="fx"><div class="dlg-h"><h2>Nouvelle catégorie</h2><button type="button" class="x" data-close>✕</button></div><div class="dlg-b"><label class="f">Nom<input name="nom" required></label><p class="hint" style="margin:0">Ajoutée dans l'onglet Listes, dans les listes déroulantes et dans le résumé par catégorie du Canvas et des mois modifiables.</p></div><div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary">Ajouter</button></div></form>`, d=>{ $("#fx",d).onsubmit=async ev=>{ev.preventDefault(); try{ await ecrit("/api/listes/categorie",{nom:$("#fx",d).nom.value},"Catégorie ajoutée"); d.close(); }catch(x){}}; });
   $("#addMot").onclick = () => ouvre(`<form id="fx"><div class="dlg-h"><h2>Nouveau mot-clé</h2><button type="button" class="x" data-close>✕</button></div><div class="dlg-b"><label class="f">Mot-clé (contenu dans la description)<input name="mot" required></label><label class="f">Catégorie<select name="categorie">${e.categories.map(c=>`<option>${esc(c)}</option>`).join("")}</select></label><p class="hint" style="margin:0">Ajouté juste avant les 3 derniers mots-clés, qui restent en bas de la liste.</p></div><div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary">Ajouter</button></div></form>`, d=>{ const f=$("#fx",d); f.onsubmit=async ev=>{ev.preventDefault(); try{ await ecrit("/api/listes/mot-cle",{mot:f.mot.value,categorie:f.categorie.value},"Mot-clé ajouté"); d.close(); }catch(x){}}; });

@@ -215,6 +215,10 @@ class Disposition:
         return num_en_col(col_en_num(col) + 1) + str(c.lig)
 
 
+RX_FIXE = re.compile(r"urgence|épargne|epargne", re.I)     # comptes hors bourse : valeur = montant mis de côté
+RX_A_REMBOURSER = re.compile(r"\(carte [^()]+ – à rembourser\)\s*$")
+
+
 def sem_type(t):
     n = normalise(t or "")
     if n.startswith("personnel"):
@@ -443,7 +447,10 @@ class Application:
                     "R": (1 - pct) if pct is not None else None}.get(st) if exact else None
             erreur = False
             dep = None
-            if deb is not None and deb > 0:
+            a_remb = bool(not typ.strip() and RX_A_REMBOURSER.search(desc))
+            if a_remb:
+                prop = None                        # part reçue de la carte du partenaire, pas encore remboursée
+            elif deb is not None and deb > 0:
                 if prop is None:
                     erreur = True
                 else:
@@ -482,7 +489,8 @@ class Application:
                           "description": desc.strip(), "type": typ.strip(), "type_exact": exact,
                           "deboursement": deb, "deb_formule": ("=" + cd.formule) if cd is not None and cd.formule else None,
                           "proportion": prop, "depense": dep, "categorie": cat, "cat_auto": cat_auto,
-                          "cat_manuelle": override, "marika": km, "marqueur": marq, "erreur": erreur})
+                          "cat_manuelle": override, "marika": km, "marqueur": marq, "erreur": erreur,
+                          "a_rembourser": a_remb})
         total = sum(t["depense"] or 0 for t in trans)
         k_total = sum(t["marika"] or 0 for t in trans)
         calc[d.c_dep + str(d.lig_total)] = total
@@ -572,6 +580,7 @@ class Application:
                          "variation": (cj - bi) if bi is not None and cj is not None else None,
                          # capital investi : calculé (formule du mois précédent + épargne) ou saisi à la main
                          "investi_auto": bool(cb is not None and cb.formule),
+                         "valeur_fixe": bool(RX_FIXE.search(t) and f.cell("C" + str(r)) is not None and (f.cell("C" + str(r)).formule or "").replace("$", "") == "B%d" % r),
                          "investi_auto_possible": self._formule_investi_auto(nom, r) is not None})
         # résumé
         debut = num(ev(d.a_debut))
@@ -667,6 +676,8 @@ class Application:
             "pct_marika": pct, "pct_manuel": pct_manuel, "revenu_marika": marika_rev, "revenu_zach": zach_rev,
             "pct_repartition": pct_repart, "transactions": trans, "total_depenses": total,
             "total_split": k_total, "du_depuis_reglement": du_depuis, "reports": reports, "du_total": du_total,
+            "total_a_rembourser": r2(sum(t["deboursement"] or 0 for t in trans if t.get("a_rembourser"))),
+            "du_net": r2((du_total or 0) - sum(t["deboursement"] or 0 for t in trans if t.get("a_rembourser"))),
             "ligne_dernier_reglement": der_marq, "par_categorie": resume_cats, "hors_resume": hors_resume,
             "pourboires": pourb,
             "total_pourboires": {"recu": sum(p.get("recu") or 0 for p in pourb if p["utilise"]),
@@ -784,6 +795,103 @@ class Application:
             r += 1
         return h, lignes
 
+    def _bloc_budgets(self):
+        f = self.wb.feuille("Listes")
+        return f, f.cherche("Budgets de l'app")
+
+    def budgets(self):
+        f, h = self._bloc_budgets()
+        out = {}
+        if h:
+            vc = num_en_col(col_en_num(h.col) + 1)
+            r = h.lig + 1
+            while f.texte(h.col + str(r)).strip():
+                v = num(f.val(vc + str(r)))
+                if v:
+                    out[f.texte(h.col + str(r)).strip()] = v
+                r += 1
+        return out
+
+    def enregistre_budgets(self, data):
+        """{"budgets": {"Restaurant/Dép": 150, "Vêtements": null}} → bloc « Budgets de l'app » de Listes."""
+        bud = {}
+        for k, v in (data.get("budgets") or {}).items():
+            if k not in self.categories:
+                raise Erreur("Catégorie inconnue : %s" % k)
+            val, _ = self.montant_saisi(v) if v not in (None, "") else (None, None)
+            if val:
+                bud[k] = round(val, 2)
+
+        def op():
+            f, h = self._bloc_budgets()
+            if not h:
+                hd = f.cherche("Mot-clé (description)")
+                col, lig = "L", hd.lig
+                f.ecrit("L%d" % lig, "Budgets de l'app")
+                f.ecrit("M%d" % lig, "Montant par mois")
+            else:
+                col, lig = h.col, h.lig
+            vc = num_en_col(col_en_num(col) + 1)
+            r = lig + 1
+            while f.texte(col + str(r)).strip() or f.val(vc + str(r)) not in (None, ""):
+                f.ecrit(col + str(r), None)
+                f.ecrit(vc + str(r), None)
+                r += 1
+            for i, cat in enumerate(c for c in self.categories if c in bud):
+                f.ecrit(col + str(lig + 1 + i), cat)
+                f.ecrit(vc + str(lig + 1 + i), bud[cat])
+        return self._ecriture(op)
+
+    # --- nouveau compte d'épargne (ex. fonds d'urgence) : ligne d'investissement + retrait d'épargne ---
+    def ajoute_compte_epargne(self, nom):
+        nom = (nom or "").strip()
+        if not nom:
+            raise Erreur("Nom du compte manquant")
+
+        def op():
+            feuilles = ["Canvas"] + [m["feuille"] for m in self.mois if m["modifiable"] and m["canvas"]]
+            for fe in feuilles:
+                d = self.dispo(fe)
+                f = self.wb.feuille(fe)
+                if any(normalise(f.texte("A%d" % r)) == normalise(nom) for r in d.invest):
+                    raise Erreur("Le compte « %s » existe déjà." % nom)
+            for fe in feuilles:
+                d = self.dispo(fe)
+                # 1) ligne d'investissement juste avant « Total investissements »
+                r_tot = d.invest[-1] + 1
+                prem, der = d.invest[0], d.invest[-1]
+                self.wb.insere_lignes(fe, r_tot, 1, lig_modele=der)
+                self.dispos.pop(fe, None); self.modeles.clear(); self.memo.clear()
+                f = self.wb.feuille(fe)
+                f.ecrit("A%d" % r_tot, nom)
+                f.ecrit("B%d" % r_tot, None)
+                # compte d'épargne (pas en bourse) : valeur = montant mis de côté
+                f.ecrit("C%d" % r_tot, formule="B%d" % r_tot)
+                f.ecrit("D%d" % r_tot, formule="C%d-B%d" % (r_tot, r_tot))
+                for c in ("B", "C", "D"):
+                    cel = f.cell("%s%d" % (c, r_tot + 1))
+                    if cel is not None and cel.formule:
+                        f.ecrit("%s%d" % (c, r_tot + 1), formule=re.sub(r"(%s)%d:(%s)%d" % (c, prem, c, der),
+                                                                         r"\g<1>%d:\g<2>%d" % (prem, r_tot), cel.formule))
+                # 2) retrait d'épargne dans le résumé, juste avant « Solde de compte – FIN »
+                d = self.dispo(fe)
+                r_fin = int(d.a_fin[1:])
+                modele_r = int(d.retraits[-1]["adr"][1:]) if d.retraits else r_fin - 1
+                self.wb.insere_lignes(fe, r_fin, 1, lig_modele=modele_r)
+                self.dispos.pop(fe, None); self.modeles.clear(); self.memo.clear()
+                f = self.wb.feuille(fe)
+                f.ecrit("A%d" % r_fin, "(-) Épargne (%s)" % nom)
+                f.ecrit("B%d" % r_fin, None)
+                cf = f.cell("B%d" % (r_fin + 1))
+                if cf is not None and cf.formule:
+                    f.ecrit("B%d" % (r_fin + 1), formule=cf.formule + "-B%d" % r_fin)
+            # 3) type d'investissement dans Listes
+            if normalise(nom) not in [normalise(x) for x in self.types_invest]:
+                L = self.wb.feuille("Listes")
+                L.ecrit(self.l_inv_col + str(self.l_inv_der + 1), nom)
+                self._etend_validations(self.l_inv_col, self.l_inv_der + 1)
+        return self._ecriture(op)
+
     def reglages(self):
         if "reglages" in self.memo:
             return self.memo["reglages"]
@@ -812,6 +920,7 @@ class Application:
 
     def etat(self):
         return {"mois": self.mois, "categories": self.categories, "types": self.types, "reglages": self.reglages(),
+                "budgets": self.budgets(), "date_demo": self.config.get("date_demo"),
                 "types_invest": self.types_invest,
                 "motscles": [{"mot": k, "categorie": v} for k, v in self.motscles],
                 "fichier": self.chemin, "excel_ouvert": self.excel_ouvert(),
@@ -1015,7 +1124,8 @@ class Application:
         desc = (data.get("description") or "").strip()
         if not desc:
             raise Erreur("La description est obligatoire.")
-        typ = self.type_exact(data.get("type") or "")
+        # sans type : seulement une part reçue de la carte du partenaire, pas encore remboursée
+        typ = "" if (not (data.get("type") or "").strip() and RX_A_REMBOURSER.search(desc)) else self.type_exact(data.get("type") or "")
         f.ecrit(d.c_date + str(r), date)
         f.ecrit(d.c_desc + str(r), desc)
         f.ecrit(d.c_type + str(r), typ)
@@ -1100,6 +1210,12 @@ class Application:
             if ligne:
                 f.ecrit(d.c_marq + str(ligne), marque)
                 self._regle_autres_montants(f, d)
+                perso = next((b for b in self.types_bruts if sem_type(b) == "P"), "Personnel ")
+                for t in self.modele(feuille)["transactions"]:
+                    if t.get("a_rembourser"):
+                        f.ecrit(d.c_type + str(t["ligne"]), perso)
+                        f.ecrit(d.c_desc + str(t["ligne"]), RX_A_REMBOURSER.sub(
+                            lambda mm: mm.group(0).replace(" – à rembourser", ""), t["description"]))
         return self._ecriture(op)
 
     def _condition_reglement(self, d):
@@ -1384,7 +1500,9 @@ class Application:
                 f.ecrit("B" + str(r), formule=fx)
             elif "investi" in data:
                 self._ecrit_montant(f, "B" + str(r), data["investi"])
-            if "jv" in data:
+            cj = f.cell("C" + str(r))
+            fixe = cj is not None and (cj.formule or "").replace("$", "") == "B%d" % r and bool(RX_FIXE.search(f.texte("A%d" % r)))
+            if "jv" in data and not fixe:                 # fonds d'urgence : valeur = montant (formule gardée)
                 self._ecrit_montant(f, "C" + str(r), data["jv"])
         return self._ecriture(op)
 
