@@ -28,6 +28,10 @@ def post(app, chemin, data):
         return app.supprime_transaction(f, int(data["ligne"]))
     if chemin == "/api/reglement":
         return app.marque_reglement(f, data.get("ligne"))
+    if chemin == "/api/budgets":
+        return app.enregistre_budgets(data)
+    if chemin == "/api/compte-epargne":
+        return app.ajoute_compte_epargne(data.get("nom"))
     if chemin == "/api/configuration":
         return app.configuration_depart(f, data)
     if chemin == "/api/revenu":

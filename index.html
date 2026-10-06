@@ -140,6 +140,12 @@ dialog section{display:flex;flex-direction:column}
 .donut-z{display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:center;margin:2px 0 14px}.donut .dn-v{font-size:17px;font-weight:750;fill:var(--ink)}.donut .dn-s{font-size:11px;fill:var(--ink-3)}
 .grp-h.ccarte{border-radius:14px;margin:6px 0;padding:8px 10px;background:linear-gradient(135deg,color-mix(in srgb,var(--c) 11%,var(--surface)),var(--surface) 85%);border:1px solid color-mix(in srgb,var(--c) 25%,var(--surface));gap:12px}
 .grp-h.ccarte .t1{font-size:15px}.grp-h.ccarte .bc-et{flex-direction:row!important;justify-content:flex-start!important;gap:6px!important}.grp-h.ccarte .t2b{font-size:12.5px;color:var(--ink-3)}
+.hbar{display:grid;gap:10px}
+.hb-l{display:grid;grid-template-columns:112px 1fr 96px;gap:10px;align-items:center}
+.hb-n{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hb-t{position:relative;height:14px;background:var(--surface-2);border-radius:99px}.hb-t i{display:block;height:100%;border-radius:99px}
+.hb-t b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink-3);border-radius:2px}
+.hb-v{text-align:right;font-weight:700;font-size:14px;white-space:nowrap;min-width:78px}.hb-v small{display:block;font-weight:500;font-size:11.5px;color:var(--ink-3)}
 /* couple */
 .cp-bloc{border-radius:14px;padding:10px 12px;margin-top:10px}
 .cp-bloc.moi{background:color-mix(in srgb,var(--pos) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--pos) 25%,var(--surface))}
@@ -269,7 +275,7 @@ svg text{fill:var(--ink-3);font-size:11px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=e017e80d62"></script>
+<script src="web.js?v=3c703a07a6"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -305,7 +311,9 @@ async function api(chemin, corps){
   return j;
 }
 let toastT;
-function toast(msg, err){ const t=$("#toast"); t.textContent=msg; t.className="toast on"+(err?" err":""); clearTimeout(toastT); toastT=setTimeout(()=>t.className="toast"+(err?" err":""), err?5000:2200); }
+function toast(msg, err){ let t=$("#toast"); if(!t){ t=document.createElement("div"); t.id="toast"; t.className="toast"; }
+  // une fenêtre ouverte (showModal) passe par-dessus tout : on y place le message pour qu'il reste visible
+  const dl=$("#dlg"), hote = dl && dl.open ? dl : document.body; if(t.parentNode!==hote) hote.appendChild(t); t.textContent=msg; t.className="toast on"+(err?" err":""); clearTimeout(toastT); toastT=setTimeout(()=>t.className="toast"+(err?" err":""), err?5000:2200); }
 async function ecrit(chemin, corps, msg){
   document.body.classList.add("loading");
   try { const r = await api(chemin, Object.assign({feuille:S.feuille}, corps)); if(msg) toast(msg); S.tend=null; await rafraichit(); return r; }
@@ -1157,12 +1165,25 @@ function vueBordPaye(el){
   </div>
   <div class="spacer"></div>
   <div class="grid two">
-    <div class="card cadre"><h3>Dépenses cumulées du mois</h3><div id="gCum"></div></div>
+    <div class="card cadre"><h3>Dépenses par catégorie</h3><div id="gCat"></div></div>
     <div class="card cadre"><h3>Budgets du mois</h3>${bud.length ? resumeBudgets(bud) + `<div class="bgrille">${bud.map(carteBudget).join("")}</div>`
       : `<div class="small muted">Aucun budget pour l'instant. Ajoute-les dans Réglages › Budgets.</div>`}</div>
   </div>`;
-  graphCumul($("#gCum", el));
+  barresCategories($("#gCat", el));
   const es = $("#edSol", el); if(es) es.onclick = ev => { ev.preventDefault(); dlgSoldes(m); };
+}
+// diagramme à bandes horizontales : dépenses du mois par catégorie (trait = budget s'il y en a un)
+function barresCategories(g){
+  const parCat = {}; depensesDuMois().forEach(t => parCat[t.categorie] = (parCat[t.categorie]||0) + t.depense);
+  const bud = (S.etat && S.etat.budgets) || {}, tot = Object.values(parCat).reduce((a,v)=>a+v,0);
+  const l = Object.entries(parCat).filter(([,v]) => v > 0.004).sort((a,b) => b[1]-a[1]);
+  if(!l.length){ g.innerHTML = `<div class="small muted">Aucune dépense ce mois-ci. Touche « + » pour en ajouter une.</div>`; return; }
+  const mx = Math.max(...l.map(([c,v]) => v)) * 1.04;            // échelle = la plus grosse catégorie (trait du budget seulement s'il entre dans la barre)
+  g.innerHTML = `<div class="hbar">${l.map(([c,v]) => { const b = bud[c], dep = b && v > b + 0.005;
+    return `<div class="hb-l" title="${esc(c)} : ${$$(v)}${b ? " sur " + $$(b) : ""}"><div class="hb-n">${iconeCat(c)} ${esc(c)}</div>
+      <div class="hb-t"><i style="width:${Math.max(1.5, v / mx * 100).toFixed(2)}%;background:${couleurCat(c)}"></i>${b && b <= mx ? `<b style="left:${(b / mx * 100).toFixed(2)}%"></b>` : ""}</div>
+      <div class="hb-v num">${$$(v)}<small>${b ? (dep ? `<span class="neg">${$$(v - b)} de trop</span>` : `sur ${fmtCourt.format(b)} $`) : Math.round(v / tot * 100) + " %"}</small></div></div>`; }).join("")}</div>
+    <div class="small muted" style="margin-top:8px">${$$(tot)} dépensés au ${dC(jourReference())}${Object.keys(bud).length ? " · le trait gris = ton budget (quand il est proche)" : ""}</div>`;
 }
 function graphCumul(g){
   const nb = new Date(S.info.annee, S.info.mois, 0).getDate(), jr = jourReference(), jmax = +jr.slice(8,10);
