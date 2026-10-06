@@ -275,7 +275,7 @@ svg text{fill:var(--ink-3);font-size:11px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=3c703a07a6"></script>
+<script src="web.js?v=86135c4420"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -671,24 +671,83 @@ async function graphRevDep(z){
 }
 
 // ---------------------------------------------------------------- transactions
+// split : opérations en cours (depuis le dernier règlement) et règlements du mois — app de Zach
+function splitDetail(m){
+  const util = m.transactions.filter(t => t.utilise), der = m.ligne_dernier_reglement;
+  const apres = t => der == null || t.ligne > der, avant = t => der != null && t.ligne <= der;
+  const RX_CZ = /\(carte [^()]+\)\s*$/;
+  const split = util.filter(t => semType(t.type) && semType(t.type) !== "P" && (t.marika || 0) !== 0);
+  const reps = m.reports || [];
+  const opMoi = split.filter(t => apres(t) && t.marika > 0).map(t => ({date: t.date, desc: t.description, total: t.deboursement, part: t.marika}))
+    .concat(reps.filter(r => !r.regle && r.montant > 0.004).map(r => ({date: null, desc: r.libelle || "Autre montant", total: null, part: r.montant})));
+  const opLui = util.filter(t => t.a_rembourser).map(t => ({date: t.date, desc: t.description.replace(/\s*\(carte [^()]+ – à rembourser\)\s*$/, ""), total: null, part: t.deboursement}))
+    .concat(split.filter(t => apres(t) && t.marika < 0).map(t => ({date: t.date, desc: t.description, total: t.deboursement, part: -t.marika})))
+    .concat(reps.filter(r => !r.regle && r.montant < -0.004).map(r => ({date: null, desc: r.libelle || "Autre montant", total: null, part: -r.montant})));
+  const somme = l => l.reduce((a, x) => a + (x.part || 0), 0);
+  // règlements du mois (le fichier garde le dernier marqueur « Solde réglé » du mois)
+  const marq = util.find(t => t.ligne === der);
+  const regMoi = split.filter(t => avant(t) && t.marika > 0).map(t => t.marika)
+    .concat(reps.filter(r => r.regle && (r.montant_origine || 0) > 0.004).map(r => r.montant_origine));
+  const regLui = util.filter(t => avant(t) && semType(t.type) === "P" && RX_CZ.test(t.description)).map(t => t.depense || t.deboursement || 0)
+    .concat(split.filter(t => avant(t) && t.marika < 0).map(t => -t.marika))
+    .concat(reps.filter(r => r.regle && (r.montant_origine || 0) < -0.004).map(r => -r.montant_origine));
+  const premiere = util.find(t => avant(t) && t.date);
+  return {opMoi, opLui, recevoir: somme(opMoi), payer: somme(opLui), marq, premiere,
+          regMoi: {n: regMoi.length, tot: regMoi.reduce((a, v) => a + v, 0)}, regLui: {n: regLui.length, tot: regLui.reduce((a, v) => a + v, 0)},
+          net: m.total_a_rembourser ? m.du_net : m.du_total};
+}
+function netSplitTexte(v){
+  if(v === null || v === undefined) return "—";
+  if(Math.abs(v) < 0.005) return "Réglé — 0,00 $";
+  return v > 0 ? `${PART()} te doit ${$$(v)}` : `Tu dois ${$$(-v)} à ${PART()}`;
+}
 function carteMarikaHTML(m){
-  return `<div class="card cadre clic" id="cardMarika" role="button" tabindex="0" title="Voir le détail">
-        <h3>Split avec ${PART()} <span class="sp pill neutral">% ${PART()} ${pct(m.pct_marika)}</span><span class="chev">›</span></h3>
-        <div class="val num" style="font-size:20px;font-weight:650">${marikaTexte(m.total_a_rembourser ? m.du_net : m.du_total)}</div>
-        ${m.total_a_rembourser ? `<div class="small muted">dont − ${$$(m.total_a_rembourser)} que tu dois à ${PART()} (dépenses payées par ${PART()})</div>` : ""}
-        <div class="kv small" style="margin-top:8px">
-          <div class="k">Depuis le dernier remboursement</div><div class="num">${$$(m.du_depuis_reglement)}</div>
-          <div class="k">Autres montants</div><div class="num">${$$(m.reports.reduce((a,r)=>a+(r.montant||0),0))}</div>
+  const x = splitDetail(m), ouvert = !!S.splitOuvert;
+  const cl = Math.abs(x.net || 0) < 0.005 ? "" : (x.net > 0 ? "pos" : "neg");
+  const tab = (titre, l, colPart) => `<div class="sec-h" style="margin-top:12px"><b>${titre}</b></div>
+    ${l.length ? `<div class="scroll-x"><table class="t"><thead><tr><th>Date</th><th style="text-align:left">Description</th><th>Total</th><th>${colPart}</th></tr></thead><tbody>
+      ${l.map(o => `<tr><td>${o.date ? dC(o.date) : "—"}</td><td class="desc" style="text-align:left">${esc(o.desc)}</td><td class="num">${o.total != null ? $$(o.total) : "—"}</td><td class="num">${$$(o.part)}</td></tr>`).join("")}</tbody></table></div>`
+      : `<div class="small muted">Aucune opération.</div>`}
+    <div class="kv small sous"><div class="k">Sous-total</div><div class="num"><b>${$$(l.reduce((a, o) => a + (o.part || 0), 0))}</b></div></div>`;
+  const periode = x.premiere && x.marq ? `${dC(x.premiere.date)} au ${dC(x.marq.date)}` : "";
+  const tabReg = (titre, r) => `<div class="sec-h" style="margin-top:12px"><b>${titre}</b></div>
+    ${r.n ? `<div class="scroll-x"><table class="t"><thead><tr><th>Date</th><th>Montant</th><th style="text-align:left">Opérations couvertes</th></tr></thead><tbody>
+      <tr><td>${dC(x.marq.date)}</td><td class="num">${$$(r.tot)}</td><td class="desc" style="text-align:left">${r.n} opération${r.n > 1 ? "s" : ""}${periode ? ` (${periode})` : ""}</td></tr></tbody></table></div>`
+      : `<div class="small muted">Aucun.</div>`}
+    <div class="kv small sous"><div class="k">Sous-total</div><div class="num"><b>${$$(r.tot)}</b></div></div>`;
+  const netReg = x.regMoi.tot - x.regLui.tot;
+  return `<div class="card cadre" id="cardMarika">
+        <h3><span class="clic" id="splitTitre" role="button" tabindex="0" title="Autres montants et partage">Split avec ${PART()}</span> <span class="sp pill neutral">% ${PART()} ${pct(m.pct_marika)}</span><span class="chev">›</span></h3>
+        <div class="kv" id="splitResume">
+          <div class="k">À recevoir de ${PART()}</div><div class="num">${$$(x.recevoir)}</div>
+          <div class="k">À payer à ${PART()}</div><div class="num">${$$(x.payer)}</div>
+          <div class="k total">Solde net</div><div class="num total ${cl}" id="splitNet">${netSplitTexte(x.net)}</div>
         </div>
-        ${S.info.modifiable ? `<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="btnRegle">Marquer solde réglé</button></div>` : ""}
+        <div class="small muted" style="margin-top:6px">${x.marq ? `Depuis le dernier règlement du ${dL(x.marq.date)}` : "Aucun règlement ce mois-ci : depuis le début du mois"}</div>
+        <div class="grp" style="margin-top:8px;border-top:1px solid var(--line)"><div class="grp-h" id="splitTog" role="button" tabindex="0" aria-expanded="${ouvert}">
+          <div class="main"><div class="t1">Détail</div><div class="t2">Opérations en cours et règlements du mois</div></div><span class="chev" style="display:inline-block;transform:rotate(${ouvert ? 90 : 0}deg)">›</span></div></div>
+        ${ouvert ? `<div id="splitDet">
+          <div class="sec-h" style="margin-top:6px"><span class="sec-n">1</span><b>Opérations en cours</b></div>
+          ${tab(`Payé par moi — part de ${PART()}`, x.opMoi, `Part ${PART()}`)}
+          ${tab(`Payé par ${PART()} — ma part`, x.opLui, "Ma part")}
+          <div class="sec-h" style="margin-top:16px"><span class="sec-n">2</span><b>Règlements du mois</b></div>
+          ${x.regMoi.n || x.regLui.n ? `${tabReg(`Reçus de ${PART()}`, x.regMoi)}${tabReg(`Versés à ${PART()}`, x.regLui)}
+            <div class="kv" style="margin-top:8px"><div class="k total">Règlements nets du mois</div><div class="num total">${Math.abs(netReg) < 0.005 ? "0,00 $" : (netReg > 0 ? `Reçu ${$$(netReg)}` : `Versé ${$$(-netReg)}`)}</div></div>`
+            : `<div class="small muted" id="splitAucun">Aucun règlement ce mois-ci.</div>`}
+        </div>` : ""}
+        ${S.info.modifiable ? `<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="btnRegle">Marquer solde réglé</button><button class="btn small" id="btnSplitPart">Partager avec ${PART()}</button><button class="btn small" id="btnSplitAutres">Autres montants</button></div>` : ""}
       </div>`;
 }
 function brancheMarika(el, m){
   const cm = $("#cardMarika", el);
   if(!cm) return;
-  cm.onclick = ev => { if(!ev.target.closest("button")) dlgMarika(); };
-  cm.onkeydown = ev => { if(ev.key==="Enter") dlgMarika(); };
-  const b = $("#btnRegle", el);
+  const h = $("h3", cm); h.style.cursor = "pointer"; h.onclick = () => dlgMarika();
+  const tg = $("#splitTog", cm);
+  if(tg){ const bascule = () => { S.splitOuvert = !S.splitOuvert; const n = document.createElement("div"); n.innerHTML = carteMarikaHTML(m); cm.replaceWith(n.firstElementChild); brancheMarika(el, m); };
+    tg.onclick = bascule; tg.onkeydown = ev => { if(ev.key === "Enter") bascule(); }; }
+  const p = $("#btnSplitPart", cm); if(p) p.onclick = () => dlgPartage();
+  const a = $("#btnSplitAutres", cm); if(a) a.onclick = () => dlgMarika();
+  const b = $("#btnRegle", cm);
   if(b) b.onclick = () => {
     const util = m.transactions.filter(t=>t.utilise);
     if(!util.length) return toast("Aucune transaction", true);
@@ -1151,7 +1210,6 @@ function vueBordPaye(el){
   const l = lundiDe(jr), dim = new Date(l); dim.setDate(l.getDate() + 6);
   const semDep = depensesDuMois().filter(t => t.date >= isoD(l) && t.date <= isoD(dim)).reduce((a,t)=>a+t.depense,0);
   const cit = CITATIONS[(new Date().getDate() + S.info.mois) % CITATIONS.length];
-  const bud = suiviBudgets();
   el.innerHTML = `
   <div class="card hero"><div><div class="lbl" style="font-weight:600;color:var(--ink-2)">Solde au compte</div>
       <div class="gros num">${$$(m.solde_fin)}</div>
@@ -1164,11 +1222,7 @@ function vueBordPaye(el){
     ${kpi("Investissements", $$(m.total_jv || m.total_investi), m.total_investi ? `Investi : ${$$(m.total_investi)}` : "", "", "k-rev")}
   </div>
   <div class="spacer"></div>
-  <div class="grid two">
-    <div class="card cadre"><h3>Dépenses par catégorie</h3><div id="gCat"></div></div>
-    <div class="card cadre"><h3>Budgets du mois</h3>${bud.length ? resumeBudgets(bud) + `<div class="bgrille">${bud.map(carteBudget).join("")}</div>`
-      : `<div class="small muted">Aucun budget pour l'instant. Ajoute-les dans Réglages › Budgets.</div>`}</div>
-  </div>`;
+  <div class="card cadre"><h3>Dépenses par catégorie</h3><div id="gCat"></div></div>`;
   barresCategories($("#gCat", el));
   const es = $("#edSol", el); if(es) es.onclick = ev => { ev.preventDefault(); dlgSoldes(m); };
 }
