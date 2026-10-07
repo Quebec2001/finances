@@ -275,7 +275,7 @@ svg text{fill:var(--ink-3);font-size:11px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=86135c4420"></script>
+<script src="web.js?v=ecd5664c2a"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -367,32 +367,67 @@ function decodePartage(t){
   if(!o || o.v !== 1 || !Array.isArray(o.t)) throw new Error("Lien de partage invalide.");
   return o;
 }
-function dlgPartage(){
-  const m = S.mois;
-  const der = m.ligne_dernier_reglement;          // seulement ce qui n'a pas encore été remboursé
-  const lignes = m.transactions.filter(t => t.utilise && (t.marika||0) > 0.004 && ["SP","50"].includes(semType(t.type)) && t.date && (der == null || t.ligne > der))
-    .sort((a,b) => a.date.localeCompare(b.date));
-  ouvre(`<div class="dlg-h"><h2>Partager avec ${PART()} – ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
+// dépenses partagées pas encore remboursées : ce mois-ci depuis le dernier règlement + mois précédents reportés
+// (report automatique « Portion <mois> » non réglé → on détaille les dépenses de ce mois-là)
+async function lignesAPartager(){
+  const vus = new Set(), out = [];
+  const finMois = cle => { const [a, mo] = cle.split("-").map(Number); return `${cle}-${String(new Date(a, mo, 0).getDate()).padStart(2,"0")}`; };
+  async function parcours(m, info, profondeur){
+    if(vus.has(info.feuille)) return 0; vus.add(info.feuille);
+    const der = m.ligne_dernier_reglement;
+    const apres = (m.transactions || []).filter(t => t.utilise && t.date && (der == null || t.ligne > der));
+    let couvert = 0;
+    apres.filter(t => (t.marika||0) > 0.004 && ["SP","50"].includes(semType(t.type))).forEach(t => {
+      out.push({cle: info.cle, nomMois: info.nom, date: t.date, desc: t.description, part: t.marika, cat: t.categorie || "", sous: `${TYPES_COURTS[semType(t.type)]} · payé ${$$(t.deboursement)}`, ligne: t.ligne});
+      couvert += t.marika; });
+    apres.filter(t => (t.marika||0) < -0.004).forEach(t => couvert += t.marika);       // ce que je dois (déjà dans l'app de l'autre)
+    const k = S.etat.mois.findIndex(x => x.feuille === info.feuille);
+    for(const r of (m.reports || [])){
+      if(r.regle || Math.abs(r.montant || 0) < 0.005) continue;
+      if(r.auto){
+        const prec = k > 0 ? S.etat.mois[k-1] : null;
+        let sous = 0;
+        if(prec && prec.canvas && profondeur < 6){ try { const mm = await api("/api/mois?f=" + encodeURIComponent(prec.feuille)); sous = await parcours(mm, prec, profondeur + 1); } catch(e){} }
+        const reste = r.montant - sous;
+        if(reste > 0.009) out.push({cle: prec ? prec.cle : info.cle, nomMois: prec ? prec.nom : info.nom, date: prec ? finMois(prec.cle) : `${info.cle}-01`,
+          desc: `Solde reporté de ${prec ? prec.nom : "mois précédent"}`, part: reste, cat: "Autres", sous: "Montant reporté, non détaillé"});
+        couvert += r.montant;
+      } else if(r.montant > 0){
+        out.push({cle: info.cle, nomMois: info.nom, date: `${info.cle}-01`, desc: r.libelle || "Autre montant", part: r.montant, cat: "Autres", sous: "Autre montant ajouté à la main"});
+        couvert += r.montant;
+      } else couvert += r.montant;
+    }
+    return couvert;
+  }
+  await parcours(S.mois, S.info, 0);
+  return out.sort((a,b) => a.date.localeCompare(b.date));
+}
+async function dlgPartage(){
+  let lignes = [];
+  try { lignes = await lignesAPartager(); } catch(e){ return toast(e.message, true); }
+  lignes.forEach((l, i) => l.i = i);
+  const parMois = []; lignes.forEach(l => { let g = parMois.find(x => x.cle === l.cle); if(!g) parMois.push(g = {cle: l.cle, nom: l.nomMois, l: []}); g.l.push(l); });
+  ouvre(`<div class="dlg-h"><h2>Partager avec ${PART()}</h2><button type="button" class="x" data-close>✕</button></div>
    <div class="dlg-b">
-     <p class="small" style="margin:0">${PART()} reçoit sa part de tes dépenses partagées depuis le dernier remboursement. Elle s'ajoute au solde du couple dans son app ; ce qu'elle a déjà reçu est ignoré. Pour que vos deux apps affichent le même solde, partagez-vous vos dépenses dans les deux sens et marquez le solde réglé le même jour.</p>
-     ${lignes.length ? `<div class="imp-liste">${lignes.map(t => `<label class="imp-l" style="grid-template-columns:auto 1fr auto;display:grid;align-items:center;gap:10px"><input type="checkbox" class="imp-c" data-l="${t.ligne}" checked>
-        <span><b style="font-weight:550">${esc(t.description)}</b><span class="sous-t" style="display:block;font-size:12px;color:var(--ink-3)">${dC(t.date)} · ${esc(TYPES_COURTS[semType(t.type)])} · payé ${$$(t.deboursement)}</span></span>
-        <b class="num">${$$(t.marika)}</b></label>`).join("")}</div>
-        <div class="preview total-du"><span>Part de ${PART()}</span><b class="num" id="ptot"></b></div>`
-      : `<div class="small muted">Aucune dépense partagée (SPLIT) ce mois-ci.</div>`}
+     <p class="small" style="margin:0">${PART()} reçoit sa part de tes dépenses partagées <b>pas encore remboursées</b>, y compris celles des mois précédents reportées dans ce mois-ci. Ce qu'elle a déjà reçu est ignoré de son côté. Pour que vos deux apps affichent le même solde, partagez-vous vos dépenses dans les deux sens et marquez le solde réglé le même jour.</p>
+     ${lignes.length ? parMois.map(g => `<div style="margin:6px 0 0"><b>${esc(g.nom)}</b>${g.cle !== S.info.cle ? `<div class="small muted">Mois précédent, pas encore remboursé</div>` : ""}</div>
+       <div class="imp-liste">${g.l.map(t => `<label class="imp-l" style="grid-template-columns:auto 1fr auto;display:grid;align-items:center;gap:10px"><input type="checkbox" class="imp-c" data-i="${t.i}" checked>
+        <span><b style="font-weight:550">${esc(t.desc)}</b><span class="sous-t" style="display:block;font-size:12px;color:var(--ink-3)">${dC(t.date)} · ${esc(t.sous)}</span></span>
+        <b class="num">${$$(t.part)}</b></label>`).join("")}</div>`).join("") + `<div class="preview total-du"><span>Part de ${PART()}</span><b class="num" id="ptot"></b></div>`
+      : `<div class="small muted">Aucune dépense partagée à envoyer : tout a été remboursé.</div>`}
      <div id="plien" style="display:none"><label class="f">Lien à envoyer<textarea id="plienT" rows="3" readonly style="font-size:12px"></textarea></label></div>
    </div>
    <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button>${lignes.length?`<button type="button" class="btn primary" id="pOk">Partager</button>`:""}</div>`, d => {
     if(!lignes.length) return;
-    const choisies = () => lignes.filter(t => d.querySelector(`.imp-c[data-l="${t.ligne}"]`).checked);
-    const maj = () => { $("#ptot", d).textContent = $$(choisies().reduce((a,t)=>a+t.marika,0)); d.querySelectorAll(".imp-l").forEach(x => x.classList.toggle("off", !x.querySelector(".imp-c").checked)); };
+    const choisies = () => lignes.filter(t => d.querySelector(`.imp-c[data-i="${t.i}"]`).checked);
+    const maj = () => { $("#ptot", d).textContent = $$(choisies().reduce((a,t)=>a+t.part,0)); d.querySelectorAll(".imp-l").forEach(x => x.classList.toggle("off", !x.querySelector(".imp-c").checked)); };
     d.querySelectorAll(".imp-c").forEach(c => c.onchange = maj); maj();
     $("#pOk", d).onclick = async () => {
       const ch = choisies(); if(!ch.length) return toast("Coche au moins une dépense", true);
       const o = {v:1, de:REG().prenom, pour:REG().partenaire, mois:S.info.cle, net: Math.round((S.mois.total_a_rembourser ? S.mois.du_net : S.mois.du_total)*100)/100,
-                 t: ch.map(t => [t.date, t.description, Math.round(t.marika*100)/100, t.categorie||""])};
+                 t: ch.map(t => [t.date, t.desc, Math.round(t.part*100)/100, t.cat])};
       const url = SITE_EN_LIGNE + "#partage=" + encodePartage(o);
-      const texte = `${REG().prenom} t'envoie ta part de ${ch.length} dépense${ch.length>1?"s":""} (${S.info.nom}). Touche le lien, ou copie-le dans ton app : Dépenses › Split › Recevoir un partage.`;
+      const texte = `${REG().prenom} t'envoie ta part de ${ch.length} dépense${ch.length>1?"s":""}. Touche le lien. Si ton app est sur l'écran d'accueil : copie le lien, ouvre l'app, puis Couple (ou Dépenses › Split) › « Recevoir un partage » et colle-le.`;
       $("#plien", d).style.display = ""; $("#plienT", d).value = url;
       try { if(navigator.share){ await navigator.share({title:"Dépenses partagées", text:texte, url}); toast("Partage envoyé"); return; } } catch(e){ if(e && e.name === "AbortError") return; }
       try { await navigator.clipboard.writeText(texte + "\n" + url); toast("Lien copié : colle-le dans iMessage"); }
@@ -425,14 +460,21 @@ async function dlgRecoitPartage(o){
     infos[k] = {mo, mm};
   }
   const suffixe = ` (carte ${o.de} – à rembourser)`;
+  // mois d'accueil pour les dépenses d'un mois absent ou fermé de ton fichier (ex. mois précédent pas encore remboursé)
+  const cibleMo = S.etat.mois.find(x => x.cle === o.mois && x.modifiable) || (S.info.modifiable ? S.info : null) || [...S.etat.mois].reverse().find(x => x.modifiable && x.canvas);
+  if(cibleMo && !infos[cibleMo.cle]){ let mm = null; try { mm = await api("/api/mois?f=" + encodeURIComponent(cibleMo.feuille)); } catch(e){} infos[cibleMo.cle] = {mo: cibleMo, mm}; }
+  const dejaRecue = (mm, date, desc, part) => mm.transactions.some(t => t.utilise && t.date === date && Math.abs((t.deboursement||0) - part) < 0.005 && (t.description||"").startsWith(desc));
   const lignes = o.t.map(([date, desc, part, cat], i) => {
-    const k = String(date).slice(0,7), inf = infos[k];
-    let etat = "", ok = true;
-    if(!inf.mo) { etat = "Mois absent de ton fichier (crée-le d'abord)"; ok = false; }
+    let k = String(date).slice(0,7), inf = infos[k], d2 = date, desc2 = desc, etat = "", ok = true;
+    if(!(inf && inf.mo && inf.mo.modifiable && inf.mm) && cibleMo && infos[cibleMo.cle].mm){
+      k = cibleMo.cle; inf = infos[k]; d2 = `${k}-01`; desc2 = `${desc} (${jourMots(date)})`;
+      etat = `Dépense de ${MOIS_MOTS[+date.slice(5,7)-1]} : ajoutée dans ${inf.mo.nom}`;
+    }
+    if(!inf || !inf.mo) { etat = "Mois absent de ton fichier (crée-le d'abord)"; ok = false; }
     else if(!inf.mo.modifiable || !inf.mm) { etat = "Mois non modifiable"; ok = false; }
-    else if(inf.mm.transactions.some(t => t.utilise && t.date === date && Math.abs((t.deboursement||0) - part) < 0.005 && (t.description||"").startsWith(desc))) { etat = "Déjà reçue"; ok = false; }
+    else if(dejaRecue(inf.mm, d2, desc2, part)) { etat = "Déjà reçue"; ok = false; }
     const auto = catAuto(desc), c = (auto && auto !== "Autres") ? auto : (S.etat.categories.includes(cat) ? cat : (auto || "Autres"));
-    return {i, date, desc, part, cat: c, k, etat, ok};
+    return {i, date: d2, dateOrig: date, desc: desc2, part, cat: c, k, etat, ok};
   });
   const nb = lignes.filter(l => l.ok).length;
   ouvre(`<div class="dlg-h"><h2>Dépenses partagées par ${de}</h2><button type="button" class="x" data-close>✕</button></div>
@@ -441,7 +483,7 @@ async function dlgRecoitPartage(o){
      <p class="small" style="margin:0">Ta part de ces dépenses payées par ${de} s'ajoute au solde du couple (onglet Couple). Elle comptera dans tes dépenses une fois le solde réglé.</p>
      <div id="verif"></div>
      <div class="imp-liste">${lignes.map(l => `<div class="imp-l ${l.ok?"":"off"}" data-i="${l.i}">
-        <div class="imp-r1"><input type="checkbox" class="imp-c" ${l.ok?"checked":"disabled"}><div><b style="font-weight:550">${esc(l.desc)}</b><div class="small muted">${dC(l.date)}${l.etat?` · <span class="warn-t">${esc(l.etat)}</span>`:""}</div></div><b class="num" style="text-align:right">${$$(l.part)}</b></div>
+        <div class="imp-r1"><input type="checkbox" class="imp-c" ${l.ok?"checked":"disabled"}><div><b style="font-weight:550">${esc(l.desc)}</b><div class="small muted">${dC(l.dateOrig)}${l.etat?` · <span class="${l.ok ? "" : "warn-t"}">${esc(l.etat)}</span>`:""}</div></div><b class="num" style="text-align:right">${$$(l.part)}</b></div>
         ${l.ok ? `<div class="imp-r2" style="grid-template-columns:1fr"><select class="imp-cat">${S.etat.categories.map(c=>`<option ${c===l.cat?"selected":""}>${esc(c)}</option>`).join("")}</select></div>` : ""}
       </div>`).join("")}</div>
    </div>
@@ -451,7 +493,7 @@ async function dlgRecoitPartage(o){
       // vérification : après l'ajout, les deux apps doivent afficher le même solde (dans des sens opposés)
       const inf = o.mois && infos[o.mois], v = $("#verif", d);
       if(!v || !inf || !inf.mm || typeof o.net !== "number") { if(v) v.innerHTML = ""; return; }
-      const ajout = [...d.querySelectorAll(".imp-l")].filter(x => x.querySelector(".imp-c").checked).map(x => lignes[+x.dataset.i]).filter(l => l.k === o.mois).reduce((a,l)=>a+l.part,0);
+      const ajout = [...d.querySelectorAll(".imp-l")].filter(x => x.querySelector(".imp-c").checked).map(x => lignes[+x.dataset.i]).reduce((a,l)=>a+l.part,0);
       const base = inf.mm.total_a_rembourser ? inf.mm.du_net : inf.mm.du_total, apres = Math.round((base - ajout)*100)/100, ecart = Math.round((apres + o.net)*100)/100;
       v.innerHTML = Math.abs(ecart) < 0.01
         ? `<div class="regle-banniere">✓ <span>Après l'ajout, vos deux apps afficheront le même solde : <b>${marikaTexte(apres)}</b>.</span></div>`
