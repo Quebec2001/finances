@@ -579,7 +579,9 @@ class Application:
             invs.append({"ligne": r, "type": t, "investi": bi, "jv": cj,
                          "variation": (cj - bi) if bi is not None and cj is not None else None,
                          # capital investi : calculé (formule du mois précédent + épargne) ou saisi à la main
-                         "investi_auto": bool(cb is not None and cb.formule),
+                         # calcul automatique = formule qui reprend le mois précédent ('Mois'!B…) ; une addition saisie
+                         # à la main (ex. =4000+200) reste un montant manuel
+                         "investi_auto": bool(cb is not None and cb.formule and "!" in cb.formule),
                          "valeur_fixe": bool(RX_FIXE.search(t) and f.cell("C" + str(r)) is not None and (f.cell("C" + str(r)).formule or "").replace("$", "") == "B%d" % r),
                          "investi_auto_possible": self._formule_investi_auto(nom, r) is not None})
         # résumé

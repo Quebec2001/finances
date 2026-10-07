@@ -275,7 +275,7 @@ svg text{fill:var(--ink-3);font-size:11px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=ecd5664c2a"></script>
+<script src="web.js?v=b3d0e0aaa8"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1832,7 +1832,7 @@ function vueInv(el){
 }
 function dlgInvest(x){
   // capital investi : calculé normalement (mois précédent + épargne du mois) ; modifiable à la main au besoin
-  let manuel = !x.investi_auto; const LIB = x.valeur_fixe ? "Montant mis de côté" : "Capital investi";
+  let manuel = !x.investi_auto || !x.investi_auto_possible; const LIB = x.valeur_fixe ? "Montant mis de côté" : "Capital investi";
   ouvre(`<form id="fi"><div class="dlg-h"><h2>${esc(x.type)} – ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
    <div class="dlg-b">
      ${x.valeur_fixe ? `<p class="small muted" style="margin:0">Compte d'épargne (pas en bourse) : sa valeur est égale au montant mis de côté.</p>` : `<label class="f">Valeur marchande (JV)<input name="jv" inputmode="decimal" value="${esc(v2(x.jv))}" autocomplete="off"></label>`}
