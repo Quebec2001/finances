@@ -249,6 +249,84 @@ svg text{fill:var(--ink-3);font-size:11px}
 .imp-l .imp-m{text-align:right}.imp-c{width:20px;height:20px;accent-color:var(--accent)}.warn-t{color:var(--warn)}
 @media (max-width:600px){.imp-r2{grid-template-columns:1fr 1fr}.imp-r2 .imp-cat{grid-column:1/-1}}
 .we-spin-inline{display:inline-block;width:12px;height:12px;margin-right:8px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:wsi .8s linear infinite;vertical-align:-1px}@keyframes wsi{to{transform:rotate(360deg)}}
+/* ===== Interface « pro » (app de Zach, aperçu ?ui=pro) ===== */
+:root[data-theme="pro"]{--bg:#F5F6F8;--surface:#FFFFFF;--surface-2:#F0F2F5;--ink:#0B1220;--ink-2:#465063;--ink-3:#6B7586;--line:#E5E8ED;--cadre:#E5E8ED;
+  --accent:#0E7C74;--accent-ink:#FFFFFF;--accent-soft:#E3F2EF;--pos:#0E8A5C;--neg:#D23B4B;--pos-soft:#E3F4EC;--neg-soft:#FCE9EB;--info-soft:#EEF2F7;
+  --r:16px;--shadow:0 1px 2px rgba(11,18,32,.04),0 8px 24px rgba(11,18,32,.05)}
+@media (prefers-color-scheme: dark){:root[data-theme="pro"]{--bg:#0B0F14;--surface:#141A21;--surface-2:#1B232C;--ink:#EEF2F6;--ink-2:#B4BECB;--ink-3:#8793A3;--line:#232C36;--cadre:#232C36;
+  --accent:#2BB3A6;--accent-ink:#04201D;--accent-soft:#0F2A28;--pos:#3CC48D;--neg:#F06A78;--pos-soft:#10291F;--neg-soft:#2E1418;--info-soft:#16202A;--shadow:none}}
+body.pro{font-size:15px;letter-spacing:-.005em}
+body.pro nav.tabs{display:none}
+body.pro header{border-bottom:0;background:color-mix(in srgb,var(--bg) 88%,transparent);padding-bottom:8px}
+body.pro .brand{font-size:18px;font-weight:750;letter-spacing:-.02em}
+body.pro .brand::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--accent);margin-right:8px;vertical-align:1px}
+body.pro .card{border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+body.pro .card h3{font-size:12px;letter-spacing:.06em;color:var(--ink-3);font-weight:650}
+body.pro .kpi.k-rev,body.pro .kpi.k-dep,body.pro .kpi.k-net,body.pro .kpi.k-sol{background:var(--surface);border-color:var(--line)!important}
+body.pro main{padding-bottom:calc(140px + env(safe-area-inset-bottom))}
+body.pro .fab{width:54px;height:54px;font-size:28px;bottom:calc(84px + env(safe-area-inset-bottom));right:18px;box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 40%,transparent)}
+.btab{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(5,1fr);padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+  background:color-mix(in srgb,var(--surface) 90%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+.btab[hidden]{display:none}
+.btab button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0 4px;color:var(--ink-3);font-size:11px;font-weight:600;cursor:pointer;border-radius:12px}
+.btab button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.btab button.on{color:var(--accent)}
+.btab button.on svg{stroke-width:2.2}
+.btab .pastille-b{position:absolute;margin-left:18px;margin-top:-2px;min-width:8px;height:8px;border-radius:99px;background:var(--neg)}
+@media (min-width:820px){.btab{left:50%;right:auto;transform:translateX(-50%);bottom:16px;width:520px;border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);padding:6px}
+  body.pro .fab{bottom:28px;right:28px}}
+/* éléments des vues pro */
+.p-hero{display:grid;gap:4px;padding:20px}
+.p-hero .lbl{font-size:13px;color:var(--ink-3);font-weight:600}
+.p-hero .gros{font-size:36px;font-weight:750;letter-spacing:-.03em;line-height:1.1}
+.p-hero .sous{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--ink-2)}
+.p-chip{display:inline-flex;align-items:center;gap:4px;border-radius:99px;padding:2px 9px;font-size:12.5px;font-weight:650;background:var(--surface-2);color:var(--ink-2)}
+.p-chip.pos{background:var(--pos-soft);color:var(--pos)}.p-chip.neg{background:var(--neg-soft);color:var(--neg)}
+.p-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.p-stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);min-width:0}
+.p-stat .l{font-size:12px;color:var(--ink-3);font-weight:600}.p-stat .v{font-size:18px;font-weight:700;letter-spacing:-.01em;margin-top:2px;white-space:nowrap}
+@media (max-width:420px){.p-stat .v{font-size:15.5px}.p-stat{padding:10px 11px}}
+.p-split{display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer}
+.p-split .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex:none}
+.p-split .ic svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.p-split .tx{flex:1;min-width:0}.p-split .t1{font-weight:700;font-size:16px}.p-split .t2{font-size:12.5px;color:var(--ink-3)}
+.p-bal{padding:22px 20px 18px;text-align:center}
+.p-bal .lbl{font-size:13px;color:var(--ink-3);font-weight:600}
+.p-bal .gros{font-size:30px;font-weight:780;letter-spacing:-.03em;margin:4px 0 2px}
+.p-bal .gros.pos{color:var(--pos)}.p-bal .gros.neg{color:var(--neg)}
+.p-bal .sous{font-size:12.5px;color:var(--ink-3)}
+.p-duo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;text-align:left}
+.p-duo div{background:var(--surface-2);border-radius:12px;padding:10px 12px}.p-duo span{display:block;font-size:12px;color:var(--ink-3);font-weight:600}.p-duo b{font-size:17px}
+.p-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.p-act{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:10px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:12px;font-weight:650;color:var(--ink);cursor:pointer}
+.p-act svg{width:22px;height:22px;stroke:var(--accent);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.p-act.prim{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}.p-act.prim svg{stroke:var(--accent-ink)}
+.p-act:disabled{opacity:.45;cursor:default}
+.p-sec{display:flex;justify-content:space-between;align-items:baseline;margin:2px 0 6px}.p-sec b{font-size:15px}.p-sec span{font-size:13px;color:var(--ink-3)}
+.p-row{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.p-row:first-of-type{border-top:0}
+.p-row .d{font-size:12px;color:var(--ink-3);font-weight:600;text-align:center;line-height:1.1}.p-row .d b{display:block;font-size:16px;color:var(--ink)}
+.p-row .m{min-width:0}.p-row .m .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.p-row .m .s{font-size:12px;color:var(--ink-3)}
+.p-row .v{text-align:right;font-weight:700}.p-row .v small{display:block;font-weight:500;font-size:11.5px;color:var(--ink-3)}
+.p-sub{display:flex;justify-content:space-between;padding-top:8px;margin-top:2px;border-top:1px dashed var(--line);font-size:13.5px;font-weight:650}
+.p-vide{font-size:13px;color:var(--ink-3);padding:6px 0}
+.p-groupe{margin-bottom:18px}.p-groupe>.t{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:650;margin:0 4px 6px}
+.p-liste{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.p-item{display:flex;align-items:center;gap:12px;padding:13px 14px;border-top:1px solid var(--line);cursor:pointer;width:100%;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;color:inherit}
+.p-item:first-child{border-top:0}.p-item:hover{background:var(--surface-2)}
+.p-item .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex:none}
+.p-item .ic svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.p-item .tx{flex:1;min-width:0}.p-item .t1{font-weight:600}.p-item .t2{font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.p-item .val{font-weight:650;color:var(--ink-2);white-space:nowrap}.p-item .chev{color:var(--ink-3);font-size:18px}
+.p-seg{display:flex;gap:4px;background:var(--surface-2);border-radius:12px;padding:3px;margin:4px 0 6px}
+.p-seg button{flex:1;border:0;background:none;border-radius:9px;padding:7px 4px;font-weight:600;font-size:13px;color:var(--ink-2);cursor:pointer}
+.p-seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(11,18,32,.08)}
+.p-scroll{max-height:44vh;overflow:auto;margin:0 -4px;padding:0 4px}
+.p-calc{display:grid;gap:6px;margin-top:16px;background:var(--surface-2);border-radius:14px;padding:12px 14px;font-size:14px}
+.p-calc div{display:flex;justify-content:space-between;gap:10px}.p-calc span{color:var(--ink-2)}
+.p-calc .tot{border-top:1px solid var(--line);padding-top:8px;margin-top:2px;font-size:15.5px}.p-calc .tot span{color:var(--ink);font-weight:650}
+body.pro #dlg{max-width:560px}
+.p-retour{border:0;background:none;color:var(--accent);font-weight:650;padding:0 0 10px;cursor:pointer;font-size:15px}
 </style>
 </head>
 <body>
@@ -272,10 +350,11 @@ svg text{fill:var(--ink-3);font-size:11px}
 </header>
 <main id="main"></main>
 <button class="fab" id="fab" aria-label="Ajouter une dépense">+</button>
+<nav class="btab" id="btab" hidden aria-label="Navigation"></nav>
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=b3d0e0aaa8"></script>
+<script src="web.js?v=52df033d13"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -301,6 +380,9 @@ function semType(t){ t=(t||"").toLowerCase().trim(); if(t.startsWith("personnel"
 const PALETTE = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8","--c9","--c10","--c11","--c12","--c13","--c14"].map(v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim());
 
 const S = { etat:null, feuille:null, mois:null, vue:"bord", tend:null };
+// nouvelle interface de l'app de Zach : par défaut en ligne (GitHub) ; ?ui=classique ou Plus › Apparence pour revenir (mémorisé sur cet appareil)
+S.ui = (() => { try { const q = new URLSearchParams(location.search).get("ui"); if(q) localStorage.setItem("ui", q); return q || localStorage.getItem("ui") || (window.WEB ? "pro" : "classique"); } catch(e){ return window.WEB ? "pro" : "classique"; } })();
+const UIPRO = () => !MODE_PAYE() && S.ui === "pro";
 
 async function api(chemin, corps){
   if(window.WEB) return WEB.api(chemin, corps);
@@ -589,6 +671,7 @@ $("#next").onclick = () => bouge(1);
 function bouge(d){ const l=S.etat.mois; const i=l.findIndex(m=>m.feuille===S.feuille)+d; if(i>=0&&i<l.length){ S.feuille=l[i].feuille; $("#mois").value=S.feuille; chargeMois(); } }
 $("#tabs").onclick = e => { const b=e.target.closest("button"); if(!b) return; S.vue=b.dataset.v; [...$("#tabs").children].forEach(x=>x.classList.toggle("on",x===b)); rend(); window.scrollTo({top:0}); };
 $("#fab").onclick = () => dlgTransaction(null);
+$("#btab").onclick = e => { const b = e.target.closest("button"); if(b) vaVers(b.dataset.v); };
 document.addEventListener("visibilitychange", ()=>{ if(!document.hidden && S.etat) rafraichit().catch(()=>{}); });
 
 // ---------------------------------------------------------------- rendu
@@ -602,7 +685,17 @@ function bandeaux(){
 function rend(){
   const m = $("#main");
   const btnC = document.querySelector('#tabs [data-v=couple]'); if(btnC) btnC.hidden = !MODE_PAYE();
-  if(MODE_PAYE()) document.documentElement.dataset.theme = "rose"; else delete document.documentElement.dataset.theme;
+  const pro = UIPRO();
+  document.body.classList.toggle("pro", pro); $("#btab").hidden = !pro;
+  if(MODE_PAYE()) document.documentElement.dataset.theme = "rose"; else if(pro) document.documentElement.dataset.theme = "pro"; else delete document.documentElement.dataset.theme;
+  if(pro){
+    if(S.vue === "regl") S.vue = "plus"; if(S.vue === "couple") S.vue = "split";
+    barreOngletsPro();
+    const br = $(".brand"); if(br && !br.textContent.trim()) br.textContent = "Finances";
+    const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro}[S.vue] || vueBordPro;
+    m.innerHTML = bandeaux() + `<div id="vue"></div>`; vp($("#vue")); return;
+  }
+  if(["split", "plus"].includes(S.vue)) S.vue = "bord";
   if(S.vue === "couple" && !MODE_PAYE()) S.vue = "bord";
   const v = {bord:MODE_PAYE()?vueBordPaye:vueBord, trans:MODE_PAYE()?vueTransPaye:vueTrans, rev:vueRev, couple:vueCouple, inv:vueInv, regl:vueRegl}[S.vue] || vueBord;
   m.innerHTML = bandeaux() + `<div id="vue"></div>`;
@@ -845,14 +938,15 @@ function vueTrans(el){
             <div class="amt num">${$$(x.total)}</div><span class="chev">›</span></div></div>`).join("") : `<div class="empty">Aucune dépense ce mois-ci.</div>`}
           <div class="kv" style="margin-top:8px"><div class="k total">Total des dépenses</div><div class="num total">${$$(m.total_depenses)}</div></div>
         </div>
-        ${hist ? "" : carteMarikaHTML(m)}
+        ${hist ? "" : UIPRO() ? dernieresDepensesHTML(m) : carteMarikaHTML(m)}
       </div>
       <div class="spacer"></div>
       <div class="card cadre"><h3>Dépenses des 6 derniers mois</h3><div id="g6"><div class="empty">Chargement…</div></div></div>`;
       graphDepenses6(z);
       const bi = $("#btnImport", z); if(bi) bi.onclick = () => dlgImportCaptures();
       z.querySelectorAll(".grp-h").forEach(h=>h.onclick=()=>dlgCategorieDepenses(h.parentNode.dataset.c));
-      brancheMarika(z, m);
+      if(!UIPRO()) brancheMarika(z, m);
+      else z.querySelectorAll("[data-dl]").forEach(it => it.onclick = () => dlgTransaction(m.transactions.find(t => t.ligne == it.dataset.dl)));
       return;
     }
     const l = lignesDepenses().filter(t=>(t.description+" "+t.categorie+" "+(t.type||"")).toLowerCase().includes(q)).reverse();
@@ -1099,6 +1193,7 @@ function dlgTransaction(t, apres, catDefaut, dateDef){
 
 // ---------------------------------------------------------------- détail Marika
 function dlgMarika(){
+  if(UIPRO()) return dlgMarikaPro();
   const m = S.mois, mod = S.info.modifiable, p = m.pct_marika;
   const split = m.transactions.filter(t=>t.utilise && semType(t.type) && semType(t.type)!=="P");
   const der = m.ligne_dernier_reglement;
@@ -1944,6 +2039,203 @@ async function dlgNouveauMois(){
   });
 }
 
+// ================================================================ interface « pro » (app de Zach) — aperçu : ?ui=pro (?ui=classique pour revenir)
+const ICO = {
+  bord: `<svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/></svg>`,
+  trans: `<svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>`,
+  split: `<svg viewBox="0 0 24 24"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg>`,
+  rev: `<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18M16 14.5h2"/></svg>`,
+  plus: `<svg viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/></svg>`,
+  regle: `<svg viewBox="0 0 24 24"><path d="M5 12.5 10 17l9-10"/></svg>`,
+  envoi: `<svg viewBox="0 0 24 24"><path d="M21 3 10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></svg>`,
+  recoit: `<svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/></svg>`,
+  autres: `<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>`,
+  inv: `<svg viewBox="0 0 24 24"><path d="M4 19h16"/><path d="M6 15l4-4 3 3 5-6"/><path d="M15 8h3v3"/></svg>`,
+  cal: `<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 9.5h16M9 3v4M15 3v4"/></svg>`,
+  bud: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 4"/></svg>`,
+  cat: `<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>`,
+  mot: `<svg viewBox="0 0 24 24"><path d="M4 7h10M4 12h16M4 17h7"/></svg>`,
+  nuage: `<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/></svg>`,
+  oeil: `<svg viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg>`,
+  pct: `<svg viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.3"/><circle cx="17" cy="17" r="2.3"/></svg>`,
+};
+const ONGLETS_PRO = [["bord", "Accueil"], ["trans", "Dépenses"], ["split", "Partage"], ["rev", "Revenus"], ["plus", "Plus"]];
+function barreOngletsPro(){
+  const n = $("#btab"); if(!n) return;
+  const actif = S.vue === "inv" ? "plus" : S.vue;
+  n.innerHTML = ONGLETS_PRO.map(([v, t]) => `<button data-v="${v}" class="${v === actif ? "on" : ""}" aria-label="${t}">${ICO[v]}<span>${t}</span></button>`).join("");
+}
+function vaVers(v){ S.vue = v; rend(); window.scrollTo({top: 0}); }
+const jourCourt = iso => iso ? `<b>${+iso.slice(8,10)}</b>${(MOIS_MOTS[+iso.slice(5,7)-1] || "").slice(0,4)}.` : "—";
+// --- Accueil
+function vueBordPro(el){
+  const m = S.mois, hist = S.info.groupe === "historique", mod = S.info.modifiable;
+  const rn = m.revenu_net || 0;
+  let split = "";
+  if(!hist && m.transactions){ const x = splitDetail(m), cl = Math.abs(x.net || 0) < 0.005 ? "" : (x.net > 0 ? "pos" : "neg");
+    split = `<div class="card p-split" id="pSplit" role="button" tabindex="0"><div class="ic">${ICO.split}</div><div class="tx"><div class="t1 ${cl}">${netSplitTexte(x.net)}</div><div class="t2">${x.marq ? "Depuis le règlement du " + dL(x.marq.date) : "Aucun règlement ce mois-ci"} · voir le partage</div></div><span class="chev" style="color:var(--ink-3)">›</span></div>`; }
+  el.innerHTML = `
+   <div class="card p-hero"><div class="lbl">Solde au compte · ${esc(S.info.nom)}</div><div class="gros num">${$$(m.solde_fin)}</div>
+     <div class="sous"><span>Début ${$$(m.solde_debut)}</span><span class="p-chip ${rn < 0 ? "neg" : "pos"}">${rn < 0 ? "▼" : "▲"} ${$$(Math.abs(rn))} ce mois</span></div></div>
+   <div class="spacer"></div>${split}${split ? `<div class="spacer"></div>` : ""}
+   <div class="p-stats"><div class="p-stat"><div class="l">Revenus</div><div class="v num">${$$(m.total_revenus)}</div></div>
+     <div class="p-stat"><div class="l">Dépenses</div><div class="v num">${$$(m.total_depenses)}</div></div>
+     <div class="p-stat"><div class="l">Revenu net</div><div class="v num ${rn < 0 ? "neg" : "pos"}">${$$(rn)}</div></div></div>
+   <div class="spacer"></div>
+   <div class="grid two">
+     <div class="card cadre"><h3>Dépenses par catégorie</h3>${barres(groupesDepenses().map(g => ({categorie: g.categorie, montant: g.total})))}</div>
+     <div class="card cadre"><h3>Revenus et dépenses – 6 derniers mois</h3><div id="g12"><div class="empty">Chargement…</div></div></div>
+   </div>
+   <div class="spacer"></div>${resumeGlobalHTML(m, mod)}`;
+  graphRevDep(el);
+  const ps = $("#pSplit", el); if(ps){ ps.onclick = () => vaVers("split"); ps.onkeydown = ev => { if(ev.key === "Enter") vaVers("split"); }; }
+  const es = $("#edSol", el); if(es) es.onclick = () => dlgSoldes(m);
+}
+// --- Partage (split) : la fonction phare
+function vuePartagePro(el){
+  const m = S.mois, mod = S.info.modifiable;
+  if(S.info.groupe === "historique" || !m.transactions){ el.innerHTML = `<div class="card"><div class="empty">Mois d'historique : pas de détail du partage.</div></div>`; return; }
+  const x = splitDetail(m), cl = Math.abs(x.net || 0) < 0.005 ? "" : (x.net > 0 ? "pos" : "neg");
+  const ligne = (o, lib) => `<div class="p-row"><div class="d">${jourCourt(o.date)}</div><div class="m"><div class="t">${esc(o.desc)}</div><div class="s">${o.total != null ? "payé " + $$(o.total) : "autre montant"}</div></div><div class="v num">${$$(o.part)}<small>${lib}</small></div></div>`;
+  const bloc = (titre, sous, l, lib) => `<div class="card"><div class="p-sec"><b>${titre}</b><span>${sous}</span></div>
+     ${l.length ? l.map(o => ligne(o, lib)).join("") : `<div class="p-vide">Rien en cours.</div>`}
+     <div class="p-sub"><span>Sous-total</span><span class="num">${$$(l.reduce((a, o) => a + (o.part || 0), 0))}</span></div></div>`;
+  const netReg = x.regMoi.tot - x.regLui.tot;
+  el.innerHTML = `
+   <div class="card p-bal"><div class="lbl">Solde avec ${PART()} · % ${PART()} ${pct(m.pct_marika)}</div>
+     <div class="gros num ${cl}" id="splitNet">${netSplitTexte(x.net)}</div>
+     <div class="sous">${x.marq ? `Depuis le dernier règlement du ${dL(x.marq.date)}` : "Aucun règlement ce mois-ci"}</div>
+     <div class="p-duo"><div><span>À recevoir de ${PART()}</span><b class="num">${$$(x.recevoir)}</b></div><div><span>À payer à ${PART()}</span><b class="num">${$$(x.payer)}</b></div></div>
+     <div class="p-actions">
+       <button class="p-act prim" id="aRegle" ${mod ? "" : "disabled"}>${ICO.regle}<span>Régler</span></button>
+       <button class="p-act" id="aEnvoi">${ICO.envoi}<span>Envoyer</span></button>
+       <button class="p-act" id="aRecoit">${ICO.recoit}<span>Recevoir</span></button>
+       <button class="p-act" id="aAutres">${ICO.autres}<span>Autres</span></button></div></div>
+   <div class="spacer"></div>
+   <div class="grid two">
+     ${bloc(`Payé par moi`, `part de ${PART()}`, x.opMoi, "sa part")}
+     ${bloc(`Payé par ${PART()}`, "ma part", x.opLui, "ma part")}
+   </div>
+   <div class="spacer"></div>
+   <div class="grid two">
+     <div class="card"><div class="p-sec"><b>Règlements du mois</b><span>${x.marq ? dL(x.marq.date) : ""}</span></div>
+       ${x.regMoi.n || x.regLui.n ? `<div class="kv"><div class="k">Reçus de ${PART()} (${x.regMoi.n} opération${x.regMoi.n > 1 ? "s" : ""})</div><div class="num">${$$(x.regMoi.tot)}</div>
+         <div class="k">Versés à ${PART()} (${x.regLui.n} opération${x.regLui.n > 1 ? "s" : ""})</div><div class="num">${$$(x.regLui.tot)}</div>
+         <div class="k total">Règlements nets du mois</div><div class="num total">${Math.abs(netReg) < 0.005 ? "0,00 $" : (netReg > 0 ? `Reçu ${$$(netReg)}` : `Versé ${$$(-netReg)}`)}</div></div>`
+         : `<div class="p-vide">Aucun règlement ce mois-ci.</div>`}</div>
+     ${carteRepartitionHTML(m, mod)}
+   </div>`;
+  $("#aRegle", el).onclick = () => { const util = m.transactions.filter(t => t.utilise); if(!util.length) return toast("Aucune transaction", true); dlgConfirmeReglement(m, util[util.length - 1]); };
+  $("#aEnvoi", el).onclick = () => dlgPartage();
+  $("#aRecoit", el).onclick = () => dlgCollePartage();
+  $("#aAutres", el).onclick = () => dlgMarika();
+  if(mod) brancheRepartition(el, m);
+}
+// --- Placements (depuis « Plus »)
+function dernieresDepensesHTML(m){
+  const l = m.transactions.filter(t => t.utilise && t.date).sort((a, b) => b.date.localeCompare(a.date) || b.ligne - a.ligne).slice(0, 8), mod = S.info.modifiable;
+  const typ = t => { const s = semType(t.type); return s && s !== "P" ? ` · <span class="p-chip" style="padding:0 7px;font-size:11px">${esc(TYPES_COURTS[s])}</span>` : (t.a_rembourser ? ` · <span class="p-chip" style="padding:0 7px;font-size:11px">payé par ${PART()}</span>` : ""); };
+  return `<div class="card"><div class="p-sec"><b>Dernières dépenses</b><span>${mod ? "touche pour modifier" : ""}</span></div>
+    ${l.length ? l.map(t => `<div class="p-row" ${mod ? `data-dl="${t.ligne}" style="cursor:pointer"` : ""}><div class="d">${jourCourt(t.date)}</div><div class="m"><div class="t">${esc(t.description)}</div><div class="s">${esc(t.categorie || "")}${typ(t)}</div></div><div class="v num">${$$(t.depense != null ? t.depense : t.deboursement)}${t.depense != null && Math.abs((t.depense || 0) - (t.deboursement || 0)) > 0.004 ? `<small>sur ${$$(t.deboursement)}</small>` : ""}</div></div>`).join("") : `<div class="p-vide">Aucune dépense ce mois-ci.</div>`}</div>`;
+}
+// Détail du split (interface pro) : lisible même avec beaucoup de dépenses (filtres, lignes compactes, réglées repliées)
+function dlgMarikaPro(filtre){
+  const m = S.mois, mod = S.info.modifiable, der = m.ligne_dernier_reglement;
+  S.splitFiltre = filtre || S.splitFiltre || "cours";
+  const split = m.transactions.filter(t => t.utilise && semType(t.type) && semType(t.type) !== "P" && Math.abs(t.marika || 0) > 0.004);
+  const arem = m.transactions.filter(t => t.utilise && t.a_rembourser);
+  const regle = t => der != null && t.ligne <= der;
+  const cours = split.filter(t => !regle(t)), reglees = split.filter(regle);
+  const vis = S.splitFiltre === "cours" ? cours : S.splitFiltre === "reglees" ? reglees : split;
+  const x = splitDetail(m), net = x.net, cl = Math.abs(net || 0) < 0.005 ? "" : (net > 0 ? "pos" : "neg");
+  const somme = l => l.reduce((a, t) => a + (t.marika || 0), 0);
+  const ligne = t => { const s = semType(t.type), dette = t.marika < 0;
+    return `<div class="p-row" ${mod ? `data-l="${t.ligne}" style="cursor:pointer"` : ""}><div class="d">${jourCourt(t.date)}</div>
+      <div class="m"><div class="t">${esc(t.description)}</div><div class="s"><span class="p-chip" style="padding:0 7px;font-size:11px">${esc(TYPES_COURTS[s] || "")}</span> payé ${$$(t.deboursement)}${regle(t) ? " · réglé" : ""}</div></div>
+      <div class="v num ${dette ? "neg" : ""}">${$$(Math.abs(t.marika))}<small>${dette ? "tu dois" : "sa part"}</small></div></div>`; };
+  const seg = (k, lib, n) => `<button type="button" data-f="${k}" class="${S.splitFiltre === k ? "on" : ""}">${lib} <span class="muted">${n}</span></button>`;
+  const reps = m.reports || [];
+  ouvre(`<div class="dlg-h"><h2>Split avec ${PART()} · ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     <div class="p-bal" style="padding:6px 0 0"><div class="lbl">Remboursement dû (net)</div><div class="gros num ${cl}" style="font-size:26px">${netSplitTexte(net)}</div>
+       <div class="sous">% ${PART()} ${pct(m.pct_marika)} · ${x.marq ? "dernier règlement le " + dL(x.marq.date) : "aucun règlement ce mois-ci"}</div></div>
+     <div class="p-sec" style="margin-top:6px"><b>Dépenses partagées</b><span>${split.length} au total</span></div>
+     <div class="seg p-seg" id="pf">${seg("cours", "En cours", cours.length)}${seg("reglees", "Réglées", reglees.length)}${seg("tout", "Tout", split.length)}</div>
+     <div class="p-scroll">${vis.length ? vis.map(ligne).join("") : `<div class="p-vide">${S.splitFiltre === "cours" ? "Rien en cours : tout a été réglé." : "Aucune dépense."}</div>`}</div>
+     ${(() => { const pos = vis.filter(t => t.marika > 0).reduce((a, t) => a + t.marika, 0), neg = -vis.filter(t => t.marika < 0).reduce((a, t) => a + t.marika, 0);
+        return `<div class="p-sub"><span>${S.splitFiltre === "cours" ? "En cours" : S.splitFiltre === "reglees" ? "Réglées" : "Tout le mois"}</span><span class="num">${PART()} : ${$$(pos)}${neg > 0.004 ? ` · <span class="neg">toi : ${$$(neg)}</span>` : ""}</span></div>`; })()}
+     <div class="p-sec" style="margin-top:14px"><b>Autres montants</b>${mod ? `<button class="btn small" id="addAj">Ajouter</button>` : ""}</div>
+     ${reps.length ? reps.map(r => `<div class="p-row" ${mod && !r.auto ? `data-aj="${r.ligne}" style="cursor:pointer"` : ""}><div class="d">${r.auto ? ICO.cal.replace("<svg", '<svg style="width:20px;height:20px;stroke:var(--ink-3);fill:none;stroke-width:1.8"') : ICO.autres.replace("<svg", '<svg style="width:20px;height:20px;stroke:var(--ink-3);fill:none;stroke-width:1.8"')}</div>
+        <div class="m"><div class="t">${esc(r.libelle || "(sans description)")}</div><div class="s">${r.auto ? "Report automatique" : "Ajout manuel"}${r.regle ? ` · réglé (était ${$$(r.montant_origine)})` : ""}</div></div>
+        <div class="v num ${r.montant < 0 ? "neg" : ""} ${r.regle ? "muted" : ""}">${$$(Math.abs(r.regle ? (r.montant_origine || 0) : r.montant))}<small>${r.montant < 0 || (r.montant_origine || 0) < 0 ? "tu dois" : `${PART()} doit`}</small></div></div>`).join("")
+       : `<div class="p-vide">Aucun montant.</div>`}
+     ${arem.length ? `<div class="p-sec" style="margin-top:14px"><b>Payé par ${PART()}</b><span>reçu par lien</span></div>${arem.map(t => `<div class="p-row"><div class="d">${jourCourt(t.date)}</div><div class="m"><div class="t">${esc(t.description.replace(/\s*\(carte [^()]+ – à rembourser\)\s*$/, ""))}</div><div class="s">à rembourser</div></div><div class="v num neg">${$$(t.deboursement)}<small>tu dois</small></div></div>`).join("")}` : ""}
+     <div class="p-calc"><div><span>À recevoir de ${PART()}</span><b class="num">${$$(x.recevoir)}</b></div><div><span>À payer à ${PART()}</span><b class="num">− ${$$(x.payer)}</b></div><div class="tot"><span>Solde net</span><b class="num ${cl}">${netSplitTexte(net)}</b></div></div>
+   </div>
+   <div class="dlg-f"><button type="button" class="btn" id="btnPartage">Envoyer à ${PART()}</button><button type="button" class="btn" id="btnRecoit">Recevoir</button><span class="grow"></span><button type="button" class="btn primary" data-close>Fermer</button></div>`, d => {
+    $("#pf", d).onclick = ev => { const b = ev.target.closest("button"); if(b) dlgMarikaPro(b.dataset.f); };
+    $("#btnPartage", d).onclick = () => dlgPartage();
+    $("#btnRecoit", d).onclick = () => dlgCollePartage();
+    const a = $("#addAj", d); if(a) a.onclick = () => dlgAjust(null);
+    d.querySelectorAll("[data-aj]").forEach(it => it.onclick = () => dlgAjust(m.reports.find(r => r.ligne == it.dataset.aj)));
+    d.querySelectorAll("[data-l]").forEach(it => it.onclick = () => dlgTransaction(m.transactions.find(t => t.ligne == it.dataset.l), () => dlgMarikaPro()));
+  });
+}
+function vueInvPro(el){
+  el.innerHTML = `<button class="p-retour" id="pRet">‹ Plus</button><div id="pInv"></div>`;
+  $("#pRet", el).onclick = () => vaVers("plus"); vueInv($("#pInv", el));
+}
+// --- Plus : réglages regroupés, une ligne = une action
+function vuePlusPro(el){
+  const e = S.etat, m = S.mois;
+  const tj = (m.investissements || []).reduce((a, x) => a + (x.jv || 0), 0);
+  const nbBud = Object.keys(e.budgets || {}).length;
+  const item = (id, ic, t1, t2, val = "") => `<button class="p-item" id="${id}"><span class="ic">${ICO[ic]}</span><span class="tx"><div class="t1">${t1}</div>${t2 ? `<div class="t2">${t2}</div>` : ""}</span>${val ? `<span class="val num">${val}</span>` : ""}<span class="chev">›</span></button>`;
+  el.innerHTML = `
+   <div class="p-groupe"><div class="t">Patrimoine</div><div class="p-liste">${item("pInvB", "inv", "Placements", "CÉLI, CÉLIAPP et autres comptes", $$(tj))}</div></div>
+   <div class="p-groupe"><div class="t">Mois</div><div class="p-liste">${item("pNm", "cal", "Créer " + esc(e.prochain_mois), "Clôture du mois et nouveau départ")}</div></div>
+   <div class="p-groupe"><div class="t">Partage avec ${PART()}</div><div class="p-liste">
+     ${item("pPct", "pct", "Répartition", "Revenus et % utilisé pour le split proportionnel", pct(m.pct_marika))}
+     ${item("pAut", "autres", "Autres montants", "Montants payés hors de l'app")}</div></div>
+   <div class="p-groupe"><div class="t">Organisation</div><div class="p-liste">
+     ${item("pBud", "bud", "Budgets", nbBud ? nbBud + " catégorie" + (nbBud > 1 ? "s" : "") + " suivie" + (nbBud > 1 ? "s" : "") : "Aucun budget")}
+     ${item("pCat", "cat", "Catégories", e.categories.length + " catégories")}
+     ${item("pMot", "mot", "Mots-clés", e.motscles.length + " mots-clés → catégorie")}</div></div>
+   <div class="p-groupe"><div class="t">Compte</div><div class="p-liste">
+     ${window.WEB ? item("pWeb", "nuage", "Compte Microsoft et fichier", "Fichier OneDrive, sauvegardes, déconnexion") : item("pFich", "nuage", "Fichier", esc(e.fichier || ""))}
+     ${item("pUi", "oeil", "Apparence", "Revenir à l'interface classique")}</div></div>`;
+  $("#pInvB", el).onclick = () => vaVers("inv");
+  $("#pNm", el).onclick = () => dlgNouveauMois();
+  $("#pPct", el).onclick = () => vaVers("split");
+  $("#pAut", el).onclick = () => dlgMarika();
+  $("#pBud", el).onclick = () => dlgBudgets();
+  $("#pCat", el).onclick = () => dlgCategories();
+  $("#pMot", el).onclick = () => dlgMotsCles();
+  if($("#pWeb", el)) $("#pWeb", el).onclick = () => ouvre(`<div class="dlg-h"><h2>Compte et fichier</h2><button type="button" class="x" data-close>✕</button></div><div class="dlg-b">${WEB.carteReglages()}</div>`, d => WEB.brancheReglages(d));
+  if($("#pFich", el)) $("#pFich", el).onclick = () => toast(e.fichier || "");
+  $("#pUi", el).onclick = () => { S.ui = "classique"; try { localStorage.setItem("ui", "classique"); } catch(x){} S.vue = "bord"; rend(); };
+}
+function dlgCategories(){
+  const e = S.etat;
+  ouvre(`<div class="dlg-h"><h2>Catégories</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b"><div style="display:flex;flex-wrap:wrap;gap:6px">${e.categories.map(c => `<span class="chip" style="font-size:13px;padding:4px 10px"><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${couleurCat(c)};margin-right:6px"></i>${esc(c)}</span>`).join("")}</div>
+   <form id="fx" style="display:flex;gap:8px;margin-top:6px"><input name="nom" class="search" placeholder="Nouvelle catégorie" required><button class="btn primary">Ajouter</button></form></div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button></div>`, d => {
+    $("#fx", d).onsubmit = async ev => { ev.preventDefault(); try { await ecrit("/api/listes/categorie", {nom: $("#fx", d).nom.value}, "Catégorie ajoutée"); dlgCategories(); } catch(x){} };
+  });
+}
+function dlgMotsCles(){
+  const e = S.etat;
+  ouvre(`<div class="dlg-h"><h2>Mots-clés → catégorie</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b"><input class="search" id="qm" placeholder="Rechercher un mot-clé…"><div class="list" id="lm" style="max-height:46vh;overflow:auto"></div>
+     <form id="fx" style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px"><input name="mot" class="search" placeholder="Mot-clé" required><select name="categorie" class="search">${e.categories.map(c => `<option>${esc(c)}</option>`).join("")}</select><button class="btn primary">Ajouter</button></form>
+     <p class="hint" style="margin:0">La dernière correspondance de la liste l'emporte (les mots génériques sont à la fin).</p></div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button></div>`, d => {
+    const draw = () => { const q = $("#qm", d).value.toLowerCase(); $("#lm", d).innerHTML = e.motscles.map((k, i) => [k, i]).filter(([k]) => !q || (k.mot + " " + k.categorie).toLowerCase().includes(q)).map(([k]) => `<div class="item" style="cursor:default;padding:6px 2px"><div class="main"><div class="t1" style="font-weight:500">${esc(k.mot)}</div></div><span class="chip">${esc(k.categorie)}</span></div>`).join(""); };
+    $("#qm", d).oninput = draw; draw();
+    const f = $("#fx", d); f.onsubmit = async ev => { ev.preventDefault(); try { await ecrit("/api/listes/mot-cle", {mot: f.mot.value, categorie: f.categorie.value}, "Mot-clé ajouté"); dlgMotsCles(); } catch(x){} };
+  });
+}
 function captePartage(){ const m = location.hash.match(/[#&]partage=([A-Za-z0-9_-]+)/);
   if(m){ try { localStorage.setItem("partage_recu", m[1]); } catch(e){} history.replaceState(null, "", location.pathname + location.search); return true; } return false; }
 captePartage();
