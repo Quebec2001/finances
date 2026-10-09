@@ -3,10 +3,13 @@
 // moteur Python exécuté dans le navigateur (Pyodide). Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "52df033d13";
+const VERSION = "976fc40414";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
-const SCOPES = "Files.ReadWrite offline_access User.Read";
+const SCOPES_BASE = "Files.ReadWrite offline_access User.Read";
+// la synchronisation du partage lit un fichier dans le OneDrive de l'autre personne : permission demandée seulement quand on l'active
+const SCOPES_SYNC = SCOPES_BASE + " Files.ReadWrite.All";
+const scopes = () => LS.get("w_scope") === "all" ? SCOPES_SYNC : SCOPES_BASE;
 const G = "https://graph.microsoft.com/v1.0";
 const PYODIDE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const CONFIG = {premier_mois_modifiable: "Octobre 2026", alias_investissements: {"Fonds communs de placement": "CÉLI"}};
@@ -49,7 +52,7 @@ async function versConnexion(choisirCompte){
   const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
   LS.set("w_verifier", verifier); LS.set("w_state", state);
   const q = new URLSearchParams({client_id: CLIENT_ID, response_type: "code", redirect_uri: REDIRECT, response_mode: "query",
-    scope: SCOPES, state, code_challenge: challenge, code_challenge_method: "S256"});
+    scope: scopes(), state, code_challenge: challenge, code_challenge_method: "S256"});
   if(choisirCompte) q.set("prompt", "select_account");
   else if(LS.get("w_login")) q.set("login_hint", LS.get("w_login"));
   location.href = AUTH + "/authorize?" + q;
@@ -71,12 +74,15 @@ async function retourConnexion(){
   if(!(p.get("state") || "").startsWith("web-")) return false;
   history.replaceState(null, "", location.pathname);
   if(p.has("error")){
-    if(p.get("error") === "access_denied") return "refus";
+    if(p.get("error") === "access_denied"){
+      if(LS.get("w_apres")){ LS.set("w_scope", null); LS.set("w_apres", null); LS.set("w_apres_refus", "1"); return LS.get("w_rt") ? true : "refus"; }
+      return "refus";
+    }
     throw new Error("Connexion Microsoft refusée : " + (p.get("error_description") || p.get("error")));
   }
   if(p.get("state") !== LS.get("w_state")) throw new Error("Retour de connexion invalide. Réessaie.");
   garde(await jeton({client_id: CLIENT_ID, grant_type: "authorization_code", code: p.get("code"), redirect_uri: REDIRECT,
-    code_verifier: LS.get("w_verifier"), scope: SCOPES}));
+    code_verifier: LS.get("w_verifier"), scope: scopes()}));
   LS.set("w_verifier", null); LS.set("w_state", null);
   return true;
 }
@@ -85,7 +91,7 @@ async function accessToken(){
   if(at && Date.now() < +(LS.get("w_exp") || 0)) return at;
   const rt = LS.get("w_rt");
   if(rt){
-    try { const t = await jeton({client_id: CLIENT_ID, grant_type: "refresh_token", refresh_token: rt, scope: SCOPES}); garde(t); return t.access_token; }
+    try { const t = await jeton({client_id: CLIENT_ID, grant_type: "refresh_token", refresh_token: rt, scope: scopes()}); garde(t); return t.access_token; }
     catch(e){ LS.set("w_rt", null); }
   }
   etape("Reconnexion à Microsoft…");
@@ -263,6 +269,7 @@ async function demarre(){
     await chargePython();
     etape("Ouverture de « " + fichier.name + " »…");
     await telecharge();
+    try { await chargeLien(); } catch(e){}
   } catch(e){ return erreurDemarrage(e); }
   cacheEcran();
   // au retour dans l'app : recharger si le fichier a été modifié ailleurs (ex. sur le Mac)
@@ -280,7 +287,7 @@ function erreurDemarrage(e){
   return new Promise(() => {});
 }
 function deconnexion(){
-  ["w_at", "w_exp", "w_rt", "w_login", "w_fichier"].forEach(k => LS.set(k, null));
+  ["w_at", "w_exp", "w_rt", "w_login", "w_fichier", "w_lien", "w_scope", "w_sync_off"].forEach(k => LS.set(k, null));
   location.href = REDIRECT;
 }
 async function changerFichier(){
@@ -292,11 +299,91 @@ function carteReglages(){
     <div class="kv small"><div class="k">Compte Microsoft</div><div style="word-break:break-all">${esc(compte)}</div>
     <div class="k">Fichier OneDrive</div><div style="word-break:break-all">${esc(fichier && fichier.name)}</div></div>
     <p class="hint">Une copie de sécurité est faite chaque jour d'utilisation dans le dossier OneDrive « Sauvegardes app finances », à côté du fichier Excel.</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="weFich">Changer de fichier</button><button class="btn small" id="weDec">Se déconnecter</button></div></div>`;
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="weFich">Changer de fichier</button><button class="btn small" id="weDec">Se déconnecter</button>${typeof window.dlgSync === "function" ? `<button class="btn small" id="weSync">Synchronisation du partage</button>` : ""}</div></div>`;
 }
 function brancheReglages(el){
   const a = el.querySelector("#weFich"); if(a) a.onclick = changerFichier;
   const b = el.querySelector("#weDec"); if(b) b.onclick = deconnexion;
+  const c = el.querySelector("#weSync"); if(c) c.onclick = () => window.dlgSync();
 }
-window.WEB = {demarre, api, carteReglages, brancheReglages, version: VERSION};
+
+// ------------------------------------------------------------------ fichier partagé du couple (synchronisation)
+// « Partage couple.json » est créé dans le OneDrive de la personne qui lie les comptes, à côté de son Excel,
+// puis partagé (lecture-écriture) avec l'autre personne seulement. Chaque app y lit et y écrit avec If-Match (eTag).
+const PARTAGE_NOM = "Partage couple.json";
+const LIEN_APPROOT = "/me/drive/special/approot:/partage-couple-lien.json";
+const lien = () => { try { return JSON.parse(LS.get("w_lien") || "null"); } catch(e){ return null; } };
+function activeScope(){ if(LS.get("w_scope") !== "all"){ LS.set("w_scope", "all"); LS.set("w_at", null); } }
+async function assureScope(apres){
+  if(LS.get("w_scope") === "all") return true;
+  LS.set("w_apres", apres); LS.set("w_scope", "all"); LS.set("w_at", null);
+  etape("Autorisation OneDrive pour la synchronisation…");
+  return versConnexion(false);            // Microsoft demande le consentement une seule fois, puis revient ici
+}
+function apres(){ const a = LS.get("w_apres"), r = LS.get("w_apres_refus"); LS.set("w_apres", null); LS.set("w_apres_refus", null); return r ? "refus" : a; }
+async function gardeLien(l){
+  LS.set("w_lien", JSON.stringify(l)); activeScope();
+  try { await graph(LIEN_APPROOT + ":/content", {method: "PUT", body: JSON.stringify(l), headers: {"Content-Type": "application/json"}}); } catch(e){ console.warn("lien non mémorisé dans OneDrive", e); }
+}
+async function chargeLien(){
+  if(lien()) return lien();
+  try { if(sessionStorage.getItem("w_lien_vu")) return null; } catch(e){}
+  try {
+    // liste du dossier de l'app (évite une erreur 404 quand rien n'est encore lié)
+    const f = ((await (await graph("/me/drive/special/approot/children?$select=id,name")).json()).value || []).find(x => x.name === "partage-couple-lien.json");
+    if(!f){ try { sessionStorage.setItem("w_lien_vu", "1"); } catch(e){} return null; }
+    const l = await (await graph(LIEN_APPROOT + ":/content")).json();
+    if(l && l.d && l.i){ LS.set("w_lien", JSON.stringify(l)); activeScope(); return l; }
+  } catch(e){}
+  try { sessionStorage.setItem("w_lien_vu", "1"); } catch(e){}
+  return null;
+}
+async function creePartage(email, initial, message){
+  const parent = fichier.parentReference && fichier.parentReference.id;
+  const base = parent ? `/me/drive/items/${parent}:` : "/me/drive/root:";
+  let it;
+  try { it = await (await graph(`${base}/${encodeURIComponent(PARTAGE_NOM)}?$select=id,eTag,parentReference`)).json(); }
+  catch(e){
+    if(e.status !== 404) throw e;
+    it = await (await graph(`${base}/${encodeURIComponent(PARTAGE_NOM)}:/content`, {method: "PUT", body: JSON.stringify(initial), headers: {"Content-Type": "application/json"}})).json();
+  }
+  const l = {d: it.parentReference.driveId, i: it.id, proprio: initial.proprio};
+  if(email) await graph(`/drives/${l.d}/items/${l.i}/invite`, {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({recipients: [{email}], requireSignIn: true, sendInvitation: true, roles: ["write"], message})});
+  await gardeLien(l);
+  return l;
+}
+async function rejoint(l){
+  await graph(`/drives/${l.d}/items/${l.i}?$select=id,eTag`);       // 403/404 si l'invitation n'est pas encore acceptée
+  await gardeLien(l);
+  return l;
+}
+async function litPartage(){
+  const l = lien(); if(!l) throw new Error("Comptes non liés");
+  const u = `/drives/${l.d}/items/${l.i}`;
+  for(let k = 0; k < 3; k++){
+    const a = await (await graph(u + "?$select=id,eTag")).json();
+    const txt = await (await graph(u + "/content", {cache: "no-store"})).text();
+    const b = await (await graph(u + "?$select=id,eTag")).json();
+    if(a.eTag === b.eTag){ let j = {}; try { j = JSON.parse(txt || "{}"); } catch(e){ j = {}; } return {j, etag: b.eTag}; }
+  }
+  throw new Error("Le fichier partagé change en ce moment. Réessaie.");
+}
+async function ecritPartage(j, etag){
+  const l = lien();
+  try {
+    const r = await graph(`/drives/${l.d}/items/${l.i}/content`, {method: "PUT", body: JSON.stringify(j), headers: {"Content-Type": "application/json", "If-Match": etag}});
+    return (await r.json()).eTag;
+  } catch(e){
+    if(e.status === 412 || e.status === 409){ const c = new Error("conflit"); c.conflit = true; throw c; }
+    throw e;
+  }
+}
+async function delie(){
+  LS.set("w_lien", null);
+  try { await graph(LIEN_APPROOT, {method: "DELETE"}); } catch(e){}
+}
+const partage = {lien, chargeLien, assureScope, apres, creePartage, rejoint, lit: litPartage, ecrit: ecritPartage, delie,
+  pause: () => LS.get("w_sync_off") === "1", metPause: b => LS.set("w_sync_off", b ? "1" : null), compte: () => compte};
+window.WEB = {demarre, api, carteReglages, brancheReglages, partage, version: VERSION};
 })();

@@ -220,6 +220,11 @@ label.f input:focus,label.f select:focus{outline:2px solid color-mix(in srgb,var
 .preview{background:var(--surface-2);border-radius:10px;padding:9px 12px;font-size:13.5px;color:var(--ink-2)}
 .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;z-index:100;max-width:calc(100vw - 32px);box-shadow:0 8px 24px rgba(0,0,0,.2);opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
+.sync-zone:empty{display:none}.sync-zone{margin:0 0 12px}
+.sync-b{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 14px;font:inherit;color:var(--ink);cursor:pointer}
+.sync-b .tx{flex:1;min-width:0;display:grid;gap:1px}.sync-b .tx b{font-weight:600;font-size:14px}.sync-b .tx small{color:var(--ink-3);font-size:12.5px}.sync-b .chev{color:var(--ink-3);font-size:18px}
+.sync-pt{width:9px;height:9px;border-radius:50%;flex:none;background:var(--pos)}.sync-pt.off{background:var(--ink-3);opacity:.5}.sync-pt.ko{background:var(--warn,#d97706)}
+
 .toast.err{background:var(--neg);color:#fff}
 table.t{width:100%;border-collapse:collapse;font-size:14px}
 table.t th,table.t td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
@@ -354,7 +359,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=52df033d13"></script>
+<script src="web.js?v=976fc40414"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -398,7 +403,7 @@ function toast(msg, err){ let t=$("#toast"); if(!t){ t=document.createElement("d
   const dl=$("#dlg"), hote = dl && dl.open ? dl : document.body; if(t.parentNode!==hote) hote.appendChild(t); t.textContent=msg; t.className="toast on"+(err?" err":""); clearTimeout(toastT); toastT=setTimeout(()=>t.className="toast"+(err?" err":""), err?5000:2200); }
 async function ecrit(chemin, corps, msg){
   document.body.classList.add("loading");
-  try { const r = await api(chemin, Object.assign({feuille:S.feuille}, corps)); if(msg) toast(msg); S.tend=null; await rafraichit(); return r; }
+  try { const r = await api(chemin, Object.assign({feuille:S.feuille}, corps)); if(msg) toast(msg); S.tend=null; await rafraichit(); planifieSync(); return r; }
   catch(e){ toast(e.message, true); throw e; }
   finally { document.body.classList.remove("loading"); }
 }
@@ -451,7 +456,7 @@ function decodePartage(t){
 }
 // dépenses partagées pas encore remboursées : ce mois-ci depuis le dernier règlement + mois précédents reportés
 // (report automatique « Portion <mois> » non réglé → on détaille les dépenses de ce mois-là)
-async function lignesAPartager(){
+async function lignesAPartager(m0 = S.mois, info0 = S.info){
   const vus = new Set(), out = [];
   const finMois = cle => { const [a, mo] = cle.split("-").map(Number); return `${cle}-${String(new Date(a, mo, 0).getDate()).padStart(2,"0")}`; };
   async function parcours(m, info, profondeur){
@@ -481,7 +486,7 @@ async function lignesAPartager(){
     }
     return couvert;
   }
-  await parcours(S.mois, S.info, 0);
+  await parcours(m0, info0, 0);
   return out.sort((a,b) => a.date.localeCompare(b.date));
 }
 async function dlgPartage(){
@@ -595,6 +600,365 @@ async function dlgRecoitPartage(o){
     };
   });
 }
+// ---------------------------------------------------------------- synchronisation automatique du partage (version en ligne)
+// Les deux apps lisent et écrivent « Partage couple.json » (OneDrive, partagé entre vous deux) à chaque ouverture :
+//  1. elles ajoutent dans leur Excel les parts publiées par l'autre (mention « carte X – à rembourser »), et retirent celles qu'il a supprimées ;
+//  2. elles publient leurs propres dépenses partagées pas encore remboursées et leur solde ;
+//  3. un règlement marqué d'un côté est proposé à l'autre, qui le confirme (marqueur « Solde réglé » placé dans son app).
+// Une dépense modifiée change d'identifiant : l'ancienne est retirée, la nouvelle ajoutée.
+const SYNC = {etat: null, maj: 0, erreur: null, enCours: null, minuteur: null,
+  dispo(){ return !!(window.WEB && WEB.partage); },
+  lie(){ return this.dispo() && !!WEB.partage.lien(); },
+  actif(){ return this.lie() && !WEB.partage.pause(); } };
+const r2 = v => Math.round((v || 0) * 100) / 100;
+function idPartage(de, date, desc, part){
+  let h = 0x811c9dc5; const s = `${de}|${date}|${desc}|${r2(part).toFixed(2)}`;
+  for(const c of s){ h ^= c.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return h.toString(36);
+}
+function moisSync(){
+  const l = S.etat.mois.filter(x => x.modifiable && x.canvas);
+  return l.find(x => x.cle === today().slice(0, 7)) || l[l.length - 1] || null;
+}
+const lisMois = mo => api("/api/mois?f=" + encodeURIComponent(mo.feuille));
+const recuDeja = (mm, date, desc, part) => mm.transactions.some(t => t.utilise && t.date === date && Math.abs((t.deboursement || 0) - part) < 0.005 && (t.description || "").startsWith(desc));
+const trouveRecue = (mm, r) => mm.transactions.find(t => t.utilise && t.date === r.date && (t.description || "").trim() === r.desc.trim() && Math.abs((t.deboursement || 0) - r.montant) < 0.005);
+// au règlement, l'app transforme « (carte X – à rembourser) » en « (carte X) » (dépense personnelle) : la part reçue est alors réglée
+const trouveRecueReglee = (mm, r) => { const d2 = r.desc.replace(" – à rembourser", "").trim();
+  return mm.transactions.find(t => t.utilise && t.date === r.date && (t.description || "").trim() === d2 && Math.abs((t.deboursement || 0) - r.montant) < 0.005); };
+const estRegle = (mm, ligne) => mm.ligne_dernier_reglement != null && ligne <= mm.ligne_dernier_reglement;
+function normPartage(j){
+  j = (j && typeof j === "object") ? j : {};
+  j.v = 1; j.depenses = Array.isArray(j.depenses) ? j.depenses : []; j.reglements = Array.isArray(j.reglements) ? j.reglements : [];
+  j.soldes = j.soldes || {}; j.membres = j.membres || {};
+  return j;
+}
+// lecture → modification → écriture avec If-Match ; si l'autre app a écrit entre-temps, on relit et on réapplique
+async function majPartage(f){
+  for(let k = 0; k < 5; k++){
+    const {j, etag} = await WEB.partage.lit(); const x = normPartage(j); f(x);
+    try { await WEB.partage.ecrit(x, etag); return x; }
+    catch(e){ if(!e.conflit) throw e; await new Promise(r => setTimeout(r, 300 + Math.random() * 500)); }
+  }
+  throw new Error("Le fichier partagé est très sollicité. Réessaie dans un instant.");
+}
+async function syncAjoute(items){
+  const res = {}, cache = {}, groupes = {}, cible = moisSync();
+  const mois = async mo => cache[mo.feuille] || (cache[mo.feuille] = await lisMois(mo));
+  for(const d of items){
+    const suffixe = ` (carte ${d.de} – à rembourser)`;
+    let mo = S.etat.mois.find(x => x.cle === String(d.date).slice(0, 7) && x.modifiable && x.canvas), date = d.date, desc = d.desc;
+    if(!mo){ if(!cible) continue; mo = cible; date = `${cible.cle}-01`; desc = `${d.desc} (${jourMots(d.date)})`; }
+    const mm = await mois(mo), recue = {cle: mo.cle, date, desc: desc + suffixe, montant: r2(d.part), le: new Date().toISOString()};
+    if(recuDeja(mm, date, desc, d.part)){ res[d.id] = recue; continue; }
+    const auto = catAuto(d.desc), cat = (auto && auto !== "Autres") ? auto : (S.etat.categories.includes(d.cat) ? d.cat : (auto || "Autres"));
+    (groupes[mo.feuille] = groupes[mo.feuille] || []).push({id: d.id, recue, tx: {description: desc + suffixe, montant: String(r2(d.part)), date, type: "", categorie: cat}});
+  }
+  for(const f of Object.keys(groupes)){
+    await api("/api/transactions/lot", {feuille: f, transactions: groupes[f].map(g => g.tx)});
+    groupes[f].forEach(g => res[g.id] = g.recue);
+  }
+  return res;
+}
+async function syncRetire(d){
+  const mo = S.etat.mois.find(x => x.cle === d.recue.cle && x.modifiable); if(!mo) return false;
+  const mm = await lisMois(mo), t = trouveRecue(mm, d.recue);
+  if(!t || estRegle(mm, t.ligne)) return false;                 // déjà remboursée : on n'y touche plus
+  await api("/api/transaction/supprimer", {feuille: mo.feuille, ligne: t.ligne});
+  return true;
+}
+async function syncReconcilie(opts = {}){
+  if(!SYNC.actif() || !S.etat) return;
+  if(SYNC.enCours) return SYNC.enCours;
+  SYNC.enCours = (async () => {
+    const moi = REG().prenom, maintenant = new Date().toISOString();
+    let j = normPartage((await WEB.partage.lit()).j);
+    // 1. recevoir et retirer les parts publiées par l'autre
+    const aRecevoir = j.depenses.filter(d => d.de !== moi && d.statut === "active" && !d.recue);
+    const aRetirer = j.depenses.filter(d => d.de !== moi && d.statut === "retiree" && d.recue && !d.recue.supprimee);
+    const recus = aRecevoir.length ? await syncAjoute(aRecevoir) : {};
+    const retires = new Set(); let nRet = 0;
+    for(const d of aRetirer){ if(await syncRetire(d)) nRet++; retires.add(d.id); }
+    if(Object.keys(recus).length || retires.size) S.etat = await api("/api/etat");
+    // 2. publier mes dépenses partagées en cours et mon solde
+    const mo = moisSync(); if(!mo) throw new Error("Aucun mois modifiable");
+    const mm = await lisMois(mo), cache = {[mo.feuille]: mm};
+    const mois = async info => cache[info.feuille] || (cache[info.feuille] = await lisMois(info));
+    const brut = await lignesAPartager(mm, mo), vus = {};
+    const mes = brut.map(x => { let id = idPartage(moi, x.date, x.desc, x.part); vus[id] = (vus[id] || 0) + 1; if(vus[id] > 1) id += "-" + vus[id];
+      return {id, cle: x.cle, date: x.date, desc: x.desc, part: r2(x.part), cat: x.cat, ligne: x.ligne}; });
+    const net = r2(mm.total_a_rembourser ? mm.du_net : mm.du_total);
+    const derL = mm.ligne_dernier_reglement, derT = derL != null ? mm.transactions.find(t => t.ligne === derL) : null;
+    const marq = derL == null ? "" : `${mo.cle}|${derL}|${derT ? derT.date + "|" + derT.description : ""}`;
+    // état de chaque dépense publiée qui n'est plus en cours : réglée (marqueur) ou retirée (supprimée / modifiée)
+    const ids = new Set(mes.map(x => x.id)), precedent = j.soldes[moi] || {}, marqueChange = !!marq && precedent.marq !== undefined && precedent.marq !== marq;
+    const sortie = {};
+    for(const d of j.depenses.filter(d => d.de === moi && d.statut === "active" && !ids.has(d.id))){
+      const info = S.etat.mois.find(x => x.cle === d.cle && x.canvas);
+      const src = info ? (await mois(info)).transactions.find(t => t.utilise && t.date === d.date && t.description === d.desc) : null;
+      if(src) sortie[d.id] = estRegle(cache[info.feuille], src.ligne) || (d.cle < mo.cle && marqueChange) ? "reglee" : "retiree";
+      else sortie[d.id] = marqueChange && (d.cle < mo.cle || /^Solde reporté de /.test(d.desc) || d.ligne == null) ? "reglee" : "retiree";
+    }
+    // parts de l'autre que j'ai reçues et qui sont maintenant réglées dans mon app
+    const couvertesAutre = [];
+    if(marqueChange) for(const d of j.depenses.filter(d => d.de !== moi && d.recue && !d.recue.supprimee && d.statut !== "retiree")){
+      const r = recus[d.id] || d.recue, info = S.etat.mois.find(x => x.cle === r.cle && x.canvas); if(!info) continue;
+      const mmx = await mois(info), t = trouveRecue(mmx, r), tr = trouveRecueReglee(mmx, r);
+      if(tr || (t && estRegle(mmx, t.ligne)) || (!t && r.cle < mo.cle)) couvertesAutre.push(d.id);
+    }
+    const nouveau = j.depenses.length === 0 && !j.soldes[moi];
+    j = await majPartage(j => {
+      for(const d of j.depenses){ if(recus[d.id]) d.recue = recus[d.id]; if(retires.has(d.id) && d.recue) d.recue.supprimee = true; }
+      for(const d of j.depenses) if(d.de === moi){
+        if(d.statut === "active" && sortie[d.id]){ d.statut = sortie[d.id]; d.maj = maintenant; }
+        else if(d.statut === "retiree" && ids.has(d.id)){ d.statut = "active"; d.recue = null; d.maj = maintenant; }
+      }
+      for(const x of mes) if(!j.depenses.some(d => d.id === x.id)) j.depenses.push({id: x.id, de: moi, cle: x.cle, date: x.date, desc: x.desc, part: x.part, cat: x.cat, ligne: x.ligne ?? null, statut: "active", ajoute: maintenant, recue: null});
+      // règlement proposé à l'autre (seulement ce qui n'est pas déjà couvert par un règlement existant)
+      const dejaCouv = new Set(j.reglements.flatMap(g => g.couvre || []));
+      const couvre = Object.keys(sortie).filter(id => sortie[id] === "reglee").concat(couvertesAutre).filter(id => !dejaCouv.has(id));
+      if(marqueChange && couvre.length) j.reglements.push({id: "r" + Date.now().toString(36), par: moi, date: today(), cle: mo.cle, net: precedent.net ?? null, couvre, confirme: false});
+      j.soldes[moi] = {net, mois: mo.cle, maj: maintenant, marq};
+      j.membres[moi] = maintenant;
+      // ménage : ce qui est terminé depuis longtemps
+      const vieux = iso => iso && (Date.now() - Date.parse(iso)) > 120 * 864e5;
+      j.depenses = j.depenses.filter(d => !(vieux(d.maj || d.ajoute) && (d.statut === "reglee" || (d.statut === "retiree" && (!d.recue || d.recue.supprimee)))));
+      j.reglements = j.reglements.filter(g => !(g.confirme && vieux(g.confirme_le)));
+    });
+    SYNC.etat = j; SYNC.maj = Date.now(); SYNC.erreur = null;
+    const n = Object.keys(recus).filter(id => aRecevoir.some(d => d.id === id)).length;
+    if(n || nRet){ await rafraichit(); toast([n ? `${n} dépense${n > 1 ? "s" : ""} de ${REG().partenaire} ajoutée${n > 1 ? "s" : ""}` : "", nRet ? `${nRet} retirée${nRet > 1 ? "s" : ""} (supprimée${nRet > 1 ? "s" : ""} par ${REG().partenaire})` : ""].filter(Boolean).join(" · ")); }
+    else if(opts.manuel) toast("Synchronisé avec " + REG().partenaire);
+    majBandeauSync();
+    const prop = j.reglements.find(g => g.par !== moi && !g.confirme);
+    let vu = null; try { vu = sessionStorage.getItem("reg_vu"); } catch(e){}
+    if(prop && vu !== prop.id && !$("#dlg").open) dlgSyncReglement(prop);
+  })().catch(e => { SYNC.erreur = e.message || String(e); console.warn("synchronisation", e); majBandeauSync(); if(opts.manuel) toast("Synchronisation impossible : " + SYNC.erreur, true); })
+     .finally(() => { SYNC.enCours = null; });
+  return SYNC.enCours;
+}
+function planifieSync(delai = 2500){
+  if(!SYNC.actif()) return;
+  clearTimeout(SYNC.minuteur); SYNC.minuteur = setTimeout(() => syncReconcilie({silencieux: true}), delai);
+}
+async function syncConfirme(prop){
+  const moi = REG().prenom, j = SYNC.etat || normPartage((await WEB.partage.lit()).j);
+  const mo = S.etat.mois.find(x => x.cle === prop.cle && x.modifiable && x.canvas) || moisSync();
+  const mm = await lisMois(mo), ids = new Set(prop.couvre || []);
+  let max = null;
+  for(const d of j.depenses.filter(d => ids.has(d.id))){
+    let t = null;
+    if(d.de === moi && d.cle === mo.cle) t = mm.transactions.find(t => t.utilise && t.date === d.date && t.description === d.desc);
+    else if(d.de !== moi && d.recue && d.recue.cle === mo.cle) t = trouveRecue(mm, d.recue) || trouveRecueReglee(mm, d.recue);
+    if(t) max = Math.max(max ?? 0, t.ligne);
+  }
+  if(max == null){ const util = mm.transactions.filter(t => t.utilise); if(util.length) max = util[util.length - 1].ligne; }
+  if(max != null) await api("/api/reglement", {feuille: mo.feuille, ligne: max});
+  await majPartage(j => { const g = j.reglements.find(x => x.id === prop.id); if(g){ g.confirme = true; g.confirme_le = new Date().toISOString(); } });
+  await rafraichit();
+  await syncReconcilie({silencieux: true});
+}
+function texteReglementAutre(prop){
+  const a = esc(prop.par), v = prop.net;
+  if(v == null) return "";
+  if(Math.abs(v) < 0.005) return "Rien n'était dû.";
+  return v > 0 ? `Selon son app, tu lui devais ${$$(v)}.` : `Selon son app, ${a} te devait ${$$(-v)}.`;
+}
+function dlgSyncReglement(prop){
+  try { sessionStorage.setItem("reg_vu", prop.id); } catch(e){}
+  ouvre(`<div class="dlg-h"><h2>Remboursement à confirmer</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     <p style="margin:0">${esc(prop.par)} a marqué le solde réglé le <b>${dL(prop.date)}</b>. ${texteReglementAutre(prop)}</p>
+     <p class="small muted" style="margin:0">En confirmant, le marqueur « Solde réglé » est placé dans ton app aussi, après les ${(prop.couvre || []).length} dépense${(prop.couvre || []).length > 1 ? "s" : ""} partagée${(prop.couvre || []).length > 1 ? "s" : ""} incluse${(prop.couvre || []).length > 1 ? "s" : ""} dans ce remboursement. Celles ajoutées ensuite compteront pour le prochain.</p>
+   </div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Plus tard</button><button type="button" class="btn primary" id="sRegOk">Confirmer</button></div>`, d => {
+    $("#sRegOk", d).onclick = async () => { const b = $("#sRegOk", d); b.disabled = true; document.body.classList.add("loading");
+      try { await syncConfirme(prop); d.close(); toast("Remboursement confirmé"); }
+      catch(e){ b.disabled = false; toast(e.message, true); }
+      finally { document.body.classList.remove("loading"); } };
+  });
+}
+function depuisQuand(ms){
+  if(!ms) return "jamais"; const s = (Date.now() - ms) / 1000;
+  return s < 60 ? "à l'instant" : s < 3600 ? `il y a ${Math.round(s / 60)} min` : `il y a ${Math.round(s / 3600)} h`;
+}
+function comparaisonSoldes(){
+  const j = SYNC.etat; if(!j) return null;
+  const a = j.soldes[REG().prenom], b = j.soldes[REG().partenaire];
+  if(!a || !b) return {attente: true};
+  if(a.mois !== b.mois) return {autreMois: true, b};
+  return {ecart: r2(a.net + b.net), a, b};
+}
+function bandeauSyncHTML(){
+  if(!SYNC.dispo()) return "";
+  const P = PART();
+  if(!SYNC.lie()) return `<button type="button" class="sync-b" data-sync><span class="sync-pt off"></span><span class="tx"><b>Synchronisation automatique</b><small>Lier ton app à celle de ${P} : vos dépenses partagées s'ajoutent toutes seules.</small></span><span class="chev">›</span></button>`;
+  if(WEB.partage.pause()) return `<button type="button" class="sync-b" data-sync><span class="sync-pt off"></span><span class="tx"><b>Synchronisation en pause</b><small>Touche pour la réactiver.</small></span><span class="chev">›</span></button>`;
+  if(SYNC.erreur) return `<button type="button" class="sync-b" data-sync><span class="sync-pt ko"></span><span class="tx"><b>Synchronisation impossible</b><small>${esc(SYNC.erreur)}</small></span><span class="chev">›</span></button>`;
+  const moi = REG().prenom, j = SYNC.etat;
+  const prop = j && j.reglements.find(g => g.par !== moi && !g.confirme), mienne = j && j.reglements.find(g => g.par === moi && !g.confirme);
+  const c = comparaisonSoldes();
+  let pt = "ok", ligne = `Synchronisé ${depuisQuand(SYNC.maj)}`, sous = "";
+  if(!j){ pt = "off"; ligne = "Synchronisation…"; }
+  else if(prop){ pt = "ko"; ligne = `${esc(prop.par)} a marqué le solde réglé`; sous = "Touche pour confirmer le remboursement."; }
+  else if(c && c.attente) sous = `En attente de la première ouverture de l'app de ${P}.`;
+  else if(c && c.autreMois) sous = `L'app de ${P} est sur un autre mois.`;
+  else if(c && Math.abs(c.ecart) < 0.01) sous = `Vos deux apps affichent le même solde.`;
+  else if(c){ pt = "ko"; sous = `Écart de ${$$(Math.abs(c.ecart))} avec l'app de ${P} (ouverte ${depuisQuand(Date.parse(c.b.maj))}).`; }
+  if(mienne && !prop) sous = `Remboursement du ${dL(mienne.date)} en attente de confirmation par ${P}.`;
+  return `<button type="button" class="sync-b" data-sync ${prop ? `data-prop="${esc(prop.id)}"` : ""}><span class="sync-pt ${pt}"></span><span class="tx"><b>${ligne}</b>${sous ? `<small>${sous}</small>` : ""}</span><span class="chev">›</span></button>`;
+}
+function majBandeauSync(){
+  document.querySelectorAll(".sync-zone").forEach(z => {
+    z.innerHTML = bandeauSyncHTML();
+    const b = z.querySelector("[data-sync]"); if(!b) return;
+    b.onclick = () => { const p = b.dataset.prop && SYNC.etat && SYNC.etat.reglements.find(g => g.id === b.dataset.prop); p ? dlgSyncReglement(p) : dlgSync(); };
+  });
+}
+const syncZone = () => SYNC.dispo() ? `<div class="sync-zone"></div>` : "";
+function lienCode(o){ return SITE_EN_LIGNE + "#lier=" + encodePartage(o); }
+function decodeLien(t){
+  t = String(t || "").trim(); const m = t.match(/lier=([A-Za-z0-9_-]+)/); if(m) t = m[1];
+  if(!/^[A-Za-z0-9_-]{8,}$/.test(t)) throw new Error("Ce texte n'est pas un lien de synchronisation.");
+  t = t.replace(/-/g, "+").replace(/_/g, "/"); while(t.length % 4) t += "=";
+  const x = atob(t), o = JSON.parse(new TextDecoder().decode(Uint8Array.from(x, c => c.charCodeAt(0))));
+  if(!o || o.v !== 1 || !o.d || !o.i) throw new Error("Lien de synchronisation invalide.");
+  return o;
+}
+async function envoieLien(url, d){
+  const texte = `${REG().prenom} propose de lier vos apps Finances : touche le lien pour accepter. (Ouvre aussi une fois le courriel d'invitation OneDrive reçu de Microsoft.)`;
+  try { if(navigator.share){ await navigator.share({title: "Lier nos apps Finances", text: texte, url}); toast("Lien envoyé"); return; } } catch(e){ if(e && e.name === "AbortError") return; }
+  try { await navigator.clipboard.writeText(texte + "\n" + url); toast("Lien copié : colle-le dans iMessage"); }
+  catch(e){ const z = d && d.querySelector("#sLienT"); if(z) z.select(); toast("Copie le lien ci-dessous et envoie-le"); }
+}
+async function syncCree(email){
+  const moi = REG().prenom, autre = REG().partenaire;
+  const l = await WEB.partage.creePartage(email, {v: 1, proprio: moi, membres: {}, depenses: [], reglements: [], soldes: {}},
+    `${moi} t'invite à synchroniser vos dépenses partagées dans l'app Finances.`);
+  try { localStorage.setItem("sync_email", email); } catch(e){}
+  await syncReconcilie({silencieux: true});
+  return lienCode({v: 1, d: l.d, i: l.i, de: moi, pour: autre});
+}
+async function syncRejoint(o){
+  await WEB.partage.rejoint({d: o.d, i: o.i, proprio: o.de});
+  WEB.partage.metPause(false);
+  await syncReconcilie({manuel: true});
+}
+function dlgSyncLien(url){
+  ouvre(`<div class="dlg-h"><h2>Envoie le lien à ${PART()}</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     <div class="regle-banniere">✓ <span>Fichier partagé créé et invitation envoyée à ${PART()} par Microsoft.</span></div>
+     <ol class="small" style="margin:0;padding-left:18px;display:grid;gap:4px">
+       <li>${PART()} ouvre le courriel d'invitation OneDrive (une seule fois).</li>
+       <li>Elle touche le lien ci-dessous et accepte dans son app.</li>
+       <li>Ensuite, chaque ouverture de vos apps synchronise vos dépenses partagées.</li></ol>
+     <label class="f">Lien à envoyer<textarea id="sLienT" rows="3" readonly style="font-size:12px">${esc(url)}</textarea></label>
+   </div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button><button type="button" class="btn primary" id="sEnv">Envoyer</button></div>`, d => {
+    $("#sEnv", d).onclick = () => envoieLien(url, d);
+  });
+}
+function dlgSyncAccepte(o){
+  const de = esc(o.de || REG().partenaire);
+  if(o.de === REG().prenom) return toast("Ce lien vient de ton app : envoie-le à " + PART() + ".", true);
+  ouvre(`<div class="dlg-h"><h2>Lier avec ${de}</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     <p style="margin:0">${de} propose de synchroniser vos dépenses partagées.</p>
+     <div class="card" style="padding:12px 14px;background:var(--surface-2);border:0"><b>Ce que ça change dans ton fichier Excel</b>
+       <ul class="small" style="margin:6px 0 0;padding-left:18px;display:grid;gap:4px">
+         <li>Ta part des dépenses partagées payées par ${de} s'ajoute toute seule dans tes dépenses, avec la mention « carte ${de} – à rembourser » (comme quand tu reçois un lien aujourd'hui).</li>
+         <li>Si ${de} supprime ou modifie une dépense pas encore remboursée, elle est retirée ou corrigée chez toi.</li>
+         <li>Tes dépenses partagées sont envoyées à l'app de ${de}. Ton solde ne change qu'au remboursement, que vous confirmez chacun.</li>
+         <li>La structure de ton fichier ne change pas. Tu peux mettre en pause ou délier quand tu veux.</li></ul></div>
+     <div id="sErr"></div>
+   </div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Pas maintenant</button><button type="button" class="btn primary" id="sAcc">Accepter et lier</button></div>`, d => {
+    $("#sAcc", d).onclick = async () => {
+      const b = $("#sAcc", d); b.disabled = true; $("#sErr", d).innerHTML = "";
+      try { localStorage.setItem("lier_recu", encodePartage(o)); } catch(e){}
+      await WEB.partage.assureScope("rejoindre");
+      try { await syncRejoint(o); try { localStorage.removeItem("lier_recu"); } catch(e){} d.close(); toast("Apps liées avec " + (o.de || REG().partenaire)); majBandeauSync(); }
+      catch(e){ b.disabled = false; b.textContent = "Réessayer";
+        $("#sErr", d).innerHTML = `<div class="banner err" style="margin:0">${e.status === 403 || e.status === 404
+          ? `Le fichier partagé n'est pas encore accessible. Ouvre le courriel d'invitation OneDrive envoyé par Microsoft de la part de ${de}, connecte-toi avec le même compte que dans l'app, puis réessaie.`
+          : esc(e.message)}</div>`; }
+    };
+  });
+}
+function dlgSync(){
+  if(!SYNC.dispo()) return toast("La synchronisation se fait dans la version en ligne de l'app.", true);
+  const P = PART(), moi = REG().prenom;
+  if(!SYNC.lie()){
+    let email = ""; try { email = localStorage.getItem("sync_email") || ""; } catch(e){}
+    ouvre(`<form id="fsy"><div class="dlg-h"><h2>Synchronisation avec ${P}</h2><button type="button" class="x" data-close>✕</button></div>
+     <div class="dlg-b">
+       <p style="margin:0">Une fois vos apps liées, chaque dépense partagée inscrite d'un côté apparaît de l'autre, et les remboursements se confirment des deux côtés. Le lien manuel reste disponible.</p>
+       <p class="hint" style="margin:0">Fonctionnement : un petit fichier « Partage couple.json » dans ton OneDrive, partagé seulement avec ${P}. Rien ne passe par un autre serveur.</p>
+       <label class="f">Courriel du compte Microsoft de ${P}<input name="email" type="email" required value="${esc(email)}" placeholder="adresse@exemple.com" autocomplete="off"></label>
+       <details class="small"><summary>J'ai reçu un lien de ${P}</summary><label class="f" style="margin-top:8px">Colle le lien<textarea id="sCode" rows="3" style="font-size:13px" placeholder="https://quebec2001.github.io/finances/#lier=…"></textarea></label>
+         <button type="button" class="btn small" id="sCodeOk">Continuer</button></details>
+     </div>
+     <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary" id="sCree">Créer le lien et inviter ${P}</button></div></form>`, d => {
+      $("#sCodeOk", d).onclick = () => { try { dlgSyncAccepte(decodeLien($("#sCode", d).value)); } catch(e){ toast(e.message, true); } };
+      $("#fsy", d).onsubmit = async ev => { ev.preventDefault();
+        const em = $("#fsy", d).email.value.trim(), b = $("#sCree", d); b.disabled = true;
+        try { localStorage.setItem("sync_email", em); } catch(e){}
+        await WEB.partage.assureScope("creer");
+        document.body.classList.add("loading");
+        try { dlgSyncLien(await syncCree(em)); }
+        catch(e){ b.disabled = false; toast("Création impossible : " + e.message, true); }
+        finally { document.body.classList.remove("loading"); } };
+    });
+    return;
+  }
+  const l = WEB.partage.lien(), pause = WEB.partage.pause(), c = comparaisonSoldes(), j = SYNC.etat;
+  const autreVu = j && j.membres[REG().partenaire];
+  ouvre(`<div class="dlg-h"><h2>Synchronisation avec ${P}</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     <div class="kv small">
+       <div class="k">État</div><div>${pause ? "En pause" : SYNC.erreur ? `<span class="neg">${esc(SYNC.erreur)}</span>` : "Active"}</div>
+       <div class="k">Dernière synchronisation</div><div>${depuisQuand(SYNC.maj)}</div>
+       <div class="k">App de ${P}</div><div>${autreVu ? "ouverte " + depuisQuand(Date.parse(autreVu)) : "pas encore ouverte"}</div>
+       <div class="k">Fichier partagé</div><div>dans le OneDrive de ${esc(l.proprio || "?")}</div>
+       ${c && c.a && c.b ? `<div class="k">Soldes</div><div>${Math.abs(c.ecart) < 0.01 ? "identiques ✓" : `écart de ${$$(Math.abs(c.ecart))}`}</div>` : ""}
+     </div>
+     ${j ? `<div class="small muted">${j.depenses.filter(d => d.de === moi && d.statut === "active").length} de tes dépenses en cours publiées · ${j.depenses.filter(d => d.de !== moi && d.statut === "active").length} de ${P} reçues</div>` : ""}
+     <label class="p-tog" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px"><span><b>Synchronisation automatique</b><br><small class="muted">En pause, rien n'est lu ni écrit ; le lien manuel fonctionne toujours.</small></span><input type="checkbox" id="sOn" ${pause ? "" : "checked"} style="width:22px;height:22px"></label>
+   </div>
+   <div class="dlg-f">${l.proprio === moi ? `<button type="button" class="btn" id="sRenv">Renvoyer le lien</button>` : ""}<button type="button" class="btn" id="sDel">Délier</button><span class="grow"></span><button type="button" class="btn primary" id="sNow" ${pause ? "disabled" : ""}>Synchroniser</button></div>`, d => {
+    $("#sOn", d).onchange = e => { WEB.partage.metPause(!e.target.checked); majBandeauSync(); dlgSync(); if(e.target.checked) syncReconcilie({manuel: true}); };
+    $("#sNow", d).onclick = async () => { $("#sNow", d).disabled = true; await syncReconcilie({manuel: true}); if($("#dlg").open && $("#sNow")) dlgSync(); };
+    $("#sDel", d).onclick = async () => { if(!confirm("Délier cet appareil ? Les dépenses déjà ajoutées restent dans ton fichier.")) return; await WEB.partage.delie(); SYNC.etat = null; d.close(); majBandeauSync(); toast("Synchronisation désactivée"); };
+    const rv = $("#sRenv", d); if(rv) rv.onclick = () => dlgSyncLien(lienCode({v: 1, d: l.d, i: l.i, de: moi, pour: REG().partenaire}));
+  });
+}
+window.dlgSync = dlgSync;
+// au démarrage (version en ligne) : reprendre une action après le consentement Microsoft, lien reçu, puis synchroniser
+async function syncDemarrage(){
+  if(!SYNC.dispo()) return;
+  const a = WEB.partage.apres();
+  let code = null; try { code = localStorage.getItem("lier_recu"); } catch(e){}
+  if(a === "refus"){ try { localStorage.removeItem("lier_recu"); } catch(e){} return toast("Autorisation OneDrive refusée : synchronisation non activée.", true); }
+  if(a === "creer"){
+    let em = ""; try { em = localStorage.getItem("sync_email") || ""; } catch(e){}
+    document.body.classList.add("loading");
+    try { dlgSyncLien(await syncCree(em)); } catch(e){ toast("Création impossible : " + e.message, true); }
+    finally { document.body.classList.remove("loading"); }
+    return;
+  }
+  if(code){
+    let o = null; try { o = decodeLien(code); } catch(e){ try { localStorage.removeItem("lier_recu"); } catch(x){} return toast(e.message, true); }
+    if(a === "rejoindre"){
+      try { await syncRejoint(o); localStorage.removeItem("lier_recu"); toast("Apps liées avec " + (o.de || REG().partenaire)); return; } catch(e){}
+    }
+    if(SYNC.lie() && WEB.partage.lien().i === o.i){ try { localStorage.removeItem("lier_recu"); } catch(e){} }
+    else return dlgSyncAccepte(o);
+  }
+  if(SYNC.actif()) await syncReconcilie({silencieux: true});
+}
+function capteLier(){ const m = location.hash.match(/[#&]lier=([A-Za-z0-9_-]+)/);
+  if(m){ try { localStorage.setItem("lier_recu", m[1]); } catch(e){} history.replaceState(null, "", location.pathname + location.search); return true; } return false; }
+capteLier();
 // ---------------------------------------------------------------- configuration de départ (fichier vierge)
 function dlgConfiguration(){
   const m = S.mois, inv = m.investissements || [];
@@ -672,7 +1036,7 @@ function bouge(d){ const l=S.etat.mois; const i=l.findIndex(m=>m.feuille===S.feu
 $("#tabs").onclick = e => { const b=e.target.closest("button"); if(!b) return; S.vue=b.dataset.v; [...$("#tabs").children].forEach(x=>x.classList.toggle("on",x===b)); rend(); window.scrollTo({top:0}); };
 $("#fab").onclick = () => dlgTransaction(null);
 $("#btab").onclick = e => { const b = e.target.closest("button"); if(b) vaVers(b.dataset.v); };
-document.addEventListener("visibilitychange", ()=>{ if(!document.hidden && S.etat) rafraichit().catch(()=>{}); });
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden && S.etat){ rafraichit().catch(()=>{}); if(SYNC.actif() && Date.now() - SYNC.maj > 30000) planifieSync(1500); } });
 
 // ---------------------------------------------------------------- rendu
 function bandeaux(){
@@ -693,13 +1057,13 @@ function rend(){
     barreOngletsPro();
     const br = $(".brand"); if(br && !br.textContent.trim()) br.textContent = "Finances";
     const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro}[S.vue] || vueBordPro;
-    m.innerHTML = bandeaux() + `<div id="vue"></div>`; vp($("#vue")); return;
+    m.innerHTML = bandeaux() + (S.vue === "split" ? syncZone() : "") + `<div id="vue"></div>`; vp($("#vue")); majBandeauSync(); return;
   }
   if(["split", "plus"].includes(S.vue)) S.vue = "bord";
   if(S.vue === "couple" && !MODE_PAYE()) S.vue = "bord";
   const v = {bord:MODE_PAYE()?vueBordPaye:vueBord, trans:MODE_PAYE()?vueTransPaye:vueTrans, rev:vueRev, couple:vueCouple, inv:vueInv, regl:vueRegl}[S.vue] || vueBord;
-  m.innerHTML = bandeaux() + `<div id="vue"></div>`;
-  v($("#vue"));
+  m.innerHTML = bandeaux() + ((S.vue === "couple" || (S.vue === "trans" && !MODE_PAYE())) ? syncZone() : "") + `<div id="vue"></div>`;
+  v($("#vue")); majBandeauSync();
 }
 
 function kpi(lbl, val, sub, cls="", fond=""){ return `<div class="card kpi ${fond}"><div class="lbl">${lbl}</div><div class="val num ${cls}">${val}</div>${sub?`<div class="sub">${sub}</div>`:""}</div>`; }
@@ -2196,7 +2560,8 @@ function vuePlusPro(el){
    <div class="p-groupe"><div class="t">Mois</div><div class="p-liste">${item("pNm", "cal", "Créer " + esc(e.prochain_mois), "Clôture du mois et nouveau départ")}</div></div>
    <div class="p-groupe"><div class="t">Partage avec ${PART()}</div><div class="p-liste">
      ${item("pPct", "pct", "Répartition", "Revenus et % utilisé pour le split proportionnel", pct(m.pct_marika))}
-     ${item("pAut", "autres", "Autres montants", "Montants payés hors de l'app")}</div></div>
+     ${item("pAut", "autres", "Autres montants", "Montants payés hors de l'app")}
+     ${window.WEB ? item("pSync", "nuage", "Synchronisation", "Lier ton app à celle de " + PART(), SYNC.lie() ? (WEB.partage.pause() ? "En pause" : "Active") : "") : ""}</div></div>
    <div class="p-groupe"><div class="t">Organisation</div><div class="p-liste">
      ${item("pBud", "bud", "Budgets", nbBud ? nbBud + " catégorie" + (nbBud > 1 ? "s" : "") + " suivie" + (nbBud > 1 ? "s" : "") : "Aucun budget")}
      ${item("pCat", "cat", "Catégories", e.categories.length + " catégories")}
@@ -2208,6 +2573,7 @@ function vuePlusPro(el){
   $("#pNm", el).onclick = () => dlgNouveauMois();
   $("#pPct", el).onclick = () => vaVers("split");
   $("#pAut", el).onclick = () => dlgMarika();
+  if($("#pSync", el)) $("#pSync", el).onclick = () => dlgSync();
   $("#pBud", el).onclick = () => dlgBudgets();
   $("#pCat", el).onclick = () => dlgCategories();
   $("#pMot", el).onclick = () => dlgMotsCles();
@@ -2239,8 +2605,8 @@ function dlgMotsCles(){
 function captePartage(){ const m = location.hash.match(/[#&]partage=([A-Za-z0-9_-]+)/);
   if(m){ try { localStorage.setItem("partage_recu", m[1]); } catch(e){} history.replaceState(null, "", location.pathname + location.search); return true; } return false; }
 captePartage();
-window.addEventListener("hashchange", () => { if(captePartage() && S.etat) verifiePartageRecu(); });
-(window.WEB ? WEB.demarre() : Promise.resolve()).then(init).catch(e => { $("#main").innerHTML = `<div class="banner err">Impossible de charger les données : ${esc(e.message)}</div>`; });
+window.addEventListener("hashchange", () => { if(captePartage() && S.etat) verifiePartageRecu(); if(capteLier() && S.etat) syncDemarrage(); });
+(window.WEB ? WEB.demarre() : Promise.resolve()).then(init).then(() => syncDemarrage()).catch(e => { $("#main").innerHTML = `<div class="banner err">Impossible de charger les données : ${esc(e.message)}</div>`; });
 </script>
 </body>
 </html>
