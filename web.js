@@ -3,7 +3,7 @@
 // moteur Python exécuté dans le navigateur (Pyodide). Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "976fc40414";
+const VERSION = "1b943b2063";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPES_BASE = "Files.ReadWrite offline_access User.Read";

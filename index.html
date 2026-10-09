@@ -359,7 +359,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=976fc40414"></script>
+<script src="web.js?v=1b943b2063"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -787,7 +787,10 @@ function comparaisonSoldes(){
   const a = j.soldes[REG().prenom], b = j.soldes[REG().partenaire];
   if(!a || !b) return {attente: true};
   if(a.mois !== b.mois) return {autreMois: true, b};
-  return {ecart: r2(a.net + b.net), a, b};
+  // chaque part envoyée est arrondie au cent (l'Excel garde 3 décimales au prorata) : tolérance d'un demi-cent par part en cours
+  const n = j.depenses.filter(d => d.statut === "active").length;
+  const ecart = r2(a.net + b.net), tol = Math.max(0.01, r2(0.005 * n + 0.005));
+  return {ecart, a, b, tol, egal: Math.abs(ecart) <= tol + 1e-9};
 }
 function bandeauSyncHTML(){
   if(!SYNC.dispo()) return "";
@@ -803,7 +806,7 @@ function bandeauSyncHTML(){
   else if(prop){ pt = "ko"; ligne = `${esc(prop.par)} a marqué le solde réglé`; sous = "Touche pour confirmer le remboursement."; }
   else if(c && c.attente) sous = `En attente de la première ouverture de l'app de ${P}.`;
   else if(c && c.autreMois) sous = `L'app de ${P} est sur un autre mois.`;
-  else if(c && Math.abs(c.ecart) < 0.01) sous = `Vos deux apps affichent le même solde.`;
+  else if(c && c.egal) sous = Math.abs(c.ecart) < 0.005 ? `Vos deux apps affichent le même solde.` : `Vos deux apps affichent le même solde (à ${$$(Math.abs(c.ecart))} près, arrondis des parts).`;
   else if(c){ pt = "ko"; sous = `Écart de ${$$(Math.abs(c.ecart))} avec l'app de ${P} (ouverte ${depuisQuand(Date.parse(c.b.maj))}).`; }
   if(mienne && !prop) sous = `Remboursement du ${dL(mienne.date)} en attente de confirmation par ${P}.`;
   return `<button type="button" class="sync-b" data-sync ${prop ? `data-prop="${esc(prop.id)}"` : ""}><span class="sync-pt ${pt}"></span><span class="tx"><b>${ligne}</b>${sous ? `<small>${sous}</small>` : ""}</span><span class="chev">›</span></button>`;
@@ -920,7 +923,7 @@ function dlgSync(){
        <div class="k">Dernière synchronisation</div><div>${depuisQuand(SYNC.maj)}</div>
        <div class="k">App de ${P}</div><div>${autreVu ? "ouverte " + depuisQuand(Date.parse(autreVu)) : "pas encore ouverte"}</div>
        <div class="k">Fichier partagé</div><div>dans le OneDrive de ${esc(l.proprio || "?")}</div>
-       ${c && c.a && c.b ? `<div class="k">Soldes</div><div>${Math.abs(c.ecart) < 0.01 ? "identiques ✓" : `écart de ${$$(Math.abs(c.ecart))}`}</div>` : ""}
+       ${c && c.a && c.b ? `<div class="k">Soldes</div><div>${c.egal ? (Math.abs(c.ecart) < 0.005 ? "identiques ✓" : `identiques à ${$$(Math.abs(c.ecart))} près (arrondis) ✓`) : `écart de ${$$(Math.abs(c.ecart))}`}</div>` : ""}
      </div>
      ${j ? `<div class="small muted">${j.depenses.filter(d => d.de === moi && d.statut === "active").length} de tes dépenses en cours publiées · ${j.depenses.filter(d => d.de !== moi && d.statut === "active").length} de ${P} reçues</div>` : ""}
      <label class="p-tog" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px"><span><b>Synchronisation automatique</b><br><small class="muted">En pause, rien n'est lu ni écrit ; le lien manuel fonctionne toujours.</small></span><input type="checkbox" id="sOn" ${pause ? "" : "checked"} style="width:22px;height:22px"></label>
