@@ -229,6 +229,8 @@ def sem_type(t):
         return "SP"
     if n.startswith("rembo"):
         return "R"
+    if n.startswith("100"):
+        return "M"                       # « 100% Marika » : dépense personnelle du partenaire payée avec ma carte
     return None
 
 
@@ -442,14 +444,17 @@ class Application:
             utilise = bool(date_v not in (None, "") or desc.strip() or typ.strip() or deb_brut not in (None, "")
                            or override or marq)
             st = sem_type(typ)
-            exact = typ in self.types_bruts or not typ
+            # « Remboursement » retiré de la liste : les anciennes lignes gardent leur calcul
+            exact = typ in self.types_bruts or not typ or st == "R"
             prop = {"P": 1.0, "50": 0.5, "SP": (1 - pct) if pct is not None else None,
-                    "R": (1 - pct) if pct is not None else None}.get(st) if exact else None
+                    "R": (1 - pct) if pct is not None else None, "M": 0.0}.get(st) if exact else None
             erreur = False
             dep = None
             a_remb = bool(not typ.strip() and RX_A_REMBOURSER.search(desc))
             if a_remb:
                 prop = None                        # part reçue de la carte du partenaire, pas encore remboursée
+            elif deb is not None and deb > 0 and st == "M" and exact:
+                dep = 0.0
             elif deb is not None and deb > 0:
                 if prop is None:
                     erreur = True
@@ -474,6 +479,11 @@ class Application:
                     erreur = erreur or bool(typ)
                 else:
                     km = -dep
+            elif exact and st == "M":
+                if deb is None:
+                    erreur = erreur or bool(typ)
+                else:
+                    km = deb
             if erreur:
                 erreurs += 1
             if marq:
@@ -630,6 +640,8 @@ class Application:
                         h += dv * 0.5
                     elif st == "R":
                         h -= dv * (1 - (pct or 0))
+                    elif st == "M":
+                        h += dv
                 ecart = r2(h - k_total)
             elif "dernier solde réglé" in n:
                 h = 0.0
@@ -643,6 +655,8 @@ class Application:
                         h += dv * 0.5
                     elif st == "R":
                         h -= dv * (1 - (pct or 0))
+                    elif st == "M":
+                        h += dv
                 ecart = r2(h - du_depuis)
             elif "proportion" in n:
                 ecart = (round((pct or 0) - pct_repart, 4) + 0.0 or 0.0) if pct_repart is not None else None
@@ -921,7 +935,7 @@ class Application:
             return self.RE_FIORELLINO
 
     def etat(self):
-        return {"mois": self.mois, "categories": self.categories, "types": self.types, "reglages": self.reglages(),
+        return {"mois": self.mois, "categories": self.categories, "types": self.types, "type_cent_a_faire": self.type_cent_a_faire(), "reglages": self.reglages(),
                 "budgets": self.budgets(), "date_demo": self.config.get("date_demo"),
                 "types_invest": self.types_invest,
                 "motscles": [{"mot": k, "categorie": v} for k, v in self.motscles],
@@ -1620,6 +1634,73 @@ class Application:
             if x2 != x:
                 g.xml = x2
                 g.analyse()
+
+    # --- type « 100% <partenaire> » à la place de « Remboursement » (fichier de Zach) ---
+    def libelle_type_cent(self):
+        return "100% " + self.reglages()["partenaire"]
+
+    def type_cent_a_faire(self):
+        return any(sem_type(t) == "R" for t in self.types_bruts) and not any(sem_type(t) == "M" for t in self.types_bruts)
+
+    def remplace_type_remboursement(self):
+        """Liste des types : « Remboursement » → « 100% Marika » (dépense personnelle de Marika payée avec ma carte :
+        ma part 0 %, Marika doit 100 %). Formules du Canvas et des mois modifiables : on AJOUTE la branche du nouveau type,
+        la branche « Remboursement » reste (anciennes lignes et mois passés inchangés)."""
+        if not self.type_cent_a_faire():
+            raise Erreur("Le type « 100 % » existe déjà ou « Remboursement » est absent de la liste.")
+        lib = self.libelle_type_cent()
+        def op():
+            L = self.wb.feuille("Listes")
+            r0 = next(r for r in range(1, self.l_type_der + 1) if sem_type(L.texte(self.l_type_col + str(r))) == "R"
+                      and L.texte(self.l_type_col + str(r)) in self.types_bruts)
+            L.ecrit(self.l_type_col + str(r0), lib)
+            for m in [{"feuille": "Canvas"}] + [x for x in self.mois if x["modifiable"]]:
+                self._formules_type_cent(m["feuille"], lib)
+            return {"type": lib}
+        return self._ecriture(op)
+
+    def _formules_type_cent(self, feuille, lib):
+        f = self.wb.feuille(feuille); d = Disposition(f)
+        if not d.lignes:
+            return
+        rx = re.compile(r'IF\((\$?[A-Z]+\$?\d+)="Remboursement ?",((?:[^(),]|\([^()]*\))+),""\)')
+        def nouvelle(ref, val, lig):
+            if re.fullmatch(r"\(1-[^()]+\)", val): return "0"                       # ma part (E)
+            if val == '"Remboursement"': return '"%s"' % lib                         # libellé interne (I)
+            if val == "100%": return "100%"                                           # % Marika (J)
+            if re.fullmatch(r"-\$?[A-Z]+\$?\d+", val): return "$%s%d" % (d.c_deb, lig)  # Marika doit tout le déboursé (K)
+            raise Erreur("Formule inattendue (%s) : %s" % (feuille, val))
+        lot = {}
+        for r in d.lignes:
+            for col in sorted({re.match(r"[A-Z]+", a).group(0) for a in f.cellules}):
+                c = f.cell(col + str(r))
+                if not (c and c.formule and "Remboursement" in c.formule) or lib in c.formule:
+                    continue
+                m = rx.search(c.formule)
+                if not m:
+                    raise Erreur("Formule inattendue (%s %s%d)" % (feuille, col, r))
+                neuf = c.formule[:m.start()] + 'IF(%s="Remboursement%s",%s,IF(%s="%s",%s,""))' % (
+                    m.group(1), " " if '"Remboursement "' in m.group(0) else "", m.group(2), m.group(1), lib,
+                    nouvelle(m.group(1), m.group(2), r)) + c.formule[m.end():]
+                lot[col + str(r)] = neuf
+        if lot:
+            f.remplace_formules(lot)
+        # contrôles : part de Marika recalculée et part depuis le dernier « Solde réglé »
+        for adr, c in list(f.cellules.items()):
+            if not (c.formule and int(re.sub(r"[A-Z]+", "", adr)) > d.lignes[-1]) or lib in c.formule:
+                continue
+            fo = c.formule
+            m = re.search(r'-SUMIFS\((\$[A-Z]+\$\d+:\$[A-Z]+\$\d+),(\$[A-Z]+\$\d+:\$[A-Z]+\$\d+),"Remboursement\*"\)\*\(1-N\(([^()]+)\)\)', fo)
+            if m:
+                fo = fo[:m.end()] + '+SUMIFS(%s,%s,"100%%*")' % (m.group(1), m.group(2)) + fo[m.end():]
+            m = re.search(r'-\(LEFT\((\$[A-Z]+\$\d+:\$[A-Z]+\$\d+),5\)="Rembo"\)\*\(1-N\(([^()]+)\)\)', fo)
+            if m:
+                fo = fo[:m.end()] + '+(LEFT(%s,4)="100%%")' % m.group(1) + fo[m.end():]
+            if fo != c.formule:
+                f.ecrit(adr, formule="=" + fo)
+                lab = f.cell("A" + re.sub(r"[A-Z]+", "", adr))
+                if lab and isinstance(lab.valeur, str) and "Remboursement" in lab.valeur:
+                    f.ecrit("A" + re.sub(r"[A-Z]+", "", adr), lab.valeur.rstrip() + " / (+) " + lib)
 
     def ajoute_categorie(self, nom):
         nom = (nom or "").strip()

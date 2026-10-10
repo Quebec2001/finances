@@ -184,6 +184,28 @@ class Feuille:
                 adr, s_attr, esc(str(valeur)))
         self.remplace_xml_cellule(adr, nouveau)
 
+    def remplace_formules(self, nouvelles):
+        """Plusieurs formules en une seule passe ({adr: formule sans « = »}, cellules existantes) : bien plus rapide
+        que ecrit() cellule par cellule sur une grande feuille. Les suiveurs non visés d'une formule partagée sont matérialisés."""
+        x = self.xml
+        cibles = set(nouvelles)
+        for adr in nouvelles:
+            c = self.cellules[adr]
+            if c.partagee is None and c.formule and 't="shared"' in c.xml:
+                si = re.search(r'si="(\d+)"', c.xml).group(1)
+                for d in self.cellules.values():
+                    if d.partagee == si and d.adr not in cibles:
+                        x = x.replace(d.xml, re.sub(r"<f[^>]*/>", "<f>%s</f>" % esc(d.formule), d.xml, count=1), 1)
+        for adr, fo in nouvelles.items():
+            c = self.cellules[adr]
+            s_attr = ' s="%s"' % c.style if c.style else ""
+            i = x.find(c.xml)
+            if i < 0:
+                raise RuntimeError("cellule introuvable " + adr)
+            x = x[:i] + '<c r="%s"%s><f>%s</f></c>' % (adr, s_attr, esc(fo[1:] if fo.startswith("=") else fo)) + x[i + len(c.xml):]
+        self.xml = x
+        self.analyse()
+
     def ecrit_xml_brut(self, adr, xml_cellule):
         self.remplace_xml_cellule(adr, xml_cellule)
 

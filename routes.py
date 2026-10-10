@@ -58,6 +58,8 @@ def post(app, chemin, data):
         return app.ajoute_mot_cle(data.get("mot"), data.get("categorie"))
     if chemin == "/api/listes/categorie":
         return app.ajoute_categorie(data.get("nom"))
+    if chemin == "/api/types/cent":
+        return app.remplace_type_remboursement()
     if chemin == "/api/listes/type":
         return app.ajoute_type(data.get("nom"))
     raise KeyError(chemin)

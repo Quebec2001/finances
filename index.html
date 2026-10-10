@@ -359,7 +359,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=1b943b2063"></script>
+<script src="web.js?v=6f8963b574"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -380,8 +380,8 @@ const jourMots = iso => { if(!iso || !/^\d{4}-\d\d-\d\d/.test(iso)) return iso |
 const dC = iso => MODE_PAYE() ? jourMots(iso) : dateFR(iso).slice(0,5);
 const dL = iso => MODE_PAYE() ? jourMots(iso) : dateFR(iso);
 const today = () => { if(S.etat && S.etat.date_demo) return S.etat.date_demo; const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
-const TYPES_COURTS = {P:"Personnel", "50":"50/50", SP:"Proportionnel", R:"Remboursement"};
-function semType(t){ t=(t||"").toLowerCase().trim(); if(t.startsWith("personnel"))return"P"; if(t.startsWith("split 50"))return"50"; if(t.startsWith("split prop"))return"SP"; if(t.startsWith("rembo"))return"R"; return null; }
+const TYPES_COURTS = {P:"Personnel", "50":"50/50", SP:"Proportionnel", R:"Remboursement", get M(){ return "100 % " + REG().partenaire; }};
+function semType(t){ t=(t||"").toLowerCase().trim(); if(t.startsWith("personnel"))return"P"; if(t.startsWith("split 50"))return"50"; if(t.startsWith("split prop"))return"SP"; if(t.startsWith("rembo"))return"R"; if(t.startsWith("100"))return"M"; return null; }
 const PALETTE = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8","--c9","--c10","--c11","--c12","--c13","--c14"].map(v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim());
 
 const S = { etat:null, feuille:null, mois:null, vue:"bord", tend:null };
@@ -464,7 +464,7 @@ async function lignesAPartager(m0 = S.mois, info0 = S.info){
     const der = m.ligne_dernier_reglement;
     const apres = (m.transactions || []).filter(t => t.utilise && t.date && (der == null || t.ligne > der));
     let couvert = 0;
-    apres.filter(t => (t.marika||0) > 0.004 && ["SP","50"].includes(semType(t.type))).forEach(t => {
+    apres.filter(t => (t.marika||0) > 0.004 && ["SP","50","M"].includes(semType(t.type))).forEach(t => {
       out.push({cle: info.cle, nomMois: info.nom, date: t.date, desc: t.description, part: t.marika, cat: t.categorie || "", sous: `${TYPES_COURTS[semType(t.type)]} · payé ${$$(t.deboursement)}`, ligne: t.ligne});
       couvert += t.marika; });
     apres.filter(t => (t.marika||0) < -0.004).forEach(t => couvert += t.marika);       // ce que je dois (déjà dans l'app de l'autre)
@@ -1525,7 +1525,7 @@ function dlgTransaction(t, apres, catDefaut, dateDef){
       const auto = catAuto(f.description.value);
       f.categorie.options[0].textContent = "Automatique" + (auto ? ` (${auto})` : "");
       const v = evalMontant(f.montant.value), st = semType(type), p = m.pct_marika;
-      const prop = {P:1, "50":.5, SP:p==null?null:1-p, R:p==null?null:1-p}[st];
+      const prop = {P:1, "50":.5, SP:p==null?null:1-p, R:p==null?null:1-p, M:0}[st];
       let h = "";
       if(v===null) h = "";
       else if(isNaN(v)) h = "<span class='neg'>Montant invalide</span>";
@@ -1536,6 +1536,7 @@ function dlgTransaction(t, apres, catDefaut, dateDef){
         if(st==="SP") h += ` · ${PART()} me doit ${$$(v*p)}`;
         if(st==="50") h += ` · ${PART()} me doit ${$$(part)}`;
         if(st==="R") h += ` · Je dois ${$$(part)} à ${PART()}`;
+        if(st==="M") h += ` · ${PART()} me doit tout : ${$$(v)}`;
       }
       $("#pv", d).innerHTML = h; $("#pv", d).style.display = h ? "" : "none";
     };
@@ -2568,7 +2569,8 @@ function vuePlusPro(el){
    <div class="p-groupe"><div class="t">Organisation</div><div class="p-liste">
      ${item("pBud", "bud", "Budgets", nbBud ? nbBud + " catégorie" + (nbBud > 1 ? "s" : "") + " suivie" + (nbBud > 1 ? "s" : "") : "Aucun budget")}
      ${item("pCat", "cat", "Catégories", e.categories.length + " catégories")}
-     ${item("pMot", "mot", "Mots-clés", e.motscles.length + " mots-clés → catégorie")}</div></div>
+     ${item("pMot", "mot", "Mots-clés", e.motscles.length + " mots-clés → catégorie")}
+     ${item("pTyp", "cat", "Types de dépenses", e.types.map(x => TYPES_COURTS[semType(x)] || x).join(" · "))}</div></div>
    <div class="p-groupe"><div class="t">Compte</div><div class="p-liste">
      ${window.WEB ? item("pWeb", "nuage", "Compte Microsoft et fichier", "Fichier OneDrive, sauvegardes, déconnexion") : item("pFich", "nuage", "Fichier", esc(e.fichier || ""))}
      ${item("pUi", "oeil", "Apparence", "Revenir à l'interface classique")}</div></div>`;
@@ -2580,6 +2582,7 @@ function vuePlusPro(el){
   $("#pBud", el).onclick = () => dlgBudgets();
   $("#pCat", el).onclick = () => dlgCategories();
   $("#pMot", el).onclick = () => dlgMotsCles();
+  $("#pTyp", el).onclick = () => dlgTypes();
   if($("#pWeb", el)) $("#pWeb", el).onclick = () => ouvre(`<div class="dlg-h"><h2>Compte et fichier</h2><button type="button" class="x" data-close>✕</button></div><div class="dlg-b">${WEB.carteReglages()}</div>`, d => WEB.brancheReglages(d));
   if($("#pFich", el)) $("#pFich", el).onclick = () => toast(e.fichier || "");
   $("#pUi", el).onclick = () => { S.ui = "classique"; try { localStorage.setItem("ui", "classique"); } catch(x){} S.vue = "bord"; rend(); };
@@ -2591,6 +2594,21 @@ function dlgCategories(){
    <form id="fx" style="display:flex;gap:8px;margin-top:6px"><input name="nom" class="search" placeholder="Nouvelle catégorie" required><button class="btn primary">Ajouter</button></form></div>
    <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button></div>`, d => {
     $("#fx", d).onsubmit = async ev => { ev.preventDefault(); try { await ecrit("/api/listes/categorie", {nom: $("#fx", d).nom.value}, "Catégorie ajoutée"); dlgCategories(); } catch(x){} };
+  });
+}
+function dlgTypes(){
+  const e = S.etat, P = PART(), lib = "100% " + REG().partenaire;
+  const expl = {P: "Dépense à toi seul.", "50": `Partagée moitié-moitié : ${P} doit 50 %.`, SP: `Partagée selon vos revenus : ${P} doit ${pct(S.mois.pct_marika)}.`,
+    R: `Payée par ${P} : tu lui dois ta part.`, M: `Dépense personnelle de ${P} payée avec ta carte : ${P} doit 100 %, rien dans tes dépenses.`};
+  ouvre(`<div class="dlg-h"><h2>Types de dépenses</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     ${e.types.map(x => `<div class="p-row" style="cursor:default"><div class="m"><div class="t">${esc(TYPES_COURTS[semType(x)] || x)}</div><div class="s">${expl[semType(x)] || ""}</div></div></div>`).join("")}
+     ${e.type_cent_a_faire && !MODE_PAYE() ? `<div class="card" style="padding:12px 14px;background:var(--surface-2);border:0;margin-top:8px"><b>Remplacer « Remboursement » par « ${esc(lib)} »</b>
+       <p class="small" style="margin:6px 0 0">Ce que ça change dans ton fichier Excel : le type « Remboursement » de la liste devient « ${esc(lib)} », et les formules de ${esc(e.mois.filter(m => m.modifiable).map(m => m.nom).join(", "))} et du modèle des prochains mois reconnaissent ce nouveau type (ta part 0 %, ${P} doit 100 %). Les lignes « Remboursement » déjà inscrites et les mois passés gardent leur calcul. Une copie de sécurité est faite avant.</p>
+       <button class="btn primary small" id="tyOk" style="margin-top:8px">Remplacer</button></div>` : ""}
+   </div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button></div>`, d => {
+    const b = $("#tyOk", d); if(b) b.onclick = async () => { b.disabled = true; try { await ecrit("/api/types/cent", {}, "Type « " + lib + " » ajouté"); dlgTypes(); } catch(x){ b.disabled = false; } };
   });
 }
 function dlgMotsCles(){
