@@ -45,7 +45,7 @@
 .bud .barre i{position:absolute;left:0;top:0;bottom:0;border-radius:99px}
 .bud .barre b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-3)}
 .bud .txt{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2);margin-top:3px}
-.bud.ok i{background:var(--pos)}.bud.ko i{background:var(--neg)}.bud.ok .etat{color:var(--pos)}.bud.ko .etat{color:var(--neg)}
+.bud.ok i{background:var(--pos)}.bud.ko i{background:var(--neg)}.bud.warn i{background:var(--warn-2)}.bud.warn .etat{color:var(--warn)}.bud.ok .etat{color:var(--pos)}.bud.ko .etat{color:var(--neg)}
 .btn.gros{width:100%;padding:13px;font-size:16px;border-radius:12px}
 .regle-banniere{background:var(--pos-soft);color:var(--ink);border-radius:10px;padding:9px 12px;font-size:13.5px;display:flex;gap:8px;align-items:center}
 .semaine{display:grid;grid-template-columns:110px 1fr 92px;gap:10px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line);cursor:pointer}
@@ -264,7 +264,9 @@ body.pro{font-size:15px;letter-spacing:-.005em}
 body.pro nav.tabs{display:none}
 body.pro header{border-bottom:0;background:color-mix(in srgb,var(--bg) 88%,transparent);padding-bottom:8px}
 body.pro .brand{font-size:18px;font-weight:750;letter-spacing:-.02em}
-body.pro .brand::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--accent);margin-right:8px;vertical-align:1px}
+body.pro .brand{display:flex;flex-direction:column;line-height:1.15}
+body.pro .brand .br-j{font-size:11.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+body.pro .brand .br-d{font-size:17px;font-weight:750;letter-spacing:-.02em;color:var(--ink)}
 body.pro .card{border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
 body.pro .card h3{font-size:12px;letter-spacing:.06em;color:var(--ink-3);font-weight:650}
 body.pro .kpi.k-rev,body.pro .kpi.k-dep,body.pro .kpi.k-net,body.pro .kpi.k-sol{background:var(--surface);border-color:var(--line)!important}
@@ -359,7 +361,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=6f8963b574"></script>
+<script src="web.js?v=88e0d6e636"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1049,6 +1051,12 @@ function bandeaux(){
   if(S.info.groupe==="reference") h += `<div class="banner info">Mois de référence (septembre 2026) : lecture seule, sert à valider la logique.</div>`;
   return h;
 }
+// en-tête de l'interface pro : la date du jour (jour de la semaine au-dessus, date en dessous)
+function dateEntete(){
+  const [a, mo, j] = today().split("-").map(Number), d = new Date(a, mo - 1, j);
+  const jour = ["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"][d.getDay()];
+  return `<span class="br-j">${jour}</span><span class="br-d">${j} ${MOIS_MOTS[mo - 1]} ${a}</span>`;
+}
 function rend(){
   const m = $("#main");
   const btnC = document.querySelector('#tabs [data-v=couple]'); if(btnC) btnC.hidden = !MODE_PAYE();
@@ -1058,10 +1066,11 @@ function rend(){
   if(pro){
     if(S.vue === "regl") S.vue = "plus"; if(S.vue === "couple") S.vue = "split";
     barreOngletsPro();
-    const br = $(".brand"); if(br && !br.textContent.trim()) br.textContent = "Finances";
+    const br = $(".brand"); if(br) br.innerHTML = dateEntete();
     const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro}[S.vue] || vueBordPro;
     m.innerHTML = bandeaux() + (S.vue === "split" ? syncZone() : "") + `<div id="vue"></div>`; vp($("#vue")); majBandeauSync(); return;
   }
+  { const br = $(".brand"); if(br && br.querySelector(".br-j")) br.innerHTML = ""; }
   if(["split", "plus"].includes(S.vue)) S.vue = "bord";
   if(S.vue === "couple" && !MODE_PAYE()) S.vue = "bord";
   const v = {bord:MODE_PAYE()?vueBordPaye:vueBord, trans:MODE_PAYE()?vueTransPaye:vueTrans, rev:vueRev, couple:vueCouple, inv:vueInv, regl:vueRegl}[S.vue] || vueBord;
@@ -1277,11 +1286,14 @@ function dlgConfirmeReglement(m, der){
       catch(e){ $("#okRegle", d).disabled = false; } };
   });
 }
+const horsMesDepenses = t => semType(t.type) === "M" || (!MODE_PAYE() && t.a_rembourser);
 function lignesDepenses(){
   // lignes du mois, sous une forme commune (format final ou historique)
   const m = S.mois;
   if(S.info.groupe==="historique") return m.lignes.map(x=>({date:x.date, description:x.description, categorie:x.categorie||"(sans catégorie)", depense:x.montant, hist:true}));
-  return m.transactions.filter(t=>t.utilise).map(t=>Object.assign({}, t, {categorie:t.categorie||"(sans catégorie)"}));
+  // app de Zach : « 100% Marika » (dépense de Marika sur ma carte) et parts reçues pas encore remboursées
+  // ne sont pas (encore) mes dépenses : elles s'affichent seulement dans Partage
+  return m.transactions.filter(t=>t.utilise && !horsMesDepenses(t)).map(t=>Object.assign({}, t, {categorie:t.categorie||"(sans catégorie)"}));
 }
 function groupesDepenses(){
   const par = {};
@@ -1297,13 +1309,17 @@ function vueTrans(el){
     const z = $("#zone");
     if(!q){
       const g = groupesDepenses();
+      const bud = hist ? {} : Object.fromEntries(suiviBudgets().map(x => [x.cat, x]));
+      Object.keys(bud).forEach(c => { if(!g.some(x => x.categorie === c)) g.push({categorie: c, lignes: [], total: 0}); });
+      const nbKo = Object.values(bud).filter(x => x.dep > x.max + 0.005).length, nbRisque = Object.values(bud).filter(x => x.dep <= x.max + 0.005 && x.proj > x.max + 0.005).length;
       z.innerHTML = `<div class="grid two">
         <div class="card cadre"><h3>Dépenses par catégorie${mod && !hist ? `<span class="sp"><button class="btn small" id="btnImport">Importer des captures</button></span>` : ""}</h3>
           ${g.length ? g.map(x=>`<div class="grp" data-c="${esc(x.categorie)}"><div class="grp-h" role="button" tabindex="0">
             <i class="pastille" style="background:${couleurCat(x.categorie)}"></i>
-            <div class="main"><div class="t1">${esc(x.categorie)}</div><div class="t2">${x.lignes.length} dépense${x.lignes.length>1?"s":""}</div></div>
-            <div class="amt num">${$$(x.total)}</div><span class="chev">›</span></div></div>`).join("") : `<div class="empty">Aucune dépense ce mois-ci.</div>`}
+            <div class="main"><div class="t1">${esc(x.categorie)}</div><div class="t2">${x.lignes.length} dépense${x.lignes.length>1?"s":""}${bud[x.categorie] ? ` · budget ${$$(bud[x.categorie].max)}` : ""}</div></div>
+            <div class="amt num">${$$(x.total)}</div><span class="chev">›</span></div>${bud[x.categorie] ? budgetCategorie(bud[x.categorie]) : ""}</div>`).join("") : `<div class="empty">Aucune dépense ce mois-ci.</div>`}
           <div class="kv" style="margin-top:8px"><div class="k total">Total des dépenses</div><div class="num total">${$$(m.total_depenses)}</div></div>
+          ${Object.keys(bud).length ? `<div class="small muted" style="margin-top:6px">Budgets : ${nbKo ? `<span class="neg">${nbKo} dépassé${nbKo > 1 ? "s" : ""}</span>` : "aucun dépassé"}${nbRisque ? ` · <span style="color:var(--warn)">${nbRisque} à surveiller</span>` : ""} · le trait marque le rythme prévu à ce jour.${mod && !MODE_PAYE() ? ` <a href="#" id="edBud2" style="color:var(--accent);text-decoration:none;font-weight:600">Modifier les budgets</a>` : ""}</div>` : ""}
         </div>
         ${hist ? "" : UIPRO() ? dernieresDepensesHTML(m) : carteMarikaHTML(m)}
       </div>
@@ -1311,6 +1327,7 @@ function vueTrans(el){
       <div class="card cadre"><h3>Dépenses des 6 derniers mois</h3><div id="g6"><div class="empty">Chargement…</div></div></div>`;
       graphDepenses6(z);
       const bi = $("#btnImport", z); if(bi) bi.onclick = () => dlgImportCaptures();
+      const eb = $("#edBud2", z); if(eb) eb.onclick = ev => { ev.preventDefault(); dlgBudgets(); };
       z.querySelectorAll(".grp-h").forEach(h=>h.onclick=()=>dlgCategorieDepenses(h.parentNode.dataset.c));
       if(!UIPRO()) brancheMarika(z, m);
       else z.querySelectorAll("[data-dl]").forEach(it => it.onclick = () => dlgTransaction(m.transactions.find(t => t.ligne == it.dataset.dl)));
@@ -1704,6 +1721,13 @@ function suiviBudgets(){
   const parCat = {}; depensesDuMois().forEach(t => parCat[t.categorie] = (parCat[t.categorie]||0) + t.depense);
   return Object.entries(b).map(([cat, max]) => { const dep = parCat[cat] || 0, proj = dep / frac;
     return {cat, max, dep, proj, frac, ok: proj <= max + 0.005 && dep <= max + 0.005}; });
+}
+// app de Zach : budget d'une catégorie sous sa ligne (sans émoji) — dépassé, à surveiller (rythme), ou reste
+function budgetCategorie(x){
+  const ko = x.dep > x.max + 0.005, risque = !ko && x.proj > x.max + 0.005, cl = ko ? "ko" : risque ? "warn" : "ok";
+  const txt = ko ? `Dépassé de ${$$(x.dep - x.max)}` : risque ? `À surveiller : ${$$(x.proj)} prévus` : `Il reste ${$$(x.max - x.dep)}`;
+  return `<div class="bud ${cl}" style="margin:2px 0 8px 22px"><div class="barre"><i style="width:${Math.min(100, x.max > 0 ? x.dep / x.max * 100 : 100).toFixed(1)}%"></i>${x.frac < 1 ? `<b style="left:${(x.frac * 100).toFixed(1)}%" title="Rythme prévu à ce jour"></b>` : ""}</div>
+    <div class="txt"><span>${Math.round(x.max > 0 ? x.dep / x.max * 100 : 0)} % du budget</span><span class="etat">${txt}</span></div></div>`;
 }
 function barreBudget(x){
   return `<div class="bud ${x.ok?"ok":"ko"}"><div class="barre"><i style="width:${Math.min(100, x.dep / x.max * 100).toFixed(1)}%"></i><b style="left:${(x.frac*100).toFixed(1)}%" title="Rythme prévu aujourd'hui"></b></div>
@@ -2444,20 +2468,16 @@ function vueBordPro(el){
     split = `<div class="card p-split" id="pSplit" role="button" tabindex="0"><div class="ic">${ICO.split}</div><div class="tx"><div class="t1 ${cl}">${netSplitTexte(x.net)}</div><div class="t2">${x.marq ? "Depuis le règlement du " + dL(x.marq.date) : "Aucun règlement ce mois-ci"} · voir le partage</div></div><span class="chev" style="color:var(--ink-3)">›</span></div>`; }
   el.innerHTML = `
    <div class="card p-hero"><div class="lbl">Solde au compte · ${esc(S.info.nom)}</div><div class="gros num">${$$(m.solde_fin)}</div>
-     <div class="sous"><span>Début ${$$(m.solde_debut)}</span><span class="p-chip ${rn < 0 ? "neg" : "pos"}">${rn < 0 ? "▼" : "▲"} ${$$(Math.abs(rn))} ce mois</span></div></div>
+     <div class="sous"><span>Début ${$$(m.solde_debut)}${mod ? ` · <a href="#" id="edSol" style="color:var(--accent);text-decoration:none;font-weight:600">Modifier</a>` : ""}</span><span class="p-chip ${rn < 0 ? "neg" : "pos"}">${rn < 0 ? "▼" : "▲"} ${$$(Math.abs(rn))} ce mois</span></div></div>
    <div class="spacer"></div>${split}${split ? `<div class="spacer"></div>` : ""}
    <div class="p-stats"><div class="p-stat"><div class="l">Revenus</div><div class="v num">${$$(m.total_revenus)}</div></div>
      <div class="p-stat"><div class="l">Dépenses</div><div class="v num">${$$(m.total_depenses)}</div></div>
      <div class="p-stat"><div class="l">Revenu net</div><div class="v num ${rn < 0 ? "neg" : "pos"}">${$$(rn)}</div></div></div>
    <div class="spacer"></div>
-   <div class="grid two">
-     <div class="card cadre"><h3>Dépenses par catégorie</h3>${barres(groupesDepenses().map(g => ({categorie: g.categorie, montant: g.total})))}</div>
-     <div class="card cadre"><h3>Revenus et dépenses – 6 derniers mois</h3><div id="g12"><div class="empty">Chargement…</div></div></div>
-   </div>
-   <div class="spacer"></div>${resumeGlobalHTML(m, mod)}`;
+   <div class="card cadre"><h3>Revenus et dépenses – 6 derniers mois</h3><div id="g12"><div class="empty">Chargement…</div></div></div>`;
   graphRevDep(el);
   const ps = $("#pSplit", el); if(ps){ ps.onclick = () => vaVers("split"); ps.onkeydown = ev => { if(ev.key === "Enter") vaVers("split"); }; }
-  const es = $("#edSol", el); if(es) es.onclick = () => dlgSoldes(m);
+  const es = $("#edSol", el); if(es) es.onclick = ev => { ev.preventDefault(); dlgSoldes(m); };
 }
 // --- Partage (split) : la fonction phare
 function vuePartagePro(el){
@@ -2501,7 +2521,7 @@ function vuePartagePro(el){
 }
 // --- Placements (depuis « Plus »)
 function dernieresDepensesHTML(m){
-  const l = m.transactions.filter(t => t.utilise && t.date).sort((a, b) => b.date.localeCompare(a.date) || b.ligne - a.ligne).slice(0, 8), mod = S.info.modifiable;
+  const l = m.transactions.filter(t => t.utilise && t.date && !horsMesDepenses(t)).sort((a, b) => b.date.localeCompare(a.date) || b.ligne - a.ligne).slice(0, 8), mod = S.info.modifiable;
   const typ = t => { const s = semType(t.type); return s && s !== "P" ? ` · <span class="p-chip" style="padding:0 7px;font-size:11px">${esc(TYPES_COURTS[s])}</span>` : (t.a_rembourser ? ` · <span class="p-chip" style="padding:0 7px;font-size:11px">payé par ${PART()}</span>` : ""); };
   return `<div class="card"><div class="p-sec"><b>Dernières dépenses</b><span>${mod ? "touche pour modifier" : ""}</span></div>
     ${l.length ? l.map(t => `<div class="p-row" ${mod ? `data-dl="${t.ligne}" style="cursor:pointer"` : ""}><div class="d">${jourCourt(t.date)}</div><div class="m"><div class="t">${esc(t.description)}</div><div class="s">${esc(t.categorie || "")}${typ(t)}</div></div><div class="v num">${$$(t.depense != null ? t.depense : t.deboursement)}${t.depense != null && Math.abs((t.depense || 0) - (t.deboursement || 0)) > 0.004 ? `<small>sur ${$$(t.deboursement)}</small>` : ""}</div></div>`).join("") : `<div class="p-vide">Aucune dépense ce mois-ci.</div>`}</div>`;
