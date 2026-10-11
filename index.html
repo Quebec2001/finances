@@ -361,7 +361,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=88e0d6e636"></script>
+<script src="web.js?v=4627193144"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1311,7 +1311,7 @@ function vueTrans(el){
       const g = groupesDepenses();
       const bud = hist ? {} : Object.fromEntries(suiviBudgets().map(x => [x.cat, x]));
       Object.keys(bud).forEach(c => { if(!g.some(x => x.categorie === c)) g.push({categorie: c, lignes: [], total: 0}); });
-      const nbKo = Object.values(bud).filter(x => x.dep > x.max + 0.005).length, nbRisque = Object.values(bud).filter(x => x.dep <= x.max + 0.005 && x.proj > x.max + 0.005).length;
+      const nbKo = Object.values(bud).filter(x => x.dep > x.max + 0.005).length;
       z.innerHTML = `<div class="grid two">
         <div class="card cadre"><h3>Dépenses par catégorie${mod && !hist ? `<span class="sp"><button class="btn small" id="btnImport">Importer des captures</button></span>` : ""}</h3>
           ${g.length ? g.map(x=>`<div class="grp" data-c="${esc(x.categorie)}"><div class="grp-h" role="button" tabindex="0">
@@ -1319,7 +1319,7 @@ function vueTrans(el){
             <div class="main"><div class="t1">${esc(x.categorie)}</div><div class="t2">${x.lignes.length} dépense${x.lignes.length>1?"s":""}${bud[x.categorie] ? ` · budget ${$$(bud[x.categorie].max)}` : ""}</div></div>
             <div class="amt num">${$$(x.total)}</div><span class="chev">›</span></div>${bud[x.categorie] ? budgetCategorie(bud[x.categorie]) : ""}</div>`).join("") : `<div class="empty">Aucune dépense ce mois-ci.</div>`}
           <div class="kv" style="margin-top:8px"><div class="k total">Total des dépenses</div><div class="num total">${$$(m.total_depenses)}</div></div>
-          ${Object.keys(bud).length ? `<div class="small muted" style="margin-top:6px">Budgets : ${nbKo ? `<span class="neg">${nbKo} dépassé${nbKo > 1 ? "s" : ""}</span>` : "aucun dépassé"}${nbRisque ? ` · <span style="color:var(--warn)">${nbRisque} à surveiller</span>` : ""} · le trait marque le rythme prévu à ce jour.${mod && !MODE_PAYE() ? ` <a href="#" id="edBud2" style="color:var(--accent);text-decoration:none;font-weight:600">Modifier les budgets</a>` : ""}</div>` : ""}
+          ${Object.keys(bud).length ? `<div class="small muted" style="margin-top:6px">Budgets : ${nbKo ? `<span class="neg">${nbKo} dépassé${nbKo > 1 ? "s" : ""}</span>` : "aucun dépassé"} · le trait marque le rythme prévu à ce jour.${mod && !MODE_PAYE() ? ` <a href="#" id="edBud2" style="color:var(--accent);text-decoration:none;font-weight:600">Modifier les budgets</a>` : ""}</div>` : ""}
         </div>
         ${hist ? "" : UIPRO() ? dernieresDepensesHTML(m) : carteMarikaHTML(m)}
       </div>
@@ -1722,10 +1722,10 @@ function suiviBudgets(){
   return Object.entries(b).map(([cat, max]) => { const dep = parCat[cat] || 0, proj = dep / frac;
     return {cat, max, dep, proj, frac, ok: proj <= max + 0.005 && dep <= max + 0.005}; });
 }
-// app de Zach : budget d'une catégorie sous sa ligne (sans émoji) — dépassé, à surveiller (rythme), ou reste
+// app de Zach : budget d'une catégorie sous sa ligne (sans émoji) — deux états seulement : il reste / dépassé
 function budgetCategorie(x){
-  const ko = x.dep > x.max + 0.005, risque = !ko && x.proj > x.max + 0.005, cl = ko ? "ko" : risque ? "warn" : "ok";
-  const txt = ko ? `Dépassé de ${$$(x.dep - x.max)}` : risque ? `À surveiller : ${$$(x.proj)} prévus` : `Il reste ${$$(x.max - x.dep)}`;
+  const ko = x.dep > x.max + 0.005, cl = ko ? "ko" : "ok";
+  const txt = ko ? `Dépassé de ${$$(x.dep - x.max)}` : `Il reste ${$$(x.max - x.dep)}`;
   return `<div class="bud ${cl}" style="margin:2px 0 8px 22px"><div class="barre"><i style="width:${Math.min(100, x.max > 0 ? x.dep / x.max * 100 : 100).toFixed(1)}%"></i>${x.frac < 1 ? `<b style="left:${(x.frac * 100).toFixed(1)}%" title="Rythme prévu à ce jour"></b>` : ""}</div>
     <div class="txt"><span>${Math.round(x.max > 0 ? x.dep / x.max * 100 : 0)} % du budget</span><span class="etat">${txt}</span></div></div>`;
 }
