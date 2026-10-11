@@ -265,6 +265,27 @@ body.pro nav.tabs{display:none}
 body.pro header{border-bottom:0;background:color-mix(in srgb,var(--bg) 88%,transparent);padding-bottom:8px}
 body.pro .brand{font-size:18px;font-weight:750;letter-spacing:-.02em}
 body.pro .brand{display:flex;flex-direction:column;line-height:1.15}
+.p-alerte{position:absolute;top:6px;left:calc(50% + 7px);width:8px;height:8px;border-radius:50%;background:var(--neg);box-shadow:0 0 0 2px var(--surface)}
+#btab button{position:relative}
+.p-hero{position:relative}
+.p-ctl-al{position:absolute;top:14px;right:14px;display:inline-flex;align-items:center;gap:6px;border:0;background:var(--neg-soft);color:var(--neg);font:inherit;font-size:12px;font-weight:650;padding:4px 10px 4px 8px;border-radius:99px;cursor:pointer}
+.p-ctl-al i{width:7px;height:7px;border-radius:50%;background:var(--neg);animation:pctl 2.4s ease-in-out infinite}
+@keyframes pctl{0%,100%{box-shadow:0 0 0 0 rgba(225,29,72,.45)}50%{box-shadow:0 0 0 5px rgba(225,29,72,0)}}
+@media (prefers-reduced-motion:reduce){.p-ctl-al i{animation:none}}
+.p-ctl-tete{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;padding:18px}
+.p-ctl-tete .sceau{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:var(--pos-soft)}
+.p-ctl-tete .sceau svg{width:28px;height:28px;fill:none;stroke:var(--pos);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.p-ctl-tete.ko .sceau{background:var(--neg-soft)}.p-ctl-tete.ko .sceau svg{stroke:var(--neg)}
+.p-ctl-tete.ac .sceau{background:var(--surface-2)}.p-ctl-tete.ac .sceau svg{stroke:var(--ink-2)}
+.p-ctl-tete .lbl{font-size:12.5px;color:var(--ink-3);font-weight:600}.p-ctl-tete .t{font-size:19px;font-weight:720;letter-spacing:-.01em}.p-ctl-tete .s{font-size:13px;color:var(--ink-2)}
+.p-ctl-seg{grid-column:1/-1;display:flex;gap:3px;margin-top:4px}.p-ctl-seg i{flex:1;height:5px;border-radius:99px;background:var(--pos)}
+.p-ctl-seg i.ko{background:var(--neg)}.p-ctl-seg i.ac{background:var(--line)}.p-ctl-seg i.fo{background:var(--warn-2)}
+.p-ctl-l{padding:12px 16px;border-top:1px solid var(--line)}.p-ctl-l:first-child{border-top:0}
+.p-ctl-l .h{display:flex;justify-content:space-between;gap:10px;align-items:center}.p-ctl-l .t{font-weight:600;font-size:14.5px}
+.p-ctl-l .d{font-size:12.5px;color:var(--ink-3);margin-top:2px}.p-ctl-l .m{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:12.5px;color:var(--ink-2);margin-top:6px}
+.p-ctl-l .m .btn{margin-left:auto}.p-ctl-l .j{font-style:italic}
+.p-st{font-size:11.5px;font-weight:650;padding:2px 9px;border-radius:99px;white-space:nowrap}
+.p-st.ok{background:var(--pos-soft);color:var(--pos)}.p-st.ko{background:var(--neg-soft);color:var(--neg)}.p-st.ac{background:var(--surface-2);color:var(--ink-2)}.p-st.fo{background:var(--warn-soft);color:var(--warn)}
 body.pro .brand .br-j{font-size:11.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
 body.pro .brand .br-d{font-size:17px;font-weight:750;letter-spacing:-.02em;color:var(--ink)}
 body.pro .card{border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
@@ -361,7 +382,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=1a803f1876"></script>
+<script src="web.js?v=dfb9f10a49"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1084,7 +1105,7 @@ function rend(){
     if(S.vue === "regl") S.vue = "plus"; if(S.vue === "couple") S.vue = "split";
     barreOngletsPro();
     const br = $(".brand"); if(br) br.innerHTML = dateEntete();
-    const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro}[S.vue] || vueBordPro;
+    const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro, ctl:vueCtlPro}[S.vue] || vueBordPro;
     m.innerHTML = bandeaux() + (S.vue === "split" ? syncZone() : "") + `<div id="vue"></div>`; vp($("#vue")); majBandeauSync(); return;
   }
   { const br = $(".brand"); if(br && br.querySelector(".br-j")) br.innerHTML = ""; }
@@ -2470,12 +2491,13 @@ const ICO = {
   nuage: `<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/></svg>`,
   oeil: `<svg viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg>`,
   pct: `<svg viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.3"/><circle cx="17" cy="17" r="2.3"/></svg>`,
+  ctl: `<svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6z"/><path d="m8.8 12 2.3 2.3 4.3-4.6"/></svg>`,
 };
 const ONGLETS_PRO = [["bord", "Accueil"], ["trans", "Dépenses"], ["split", "Partage"], ["rev", "Revenus"], ["plus", "Plus"]];
 function barreOngletsPro(){
   const n = $("#btab"); if(!n) return;
-  const actif = S.vue === "inv" ? "plus" : S.vue;
-  n.innerHTML = ONGLETS_PRO.map(([v, t]) => `<button data-v="${v}" class="${v === actif ? "on" : ""}" aria-label="${t}">${ICO[v]}<span>${t}</span></button>`).join("");
+  const actif = ["inv", "ctl"].includes(S.vue) ? "plus" : S.vue, alerte = ctlEnErreur().length;
+  n.innerHTML = ONGLETS_PRO.map(([v, t]) => `<button data-v="${v}" class="${v === actif ? "on" : ""}" aria-label="${t}${v === "plus" && alerte ? " – contrôle à vérifier" : ""}">${ICO[v]}${v === "plus" && alerte ? `<i class="p-alerte" title="${alerte} contrôle${alerte > 1 ? "s" : ""} à vérifier"></i>` : ""}<span>${t}</span></button>`).join("");
 }
 function vaVers(v){ S.vue = v; rend(); window.scrollTo({top: 0}); }
 const jourCourt = iso => iso ? `<b>${+iso.slice(8,10)}</b>${(MOIS_MOTS[+iso.slice(5,7)-1] || "").slice(0,4)}.` : "—";
@@ -2487,7 +2509,7 @@ function vueBordPro(el){
   if(!hist && m.transactions){ const x = splitDetail(m), cl = Math.abs(x.net || 0) < 0.005 ? "" : (x.net > 0 ? "pos" : "neg");
     split = `<div class="card p-split" id="pSplit" role="button" tabindex="0"><div class="ic">${ICO.split}</div><div class="tx"><div class="t1 ${cl}">${netSplitTexte(x.net)}</div><div class="t2">${x.marq ? "Depuis le règlement du " + dL(x.marq.date) : "Aucun règlement ce mois-ci"} · voir le partage</div></div><span class="chev" style="color:var(--ink-3)">›</span></div>`; }
   el.innerHTML = `
-   <div class="card p-hero"><div class="lbl">Solde au compte · ${esc(S.info.nom)}</div><div class="gros num">${$$(m.solde_fin)}</div>
+   <div class="card p-hero">${ctlEnErreur().length ? `<button class="p-ctl-al" id="pCtlAl" title="Voir les contrôles"><i></i>${ctlEnErreur().length} à vérifier</button>` : ""}<div class="lbl" ${ctlEnErreur().length ? `style="padding-right:104px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"` : ""}>Solde au compte · ${esc(S.info.nom)}</div><div class="gros num">${$$(m.solde_fin)}</div>
      <div class="sous"><span>Début ${$$(m.solde_debut)}${mod ? ` · <a href="#" id="edSol" style="color:var(--accent);text-decoration:none;font-weight:600">Modifier</a>` : ""}</span><span class="p-chip ${rn < 0 ? "neg" : "pos"}">${rn < 0 ? "▼" : "▲"} ${$$(Math.abs(rn))} ce mois</span></div></div>
    <div class="spacer"></div>${split}${split ? `<div class="spacer"></div>` : ""}
    <div class="p-stats"><div class="p-stat"><div class="l">Revenus</div><div class="v num">${$$(m.total_revenus)}</div></div>
@@ -2496,6 +2518,7 @@ function vueBordPro(el){
    <div class="spacer"></div>
    <div class="card cadre"><h3>Revenus et dépenses – 6 derniers mois</h3><div id="g12"><div class="empty">Chargement…</div></div></div>`;
   graphRevDep(el);
+  const ca = $("#pCtlAl", el); if(ca) ca.onclick = () => vaVers("ctl");
   const ps = $("#pSplit", el); if(ps){ ps.onclick = () => vaVers("split"); ps.onkeydown = ev => { if(ev.key === "Enter") vaVers("split"); }; }
   const es = $("#edSol", el); if(es) es.onclick = ev => { ev.preventDefault(); dlgSoldes(m); };
 }
@@ -2593,6 +2616,61 @@ function vueInvPro(el){
   el.innerHTML = `<button class="p-retour" id="pRet">‹ Plus</button><div id="pInv"></div>`;
   $("#pRet", el).onclick = () => vaVers("plus"); vueInv($("#pInv", el));
 }
+// --- Contrôles du fichier (depuis « Plus ») : état de chaque vérification du mois affiché
+const ctlListe = () => (S.mois && S.mois.controles) || [];
+const ctlEnErreur = () => (S.info && S.info.groupe !== "historique") ? ctlListe().filter(c => /vérifier/i.test(c.statut)) : [];
+function ctlResumeCourt(){
+  const l = ctlListe(); if(!l.length) return "";
+  const ko = ctlEnErreur().length, ac = l.filter(c => c.statut === "À compléter").length;
+  return ko ? `<span class="neg">${ko} à vérifier</span>` : ac ? `${l.length - ac}/${l.length} OK` : "Tout est OK";
+}
+const CTL_INFO = [
+  [/catégories/i, "La somme des catégories du résumé est égale au total des dépenses.", "$"],
+  [/dates hors/i, "Aucune dépense n'est datée en dehors du mois.", "n"],
+  [/erreurs de formule/i, "Aucune ligne n'a un type ou un montant invalide.", "n"],
+  [/solde calculé/i, "Le solde calculé correspond au solde réel de ton relevé bancaire.", "$"],
+  [/recalculée/i, "La part de " + "{P}" + " recalculée par type de dépense est égale à la colonne K du fichier.", "$"],
+  [/dernier solde réglé/i, "Le montant dû depuis le dernier « Solde réglé » est égal au tableau Remboursement.", "$"],
+  [/proportion/i, "Le % utilisé pour le split proportionnel correspond à la répartition de vos revenus.", "%"]];
+function ctlInfo(c){ const x = CTL_INFO.find(([rx]) => rx.test(c.libelle)) || [null, "", "$"]; return {txt: x[1].replace("{P}", PART()), unite: x[2]}; }
+function ctlEcart(c, u){
+  if(c.ecart == null) return "—";
+  if(u === "n") return String(Math.round(c.ecart));
+  if(u === "%") return (Math.abs(c.ecart) < 0.00005 ? "0" : (c.ecart * 100).toFixed(2).replace(".", ",")) + " pt";
+  return $$(c.ecart);
+}
+function vueCtlPro(el){
+  const l = ctlListe(), ko = ctlEnErreur(), ac = l.filter(c => c.statut === "À compléter"), force = l.filter(c => /forcé/i.test(c.statut));
+  const mod = S.info.modifiable, ok = l.length - ko.length - ac.length;
+  const etat = ko.length ? "ko" : ac.length ? "ac" : "ok";
+  const titre = !l.length ? "Aucun contrôle pour ce mois" : ko.length ? `${ko.length} contrôle${ko.length > 1 ? "s" : ""} à vérifier` : ac.length ? "Aucune anomalie" : "Tous les contrôles sont conformes";
+  const sous = !l.length ? "Les mois d'historique n'ont pas de bloc de contrôles." : `${ok} sur ${l.length} conformes${force.length ? ` · ${force.length} forcé${force.length > 1 ? "s" : ""}` : ""}${ac.length ? ` · ${ac.length} à compléter` : ""}`;
+  const pastille = c => /vérifier/i.test(c.statut) ? `<span class="p-st ko">À vérifier</span>` : /forcé/i.test(c.statut) ? `<span class="p-st fo">Forcé</span>` : c.statut === "À compléter" ? `<span class="p-st ac">À compléter</span>` : `<span class="p-st ok">Conforme</span>`;
+  el.innerHTML = `<button class="p-retour" id="pRet">‹ Plus</button>
+   <div class="card p-ctl-tete ${etat}"><div class="sceau">${ICO.ctl}</div><div><div class="lbl">Contrôles · ${esc(S.info.nom)}</div><div class="t">${titre}</div><div class="s">${sous}</div></div>
+     ${l.length ? `<div class="p-ctl-seg">${l.map(c => `<i class="${/vérifier/i.test(c.statut) ? "ko" : c.statut === "À compléter" ? "ac" : /forcé/i.test(c.statut) ? "fo" : "ok"}"></i>`).join("")}</div>` : ""}</div>
+   <div class="spacer"></div>
+   ${l.length ? `<div class="card" style="padding:4px 0">${l.map(c => { const inf = ctlInfo(c), lib = c.libelle.replace(/^\d+\.\s*/, "");
+      return `<div class="p-ctl-l" data-ctl="${c.ligne}"><div class="h"><div class="t">${esc(lib)}</div>${pastille(c)}</div>
+        <div class="d">${esc(inf.txt)}</div>
+        <div class="m"><span>Écart : <b class="num ${/vérifier/i.test(c.statut) ? "neg" : ""}">${ctlEcart(c, inf.unite)}</b></span>
+          ${/forcé/i.test(c.statut) && c.justification ? `<span class="j">Justification : ${esc(c.justification)}</span>` : ""}
+          ${mod ? (/vérifier/i.test(c.statut) ? `<button class="btn small" data-forcer="${c.ligne}">Forcer…</button>` : /forcé/i.test(c.statut) ? `<button class="btn small" data-annuler="${c.ligne}">Annuler le forçage</button>` : c.statut === "À compléter" && /solde calculé/i.test(c.libelle) ? `<button class="btn small" id="ctlSolde">Inscrire le solde réel</button>` : "") : ""}</div></div>`; }).join("")}</div>` : ""}
+   <p class="hint" style="margin:10px 4px 0">Les contrôles sont recalculés à chaque modification. Un contrôle forcé reste conforme avec ta justification, inscrite dans le fichier Excel.</p>`;
+  $("#pRet", el).onclick = () => vaVers("plus");
+  const cs = $("#ctlSolde", el); if(cs) cs.onclick = () => dlgSoldes(S.mois);
+  el.querySelectorAll("[data-forcer]").forEach(b => b.onclick = () => dlgForcerCtl(l.find(c => c.ligne == b.dataset.forcer)));
+  el.querySelectorAll("[data-annuler]").forEach(b => b.onclick = async () => { try { await ecrit("/api/controle", {ligne: +b.dataset.annuler, forcer: false, justification: ""}, "Forçage annulé"); } catch(e){} });
+}
+function dlgForcerCtl(c){
+  ouvre(`<form id="ffc"><div class="dlg-h"><h2>Forcer le contrôle</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b"><p style="margin:0"><b>${esc(c.libelle.replace(/^\d+\.\s*/, ""))}</b> · écart ${ctlEcart(c, ctlInfo(c).unite)}</p>
+     <label class="f">Justification (obligatoire)<textarea name="j" rows="3" required placeholder="Ex. : écart d'arrondi accepté"></textarea></label>
+     <p class="hint" style="margin:0">Le contrôle sera considéré conforme. La justification est inscrite dans le fichier Excel.</p></div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary">Forcer</button></div></form>`, d => {
+    $("#ffc", d).onsubmit = async ev => { ev.preventDefault(); try { await ecrit("/api/controle", {ligne: c.ligne, forcer: true, justification: $("#ffc", d).j.value}, "Contrôle forcé"); d.close(); } catch(e){} };
+  });
+}
 // --- Plus : réglages regroupés, une ligne = une action
 function vuePlusPro(el){
   const e = S.etat, m = S.mois;
@@ -2601,7 +2679,8 @@ function vuePlusPro(el){
   const item = (id, ic, t1, t2, val = "") => `<button class="p-item" id="${id}"><span class="ic">${ICO[ic]}</span><span class="tx"><div class="t1">${t1}</div>${t2 ? `<div class="t2">${t2}</div>` : ""}</span>${val ? `<span class="val num">${val}</span>` : ""}<span class="chev">›</span></button>`;
   el.innerHTML = `
    <div class="p-groupe"><div class="t">Patrimoine</div><div class="p-liste">${item("pInvB", "inv", "Placements", "CÉLI, CÉLIAPP et autres comptes", $$(tj))}</div></div>
-   <div class="p-groupe"><div class="t">Mois</div><div class="p-liste">${item("pNm", "cal", "Créer " + esc(e.prochain_mois), "Clôture du mois et nouveau départ")}</div></div>
+   <div class="p-groupe"><div class="t">Mois</div><div class="p-liste">${item("pCtl", "ctl", "Contrôles", "Vérifications du fichier · " + esc(S.info.nom), ctlResumeCourt())}
+     ${item("pNm", "cal", "Créer " + esc(e.prochain_mois), "Clôture du mois et nouveau départ")}</div></div>
    <div class="p-groupe"><div class="t">Partage avec ${PART()}</div><div class="p-liste">
      ${item("pPct", "pct", "Répartition", "Revenus et % utilisé pour le split proportionnel", pct(m.pct_marika))}
      ${item("pAut", "autres", "Autres montants", "Montants payés hors de l'app")}
@@ -2616,6 +2695,7 @@ function vuePlusPro(el){
      ${item("pUi", "oeil", "Apparence", "Revenir à l'interface classique")}</div></div>`;
   $("#pInvB", el).onclick = () => vaVers("inv");
   $("#pNm", el).onclick = () => dlgNouveauMois();
+  $("#pCtl", el).onclick = () => vaVers("ctl");
   $("#pPct", el).onclick = () => vaVers("split");
   $("#pAut", el).onclick = () => dlgMarika();
   if($("#pSync", el)) $("#pSync", el).onclick = () => dlgSync();
