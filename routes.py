@@ -58,6 +58,10 @@ def post(app, chemin, data):
         return app.ajoute_mot_cle(data.get("mot"), data.get("categorie"))
     if chemin == "/api/listes/categorie":
         return app.ajoute_categorie(data.get("nom"))
+    if chemin == "/api/types/cent/couleur":
+        return app.ajoute_couleur_type_cent()
+    if chemin == "/api/parts-recues/personnel":
+        return app.parts_recues_personnel()
     if chemin == "/api/types/cent":
         return app.remplace_type_remboursement()
     if chemin == "/api/listes/type":

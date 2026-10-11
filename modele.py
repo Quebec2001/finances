@@ -450,9 +450,11 @@ class Application:
                     "R": (1 - pct) if pct is not None else None, "M": 0.0}.get(st) if exact else None
             erreur = False
             dep = None
-            a_remb = bool(not typ.strip() and RX_A_REMBOURSER.search(desc))
-            if a_remb:
-                prop = None                        # part reçue de la carte du partenaire, pas encore remboursée
+            # part reçue de la carte du partenaire, pas encore remboursée : sans type (ancien / app de Marika)
+            # ou « Personnel » (app de Zach : compte tout de suite dans ses dépenses, le montant dû reste suivi)
+            a_remb = bool(RX_A_REMBOURSER.search(desc) and (not typ.strip() or (st == "P" and exact)))
+            if a_remb and not typ.strip():
+                prop = None
             elif deb is not None and deb > 0 and st == "M" and exact:
                 dep = 0.0
             elif deb is not None and deb > 0:
@@ -1140,7 +1142,7 @@ class Application:
         desc = (data.get("description") or "").strip()
         if not desc:
             raise Erreur("La description est obligatoire.")
-        # sans type : seulement une part reçue de la carte du partenaire, pas encore remboursée
+        # sans type : seulement une part reçue de la carte du partenaire, pas encore remboursée (app de Marika)
         typ = "" if (not (data.get("type") or "").strip() and RX_A_REMBOURSER.search(desc)) else self.type_exact(data.get("type") or "")
         f.ecrit(d.c_date + str(r), date)
         f.ecrit(d.c_desc + str(r), desc)
@@ -1656,7 +1658,65 @@ class Application:
             L.ecrit(self.l_type_col + str(r0), lib)
             for m in [{"feuille": "Canvas"}] + [x for x in self.mois if x["modifiable"]]:
                 self._formules_type_cent(m["feuille"], lib)
+                self._couleur_type_cent(m["feuille"], lib)
             return {"type": lib}
+        return self._ecriture(op)
+
+    def _couleur_type_cent(self, feuille, lib):
+        """Mise en forme conditionnelle du type « 100% Marika » (colonnes Type et I:J), dans l'esprit du fichier :
+        fond clair + texte foncé, comme Personnel (rouge), Proportionnel (jaune), Remboursement (vert). Ici : violet."""
+        f = self.wb.feuille(feuille); x = f.xml
+        if ('text="%s"' % lib) in x:
+            return False
+        blocs = [m for m in re.finditer(r'<conditionalFormatting sqref="([^"]+)">(.*?)</conditionalFormatting>', x, re.S)
+                 if 'text="Remboursement' in m.group(2)]
+        if not blocs:
+            return False
+        st = self.wb._txt("xl/styles.xml")
+        m = re.search(r'<dxfs count="(\d+)"\s*>', st) or re.search(r'<dxfs count="(\d+)"\s*/>', st)
+        dxf = '<dxf><font><color rgb="FF5B2C8F"/></font><fill><patternFill><bgColor rgb="FFE4DFEC"/></patternFill></fill></dxf>'
+        if m is None:
+            st = st.replace("</styleSheet>", '<dxfs count="1">%s</dxfs></styleSheet>' % dxf); dxf_id = 0
+        elif m.group(0).endswith("/>"):
+            dxf_id = 0; st = st.replace(m.group(0), '<dxfs count="1">%s</dxfs>' % dxf, 1)
+        else:
+            dxf_id = int(m.group(1))
+            fin = st.index("</dxfs>", m.end())
+            st = st[:m.start()] + '<dxfs count="%d">' % (dxf_id + 1) + st[m.end():fin] + dxf + st[fin:]
+        self.wb._ecrit_txt("xl/styles.xml", st)
+        prio = max([int(p) for p in re.findall(r'<cfRule [^>]*priority="(\d+)"', x)] or [0])
+        for b in reversed(blocs):
+            prio += 1
+            cell1 = b.group(1).split()[0].split(":")[0]
+            regle = ('<cfRule type="containsText" dxfId="%d" priority="%d" stopIfTrue="1" operator="containsText" text="%s">'
+                     '<formula>NOT(ISERROR(SEARCH("%s",%s)))</formula></cfRule>') % (dxf_id, prio, lib, lib, cell1)
+            fin = b.end() - len("</conditionalFormatting>")
+            x = x[:fin] + regle + x[fin:]
+        f.xml = x
+        f.analyse()
+        return True
+
+    def ajoute_couleur_type_cent(self):
+        """Fichier déjà migré : ajoute la couleur du type « 100 % » au modèle (Canvas) et aux mois modifiables."""
+        lib = next((b.strip() for b in self.types_bruts if sem_type(b) == "M"), None)
+        if not lib:
+            raise Erreur("Le type « 100 % » n'est pas dans la liste.")
+        def op():
+            return {"feuilles": [m["feuille"] for m in [{"feuille": "Canvas"}] + [x for x in self.mois if x["modifiable"]]
+                                 if self._couleur_type_cent(m["feuille"], lib)]}
+        return self._ecriture(op)
+
+    def parts_recues_personnel(self):
+        """Parts reçues pas encore remboursées, écrites sans type (#VALEUR! dans Excel) → « Personnel » (mois modifiables)."""
+        perso = next((b for b in self.types_bruts if sem_type(b) == "P"), "Personnel ")
+        def op():
+            n = 0
+            for mo in [x for x in self.mois if x["modifiable"]]:
+                f, d = self._verifie_modifiable(mo["feuille"])
+                for t in self.modele(mo["feuille"])["transactions"]:
+                    if t["utilise"] and t.get("a_rembourser") and not t["type"]:
+                        f.ecrit(d.c_type + str(t["ligne"]), perso); n += 1
+            return {"lignes": n}
         return self._ecriture(op)
 
     def _formules_type_cent(self, feuille, lib):

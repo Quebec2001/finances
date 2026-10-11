@@ -361,7 +361,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=4627193144"></script>
+<script src="web.js?v=a12e102344"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -592,7 +592,7 @@ async function dlgRecoitPartage(o){
     b.onclick = async () => {
       const groupes = {};
       d.querySelectorAll(".imp-l").forEach(x => { if(!x.querySelector(".imp-c").checked) return; const l = lignes[+x.dataset.i];
-        (groupes[l.k] = groupes[l.k] || []).push({description: l.desc + suffixe, montant: String(l.part), date: l.date, type: "", categorie: x.querySelector(".imp-cat").value}); });
+        (groupes[l.k] = groupes[l.k] || []).push({description: l.desc + suffixe, montant: String(l.part), date: l.date, type: typePartRecue(), categorie: x.querySelector(".imp-cat").value}); });
       b.disabled = true;
       try {
         let n = 0;
@@ -654,7 +654,7 @@ async function syncAjoute(items){
     const mm = await mois(mo), recue = {cle: mo.cle, date, desc: desc + suffixe, montant: r2(d.part), le: new Date().toISOString()};
     if(recuDeja(mm, date, desc, d.part)){ res[d.id] = recue; continue; }
     const auto = catAuto(d.desc), cat = (auto && auto !== "Autres") ? auto : (S.etat.categories.includes(d.cat) ? d.cat : (auto || "Autres"));
-    (groupes[mo.feuille] = groupes[mo.feuille] || []).push({id: d.id, recue, tx: {description: desc + suffixe, montant: String(r2(d.part)), date, type: "", categorie: cat}});
+    (groupes[mo.feuille] = groupes[mo.feuille] || []).push({id: d.id, recue, tx: {description: desc + suffixe, montant: String(r2(d.part)), date, type: typePartRecue(), categorie: cat}});
   }
   for(const f of Object.keys(groupes)){
     await api("/api/transactions/lot", {feuille: f, transactions: groupes[f].map(g => g.tx)});
@@ -1286,13 +1286,15 @@ function dlgConfirmeReglement(m, der){
       catch(e){ $("#okRegle", d).disabled = false; } };
   });
 }
-const horsMesDepenses = t => semType(t.type) === "M" || (!MODE_PAYE() && t.a_rembourser);
+const horsMesDepenses = t => semType(t.type) === "M" || (!MODE_PAYE() && t.a_rembourser && !t.type);   // + anciennes parts reçues sans type
+// part reçue de l'autre : « Personnel » dans l'app de Zach (compte tout de suite dans ses dépenses, demandé le 2026-10-10) ;
+// sans type dans l'app de Marika (inchangé : elle compte à son solde réglé)
+const typePartRecue = () => MODE_PAYE() ? "" : ((S.etat.types || []).find(x => semType(x) === "P") || "");
 function lignesDepenses(){
   // lignes du mois, sous une forme commune (format final ou historique)
   const m = S.mois;
   if(S.info.groupe==="historique") return m.lignes.map(x=>({date:x.date, description:x.description, categorie:x.categorie||"(sans catégorie)", depense:x.montant, hist:true}));
-  // app de Zach : « 100% Marika » (dépense de Marika sur ma carte) et parts reçues pas encore remboursées
-  // ne sont pas (encore) mes dépenses : elles s'affichent seulement dans Partage
+  // app de Zach : « 100% Marika » (dépense de Marika sur ma carte) n'est pas une de mes dépenses : seulement dans Partage
   return m.transactions.filter(t=>t.utilise && !horsMesDepenses(t)).map(t=>Object.assign({}, t, {categorie:t.categorie||"(sans catégorie)"}));
 }
 function groupesDepenses(){
