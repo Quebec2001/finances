@@ -937,7 +937,7 @@ class Application:
             return self.RE_FIORELLINO
 
     def etat(self):
-        return {"mois": self.mois, "categories": self.categories, "types": self.types, "type_cent_a_faire": self.type_cent_a_faire(), "reglages": self.reglages(),
+        return {"mois": self.mois, "categories": self.categories, "types": self.types, "type_cent_a_faire": self.type_cent_a_faire(), "correction_part_a_faire": self.correction_part_a_faire(), "reglages": self.reglages(),
                 "budgets": self.budgets(), "date_demo": self.config.get("date_demo"),
                 "types_invest": self.types_invest,
                 "motscles": [{"mot": k, "categorie": v} for k, v in self.motscles],
@@ -1704,6 +1704,39 @@ class Application:
         def op():
             return {"feuilles": [m["feuille"] for m in [{"feuille": "Canvas"}] + [x for x in self.mois if x["modifiable"]]
                                  if self._couleur_type_cent(m["feuille"], lib)]}
+        return self._ecriture(op)
+
+    # --- part reçue sans type (app de Marika) : Excel affichait #VALEUR! dans « ma part » ---
+    def _rx_formule_part(self, d):
+        return re.compile(r'^IF\((\$?%s\$?\d+)>0,(\$?%s\$?\d+)\*(\$?%s\$?\d+),""\)$' % (d.c_deb, d.c_deb, d.c_prop))
+
+    def correction_part_a_faire(self):
+        for mo in [x for x in self.mois if x["modifiable"] and x.get("canvas")]:
+            f, d = self.wb.feuille(mo["feuille"]), self.dispo(mo["feuille"])
+            if not (d.c_dep and d.c_prop and d.c_deb):
+                continue
+            rx = self._rx_formule_part(d)
+            if any((c := f.cell(d.c_dep + str(r))) and c.formule and rx.match(c.formule) for r in d.lignes):
+                return True
+        return False
+
+    def corrige_formule_part(self):
+        """« Ma part » = déboursé × % : avec une part reçue sans type, % est vide et Excel affichait #VALEUR!.
+        Nouvelle formule : déboursé × N(%) → 0 $ tant que la part n'est pas réglée. Canvas + mois modifiables ; données intactes."""
+        def op():
+            n = 0
+            for nom in ["Canvas"] + [x["feuille"] for x in self.mois if x["modifiable"]]:
+                f = self.wb.feuille(nom); d = Disposition(f)
+                if not (d.lignes and d.c_dep and d.c_prop and d.c_deb):
+                    continue
+                rx = self._rx_formule_part(d); lot = {}
+                for r in d.lignes:
+                    c = f.cell(d.c_dep + str(r)); m = rx.match(c.formule) if c and c.formule else None
+                    if m:
+                        lot[d.c_dep + str(r)] = 'IF(%s>0,%s*N(%s),"")' % (m.group(1), m.group(2), m.group(3))
+                if lot:
+                    f.remplace_formules(lot); n += len(lot)
+            return {"formules": n}
         return self._ecriture(op)
 
     def parts_recues_personnel(self):

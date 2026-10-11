@@ -60,6 +60,8 @@ def post(app, chemin, data):
         return app.ajoute_categorie(data.get("nom"))
     if chemin == "/api/types/cent/couleur":
         return app.ajoute_couleur_type_cent()
+    if chemin == "/api/correction/part":
+        return app.corrige_formule_part()
     if chemin == "/api/parts-recues/personnel":
         return app.parts_recues_personnel()
     if chemin == "/api/types/cent":

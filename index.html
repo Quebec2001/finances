@@ -361,7 +361,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=a12e102344"></script>
+<script src="web.js?v=1a803f1876"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1046,6 +1046,7 @@ document.addEventListener("visibilitychange", ()=>{ if(!document.hidden && S.eta
 // ---------------------------------------------------------------- rendu
 function bandeaux(){
   let h = "";
+  if(MODE_PAYE() && S.etat.correction_part_a_faire && S.info.modifiable) h += `<div class="banner warn" style="display:flex;gap:10px;align-items:center;justify-content:space-between"><span>Ton fichier Excel affiche une erreur (#VALEUR!) pour les parts reçues de ${PART()}. Ton app n'est pas touchée.</span><button class="btn small" id="corrPart">Voir</button></div>`;
   if(S.etat.excel_ouvert) h += `<div class="banner warn">⚠️ Le fichier est ouvert dans Excel. Ferme-le pour pouvoir enregistrer depuis l'application.</div>`;
   if(S.info.groupe==="historique") h += `<div class="banner info">Mois d'historique (ancien format) : lecture seule. Les montants sont considérés comme 100 % personnels.</div>`;
   if(S.info.groupe==="reference") h += `<div class="banner info">Mois de référence (septembre 2026) : lecture seule, sert à valider la logique.</div>`;
@@ -1056,6 +1057,22 @@ function dateEntete(){
   const [a, mo, j] = today().split("-").map(Number), d = new Date(a, mo - 1, j);
   const jour = ["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"][d.getDay()];
   return `<span class="br-j">${jour}</span><span class="br-d">${j} ${MOIS_MOTS[mo - 1]} ${a}</span>`;
+}
+function dlgCorrectionPart(){
+  const P = PART(), mois = S.etat.mois.filter(m => m.modifiable).map(m => m.nom).join(", ");
+  ouvre(`<div class="dlg-h"><h2>Corriger ton fichier Excel</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     <p style="margin:0">Quand ${P} t'envoie ta part d'une dépense, elle arrive sans type jusqu'au « solde réglé ». Dans Excel, la colonne « ma part » affiche alors <b>#VALEUR!</b>, et l'erreur se propage au total des dépenses et aux contrôles. Ton app, elle, calcule correctement.</p>
+     <div class="card" style="padding:12px 14px;background:var(--surface-2);border:0"><b>Ce que ça change dans ton fichier</b>
+       <ul class="small" style="margin:6px 0 0;padding-left:18px;display:grid;gap:4px">
+         <li>La formule « ma part » de ${esc(mois)} et du modèle des prochains mois : une part reçue compte pour 0 $ au lieu d'une erreur.</li>
+         <li>Rien ne change dans tes données ni dans ton solde : la part compte toujours dans tes dépenses au « solde réglé », comme maintenant.</li>
+         <li>Une copie de sécurité de ton fichier est faite avant.</li></ul></div>
+   </div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Plus tard</button><button type="button" class="btn primary" id="corrOk">Corriger mon fichier</button></div>`, d => {
+    $("#corrOk", d).onclick = async () => { $("#corrOk", d).disabled = true;
+      try { await ecrit("/api/correction/part", {}, "Fichier corrigé ✓"); d.close(); } catch(e){ $("#corrOk", d).disabled = false; } };
+  });
 }
 function rend(){
   const m = $("#main");
@@ -1075,6 +1092,7 @@ function rend(){
   if(S.vue === "couple" && !MODE_PAYE()) S.vue = "bord";
   const v = {bord:MODE_PAYE()?vueBordPaye:vueBord, trans:MODE_PAYE()?vueTransPaye:vueTrans, rev:vueRev, couple:vueCouple, inv:vueInv, regl:vueRegl}[S.vue] || vueBord;
   m.innerHTML = bandeaux() + ((S.vue === "couple" || (S.vue === "trans" && !MODE_PAYE())) ? syncZone() : "") + `<div id="vue"></div>`;
+  { const cp = $("#corrPart", m); if(cp) cp.onclick = () => dlgCorrectionPart(); }
   v($("#vue")); majBandeauSync();
 }
 
