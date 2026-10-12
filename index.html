@@ -408,7 +408,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=97c1ef9c8b"></script>
+<script src="web.js?v=657a6766e0"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -2663,9 +2663,8 @@ function soldeAttendu(){
 }
 function soldeAttenduHTML(){
   const x = soldeAttendu(); if(!x) return "";
-  const diff = Math.abs(x.attendu - x.solde) >= 0.005;
   return `<div class="p-attendu" id="pAttendu" role="button" tabindex="0">
-    <div><div class="l">Attendu à la banque aujourd'hui</div><div class="s">${diff ? [x.sR ? "revenus à recevoir" : "", x.sD ? "dépenses à venir" : "", Math.abs(x.net) >= 0.005 ? (x.net > 0 ? `virement de ${PART()} à recevoir` : `virement à ${PART()} à faire`) : ""].filter(Boolean).join(" · ") : "identique au solde du compte"}</div></div>
+    <div><div class="l">Solde réel attendu</div></div>
     <div class="v num">${$$(x.attendu)}</div><span class="chev">›</span></div>`;
 }
 function dlgSoldeAttendu(){
@@ -2674,7 +2673,7 @@ function dlgSoldeAttendu(){
   const ligne = (lib, sous, v, signe) => `<div class="p-at-l"><div><div class="t">${lib}</div>${sous ? `<div class="s">${sous}</div>` : ""}</div><div class="num ${signe < 0 ? "neg" : ""}">${signe < 0 ? "− " : signe > 0 ? "+ " : ""}${$$(Math.abs(v))}</div></div>`;
   const liste = (l, f) => l.map(f).join(", ");
   const ecart = x.reel != null ? r2(x.reel - x.attendu) : null;
-  ouvre(`<div class="dlg-h"><h2>Solde attendu à la banque</h2><button type="button" class="x" data-close>✕</button></div>
+  ouvre(`<div class="dlg-h"><h2>Solde réel attendu</h2><button type="button" class="x" data-close>✕</button></div>
    <div class="dlg-b">
      <p class="small muted" style="margin:0">Le solde de l'app compte ta part des dépenses partagées et les revenus déjà inscrits. Ta banque, elle, ne voit que l'argent réellement passé. Voici le passage de l'un à l'autre au ${dL(today())}.</p>
      <div class="p-at">
@@ -2683,7 +2682,7 @@ function dlgSoldeAttendu(){
        ${x.sD ? ligne("Dépenses inscrites à venir", liste(x.depFut, t => `${esc(t.description)} (${dL(t.date)})`), x.sD, 1) : ""}
        ${Math.abs(x.net) >= 0.005 ? (x.net > 0 ? ligne(`Virement de ${P} pas encore reçu`, `Sa part des dépenses que tu as payées (onglet Partage)`, x.net, -1)
                                               : ligne(`Virement à ${P} pas encore fait`, `Ta part des dépenses qu'elle a payées (onglet Partage)`, -x.net, 1)) : ""}
-       <div class="p-at-l tot"><div class="t">Attendu à la banque aujourd'hui</div><div class="num">${$$(x.attendu)}</div></div>
+       <div class="p-at-l tot"><div class="t">Solde réel attendu</div><div class="num">${$$(x.attendu)}</div></div>
      </div>
      ${x.reel != null ? `<div class="p-at-c ${Math.abs(ecart) < 0.01 ? "ok" : "ko"}"><span>Solde réel de ta banque (inscrit) : <b class="num">${$$(x.reel)}</b></span><span>${Math.abs(ecart) < 0.01 ? "Concorde" : `Écart de ${$$(Math.abs(ecart))} : ${ecart < 0 ? "il manque peut-être une dépense dans l'app" : "il manque peut-être un revenu dans l'app, ou une dépense est en trop"}`}</span></div>`
        : `<p class="small muted" style="margin:0">Inscris le solde de ta banque pour vérifier qu'il ne manque rien dans l'app.</p>`}
