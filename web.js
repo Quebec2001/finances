@@ -3,7 +3,7 @@
 // moteur Python exécuté dans le navigateur (Pyodide). Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "fcf63387e1";
+const VERSION = "3657d8f839";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPES_BASE = "Files.ReadWrite offline_access User.Read";
@@ -123,9 +123,13 @@ async function choisitFichier(forcer){
   if(!items.some(i => /financ/i.test(i.name))){
     try { items = xlsx((await (await graph("/me/drive/root/search(q='Finances')?$top=50&$select=id,name,eTag,size,lastModifiedDateTime,file,parentReference")).json()).value).concat(items); } catch(e){}
   }
+  // la recherche OneDrive peut être lente ou incomplète (index) : on regarde aussi directement le dossier Documents
+  if(!items.some(i => /financ/i.test(i.name))){
+    try { items = xlsx((await (await graph("/me/drive/special/documents/children?$top=200&$select=id,name,eTag,size,lastModifiedDateTime,file,parentReference")).json()).value).concat(items); } catch(e){}
+  }
   let cands = items.filter(i => /financ/i.test(i.name));
   if(!cands.length) cands = items;
-  if(!cands.length) throw new Error("Aucun fichier Excel « Finances… » trouvé dans ton OneDrive. Vérifie qu'il y est bien, puis réessaie.");
+  if(!cands.length) throw new Error("Aucun fichier Excel « Finances… » trouvé dans le OneDrive du compte " + (compte || "connecté") + ". Si ce n'est pas le bon compte Microsoft, touche « Se déconnecter » et reconnecte-toi avec le bon.");
   let choix = cands[0];
   if(cands.length > 1 || forcer){
     choix = await new Promise(res => {
