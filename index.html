@@ -265,6 +265,13 @@ body.pro nav.tabs{display:none}
 body.pro header{border-bottom:0;background:color-mix(in srgb,var(--bg) 88%,transparent);padding-bottom:8px}
 body.pro .brand{font-size:18px;font-weight:750;letter-spacing:-.02em}
 body.pro .brand{display:flex;flex-direction:column;line-height:1.15}
+.p-attendu{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;margin-top:8px;padding:11px 16px;border-radius:14px;background:var(--surface);border:1px solid var(--line);cursor:pointer}
+.p-attendu .l{font-size:13px;font-weight:650;color:var(--ink-2)}.p-attendu .s{font-size:12px;color:var(--ink-3);margin-top:1px}.p-attendu .v{font-size:17px;font-weight:700}.p-attendu .chev{color:var(--ink-3);font-size:18px}
+.p-at{border:1px solid var(--line);border-radius:12px;padding:2px 14px}
+.p-at-l{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line)}.p-at-l:first-child{border-top:0}
+.p-at-l .t{font-weight:600;font-size:14px}.p-at-l .s{font-size:12px;color:var(--ink-3);margin-top:1px}.p-at-l .num{font-weight:650;white-space:nowrap}
+.p-at-l.tot{border-top:2px solid var(--ink-3)}.p-at-l.tot .num{font-size:17px}
+.p-at-c{display:grid;gap:2px;padding:9px 12px;border-radius:10px;font-size:13px}.p-at-c.ok{background:var(--pos-soft)}.p-at-c.ko{background:var(--neg-soft)}
 .ap-info{background:var(--accent-soft,var(--surface-2));border-radius:10px;padding:9px 12px;font-size:13px;color:var(--ink)}
 .p-alerte{position:absolute;top:6px;left:calc(50% + 7px);width:8px;height:8px;border-radius:50%;background:var(--neg);box-shadow:0 0 0 2px var(--surface)}
 #btab button{position:relative}
@@ -383,7 +390,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=3657d8f839"></script>
+<script src="web.js?v=648b1aeddd"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -2512,6 +2519,7 @@ function vueBordPro(el){
   el.innerHTML = `
    <div class="card p-hero">${ctlEnErreur().length ? `<button class="p-ctl-al" id="pCtlAl" title="Voir les contrôles"><i></i>${ctlEnErreur().length} à vérifier</button>` : ""}<div class="lbl" ${ctlEnErreur().length ? `style="padding-right:104px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"` : ""}>Solde au compte · ${esc(S.info.nom)}</div><div class="gros num">${$$(m.solde_fin)}</div>
      <div class="sous"><span>Début ${$$(m.solde_debut)}${mod ? ` · <a href="#" id="edSol" style="color:var(--accent);text-decoration:none;font-weight:600">Modifier</a>` : ""}</span><span class="p-chip ${rn < 0 ? "neg" : "pos"}">${rn < 0 ? "▼" : "▲"} ${$$(Math.abs(rn))} ce mois</span></div></div>
+   ${soldeAttenduHTML()}
    <div class="spacer"></div>${split}${split ? `<div class="spacer"></div>` : ""}
    <div class="p-stats"><div class="p-stat"><div class="l">Revenus</div><div class="v num">${$$(m.total_revenus)}</div></div>
      <div class="p-stat"><div class="l">Dépenses</div><div class="v num">${$$(m.total_depenses)}</div></div>
@@ -2520,6 +2528,7 @@ function vueBordPro(el){
    <div class="card cadre"><h3>Revenus et dépenses – 6 derniers mois</h3><div id="g12"><div class="empty">Chargement…</div></div></div>`;
   graphRevDep(el);
   const ca = $("#pCtlAl", el); if(ca) ca.onclick = () => vaVers("ctl");
+  const sa = $("#pAttendu", el); if(sa){ sa.onclick = () => dlgSoldeAttendu(); sa.onkeydown = ev => { if(ev.key === "Enter") dlgSoldeAttendu(); }; }
   const ps = $("#pSplit", el); if(ps){ ps.onclick = () => vaVers("split"); ps.onkeydown = ev => { if(ev.key === "Enter") vaVers("split"); }; }
   const es = $("#edSol", el); if(es) es.onclick = ev => { ev.preventDefault(); dlgSoldes(m); };
 }
@@ -2617,6 +2626,52 @@ function vueInvPro(el){
   el.innerHTML = `<button class="p-retour" id="pRet">‹ Plus</button><div id="pInv"></div>`;
   $("#pRet", el).onclick = () => vaVers("plus"); vueInv($("#pInv", el));
 }
+// --- Solde attendu à la banque aujourd'hui (Accueil) : le solde de l'app compte déjà les revenus inscrits d'avance,
+// seulement MA part des dépenses partagées, et pas encore le virement avec Marika → on ramène tout à « ce qui devrait être au compte ».
+function soldeAttendu(){
+  const m = S.mois; if(!m || !m.transactions || S.info.groupe === "historique" || S.info.cle !== today().slice(0, 7)) return null;
+  const auj = today();
+  const revFut = (m.revenus || []).filter(r => r.utilise && r.date && r.date > auj && (r.montant || 0) > 0);
+  const depFut = m.transactions.filter(t => t.utilise && t.date && t.date > auj && (t.deboursement || 0) > 0);
+  const net = r2(m.total_a_rembourser ? m.du_net : m.du_total);                    // > 0 : Marika me doit
+  const pbAttente = (m.pourboires || []).filter(p => p.utilise && ((p.statut || "").toLowerCase() === "non" || (!p.statut && (p.a_recevoir || 0) > 0)));
+  const sR = revFut.reduce((a, r) => a + r.montant, 0), sD = depFut.reduce((a, t) => a + t.deboursement, 0);
+  return {solde: m.solde_fin, revFut, depFut, sR, sD, net, attendu: r2(m.solde_fin - sR + sD - net), reel: m.solde_reel,
+          pbAttente, sPb: pbAttente.reduce((a, p) => a + (p.a_recevoir || 0), 0)};
+}
+function soldeAttenduHTML(){
+  const x = soldeAttendu(); if(!x) return "";
+  const diff = Math.abs(x.attendu - x.solde) >= 0.005;
+  return `<div class="p-attendu" id="pAttendu" role="button" tabindex="0">
+    <div><div class="l">Attendu à la banque aujourd'hui</div><div class="s">${diff ? [x.sR ? "revenus à recevoir" : "", x.sD ? "dépenses à venir" : "", Math.abs(x.net) >= 0.005 ? (x.net > 0 ? `virement de ${PART()} à recevoir` : `virement à ${PART()} à faire`) : ""].filter(Boolean).join(" · ") : "identique au solde du compte"}</div></div>
+    <div class="v num">${$$(x.attendu)}</div><span class="chev">›</span></div>`;
+}
+function dlgSoldeAttendu(){
+  const x = soldeAttendu(); if(!x) return;
+  const P = PART(), mod = S.info.modifiable;
+  const ligne = (lib, sous, v, signe) => `<div class="p-at-l"><div><div class="t">${lib}</div>${sous ? `<div class="s">${sous}</div>` : ""}</div><div class="num ${signe < 0 ? "neg" : ""}">${signe < 0 ? "− " : signe > 0 ? "+ " : ""}${$$(Math.abs(v))}</div></div>`;
+  const liste = (l, f) => l.map(f).join(", ");
+  const ecart = x.reel != null ? r2(x.reel - x.attendu) : null;
+  ouvre(`<div class="dlg-h"><h2>Solde attendu à la banque</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     <p class="small muted" style="margin:0">Le solde de l'app compte ta part des dépenses partagées et les revenus déjà inscrits. Ta banque, elle, ne voit que l'argent réellement passé. Voici le passage de l'un à l'autre au ${dL(today())}.</p>
+     <div class="p-at">
+       ${ligne("Solde du compte (app)", "", x.solde, 0)}
+       ${x.sR ? ligne("Revenus inscrits, pas encore reçus", liste(x.revFut, r => `${esc(r.description || "Revenu")} (${dL(r.date)})`), x.sR, -1) : ""}
+       ${x.sD ? ligne("Dépenses inscrites à venir", liste(x.depFut, t => `${esc(t.description)} (${dL(t.date)})`), x.sD, 1) : ""}
+       ${Math.abs(x.net) >= 0.005 ? (x.net > 0 ? ligne(`Virement de ${P} pas encore reçu`, `Sa part des dépenses que tu as payées (onglet Partage)`, x.net, -1)
+                                              : ligne(`Virement à ${P} pas encore fait`, `Ta part des dépenses qu'elle a payées (onglet Partage)`, -x.net, 1)) : ""}
+       <div class="p-at-l tot"><div class="t">Attendu à la banque aujourd'hui</div><div class="num">${$$(x.attendu)}</div></div>
+     </div>
+     ${x.reel != null ? `<div class="p-at-c ${Math.abs(ecart) < 0.01 ? "ok" : "ko"}"><span>Solde réel de ta banque (inscrit) : <b class="num">${$$(x.reel)}</b></span><span>${Math.abs(ecart) < 0.01 ? "Concorde" : `Écart de ${$$(Math.abs(ecart))} : ${ecart < 0 ? "il manque peut-être une dépense dans l'app" : "il manque peut-être un revenu dans l'app, ou une dépense est en trop"}`}</span></div>`
+       : `<p class="small muted" style="margin:0">Inscris le solde de ta banque pour vérifier qu'il ne manque rien dans l'app.</p>`}
+     ${x.sPb ? `<div class="small muted">À venir, pas encore dans le solde : pourboires à recevoir de ${$$(x.sPb)} (${x.pbAttente.length} quart${x.pbAttente.length > 1 ? "s" : ""}), sur une prochaine paye.</div>` : ""}
+     <p class="hint" style="margin:0">Hypothèse : tes dépenses et revenus passent par ce compte. Un revenu compte comme « pas encore reçu » s'il est daté après aujourd'hui.</p>
+   </div>
+   <div class="dlg-f">${mod ? `<button type="button" class="btn" id="atReel">${x.reel != null ? "Mettre à jour" : "Inscrire"} le solde de ma banque</button>` : ""}<span class="grow"></span><button type="button" class="btn primary" data-close>Fermer</button></div>`, d => {
+    const b = $("#atReel", d); if(b) b.onclick = () => dlgSoldes(S.mois);
+  });
+}
 // --- Contrôles du fichier (depuis « Plus ») : état de chaque vérification du mois affiché
 const ctlListe = () => (S.mois && S.mois.controles) || [];
 const ctlEnErreur = () => (S.info && S.info.groupe !== "historique") ? ctlListe().filter(c => /vérifier/i.test(c.statut)) : [];
@@ -2629,7 +2684,7 @@ const CTL_INFO = [
   [/catégories/i, "La somme des catégories du résumé est égale au total des dépenses.", "$"],
   [/dates hors/i, "Aucune dépense n'est datée en dehors du mois.", "n"],
   [/erreurs de formule/i, "Aucune ligne n'a un type ou un montant invalide.", "n"],
-  [/solde calculé/i, "Le solde calculé correspond au solde réel de ton relevé bancaire.", "$"],
+  [/solde calculé/i, "Le solde attendu à la banque (solde de l'app ajusté du virement avec {P} et des montants inscrits d'avance) correspond au solde réel de ton relevé.", "$"],
   [/recalculée/i, "La part de " + "{P}" + " recalculée par type de dépense est égale à la colonne K du fichier.", "$"],
   [/dernier solde réglé/i, "Le montant dû depuis le dernier « Solde réglé » est égal au tableau Remboursement.", "$"],
   [/proportion/i, "Le % utilisé pour le split proportionnel correspond à la répartition de vos revenus.", "%"]];

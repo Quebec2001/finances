@@ -631,7 +631,17 @@ class Application:
             elif "erreurs" in n:
                 ecart = erreurs
             elif "solde calculé" in n:
-                ecart = r2((fin_excel or 0) - reel) if reel is not None else None
+                # comparé au solde ATTENDU à la banque : le solde de l'app compte seulement ma part des dépenses partagées
+                # (virement avec le partenaire pas encore fait) et les revenus / dépenses inscrits d'avance
+                if reel is None:
+                    ecart = None
+                else:
+                    auj = self.config.get("date_demo") or datetime.date.today().isoformat()
+                    rf = sum(x.get("montant") or 0 for x in revs if x["utilise"] and x.get("date") and x["date"] > auj)
+                    df = sum(t["deboursement"] or 0 for t in trans if t["utilise"] and t["date"] and t["date"] > auj and (t["deboursement"] or 0) > 0)
+                    net_p = r2((du_total or 0) - sum(t["deboursement"] or 0 for t in trans if t.get("a_rembourser")))
+                    attendu = (fin_excel if fin_excel is not None else fin_std) - rf + df - net_p
+                    ecart = r2(attendu - reel)
             elif "recalculée" in n:
                 h = 0.0
                 for t in trans:
