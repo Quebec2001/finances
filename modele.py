@@ -714,7 +714,7 @@ class Application:
             "colonne_heures": bool(d.pb["heures"]),
             "revenus": revs, "total_revenus": total_rev, "total_fiorellino": total_fio, "investissements": invs,
             "total_investi": sum(i["investi"] or 0 for i in invs), "total_jv": sum(i["jv"] or 0 for i in invs),
-            "solde_debut": debut, "retrait": retrait, "retraits": retraits, "revenu_net": net, "solde_fin": fin_excel if fin_excel is not None else fin_std,
+            "budgets": self.budgets_mois(nom)[0], "budgets_de": self.budgets_mois(nom)[1], "solde_debut": debut, "retrait": retrait, "retraits": retraits, "revenu_net": net, "solde_fin": fin_excel if fin_excel is not None else fin_std,
             "solde_fin_standard": fin_std, "solde_reel": reel, "controles": ctls,
             "resume_controles": "Tout est OK" if nb_verif == 0 else "%d contrôle(s) à vérifier" % nb_verif,
             "nb_a_verifier": nb_verif, "ajustements": ajust, "mois_param": f.texte(d.a_mois).strip() if d.a_mois else "",
@@ -827,21 +827,54 @@ class Application:
         f = self.wb.feuille("Listes")
         return f, f.cherche("Budgets de l'app")
 
-    def budgets(self):
+    def _lit_budgets(self):
+        """Bloc « Budgets de l'app » (onglet Listes) : catégorie | montant par mois (valeur de départ) |
+        une colonne par mois (« Octobre 2026 ») quand le budget est fixé mois par mois (app de Zach).
+        → (défaut {cat: v}, {nom du mois: {cat: v}}, en-tête)"""
         f, h = self._bloc_budgets()
-        out = {}
-        if h:
-            vc = num_en_col(col_en_num(h.col) + 1)
-            r = h.lig + 1
-            while f.texte(h.col + str(r)).strip():
-                v = num(f.val(vc + str(r)))
+        defaut, par_mois = {}, {}
+        if not h:
+            return defaut, par_mois, None
+        vc = col_en_num(h.col) + 1
+        cols = {}
+        k = vc + 1
+        while f.texte(num_en_col(k) + str(h.lig)).strip():
+            cols[num_en_col(k)] = f.texte(num_en_col(k) + str(h.lig)).strip()
+            par_mois[cols[num_en_col(k)]] = {}
+            k += 1
+        r = h.lig + 1
+        while f.texte(h.col + str(r)).strip():
+            cat = f.texte(h.col + str(r)).strip()
+            v = num(f.val(num_en_col(vc) + str(r)))
+            if v:
+                defaut[cat] = v
+            for col, nom in cols.items():
+                v = num(f.val(col + str(r)))
                 if v:
-                    out[f.texte(h.col + str(r)).strip()] = v
-                r += 1
-        return out
+                    par_mois[nom][cat] = v
+            r += 1
+        return defaut, par_mois, h
+
+    def budgets(self):
+        return self._lit_budgets()[0]
+
+    def budgets_mois(self, feuille):
+        """Budgets d'un mois : sa colonne si elle existe, sinon celle du dernier mois précédent (report), sinon le défaut."""
+        defaut, par_mois, _ = self._lit_budgets()
+        if not par_mois:
+            return defaut, None
+        cle = {m["nom"].strip(): m["cle"] for m in self.mois}
+        cible = next((m["cle"] for m in self.mois if m["feuille"] == feuille), None)
+        if cible is None:
+            return defaut, None
+        cands = sorted(((cle[n], n) for n in par_mois if n in cle and cle[n] <= cible), reverse=True)
+        if cands:
+            return par_mois[cands[0][1]], cands[0][1]
+        return defaut, None
 
     def enregistre_budgets(self, data):
-        """{"budgets": {"Restaurant/Dép": 150, "Vêtements": null}} → bloc « Budgets de l'app » de Listes."""
+        """{"budgets": {"Restaurant/Dép": 150, "Vêtements": null}} → bloc « Budgets de l'app » de Listes.
+        Avec "feuille" et "par_mois": true (app de Zach) : budgets de CE mois (colonne du mois) ; sinon valeur de départ."""
         bud = {}
         for k, v in (data.get("budgets") or {}).items():
             if k not in self.categories:
@@ -849,26 +882,60 @@ class Application:
             val, _ = self.montant_saisi(v) if v not in (None, "") else (None, None)
             if val:
                 bud[k] = round(val, 2)
+        nom_mois = None
+        if data.get("par_mois") and data.get("feuille"):
+            nom_mois = self.info_mois(data["feuille"])["nom"].strip()
 
         def op():
-            f, h = self._bloc_budgets()
-            if not h:
-                hd = f.cherche("Mot-clé (description)")
-                col, lig = "L", hd.lig
-                f.ecrit("L%d" % lig, "Budgets de l'app")
-                f.ecrit("M%d" % lig, "Montant par mois")
-            else:
-                col, lig = h.col, h.lig
-            vc = num_en_col(col_en_num(col) + 1)
-            r = lig + 1
-            while f.texte(col + str(r)).strip() or f.val(vc + str(r)) not in (None, ""):
-                f.ecrit(col + str(r), None)
-                f.ecrit(vc + str(r), None)
-                r += 1
-            for i, cat in enumerate(c for c in self.categories if c in bud):
-                f.ecrit(col + str(lig + 1 + i), cat)
-                f.ecrit(vc + str(lig + 1 + i), bud[cat])
+            self._ecrit_budgets(bud, nom_mois)
         return self._ecriture(op)
+
+    def _ecrit_budgets(self, bud, nom_mois=None):
+        defaut, par_mois, h = self._lit_budgets()
+        if nom_mois:
+            par_mois[nom_mois] = dict(bud)
+            if not defaut and len(par_mois) == 1:
+                defaut = {}
+        else:
+            defaut = dict(bud)
+        f = self.wb.feuille("Listes")
+        if not h:
+            hd = f.cherche("Mot-clé (description)")
+            col, lig = "L", hd.lig
+        else:
+            col, lig = h.col, h.lig
+        vc = col_en_num(col) + 1
+        # effacer l'ancien bloc (toutes ses colonnes)
+        larg = 1 + 1 + max(len(par_mois), 0) + 2
+        r = lig + 1
+        while any(f.val(num_en_col(col_en_num(col) + j) + str(r)) not in (None, "") for j in range(larg)):
+            for j in range(larg):
+                f.ecrit(num_en_col(col_en_num(col) + j) + str(r), None)
+            r += 1
+        for j in range(2, larg):
+            f.ecrit(num_en_col(col_en_num(col) + j) + str(lig), None)
+        f.ecrit(col + str(lig), "Budgets de l'app")
+        f.ecrit(num_en_col(vc) + str(lig), "Montant par mois")
+        ordre = {m["nom"].strip(): m["cle"] for m in self.mois}
+        mois_tries = sorted(par_mois, key=lambda n: ordre.get(n, n))
+        for j, n in enumerate(mois_tries):
+            f.ecrit(num_en_col(vc + 1 + j) + str(lig), n)
+        cats = [c for c in self.categories if c in defaut or any(c in v for v in par_mois.values())]
+        for i, cat in enumerate(cats):
+            rr = lig + 1 + i
+            f.ecrit(col + str(rr), cat)
+            f.ecrit(num_en_col(vc) + str(rr), defaut.get(cat))
+            for j, n in enumerate(mois_tries):
+                f.ecrit(num_en_col(vc + 1 + j) + str(rr), par_mois[n].get(cat))
+
+    def reporte_budgets(self, nom_prec, nom_nouveau):
+        """Nouveau mois : les budgets du mois précédent sont reportés (modifiables ensuite)."""
+        defaut, par_mois, _ = self._lit_budgets()
+        if not par_mois or nom_nouveau in par_mois:
+            return
+        prec = next((m["feuille"] for m in self.mois if m["nom"].strip() == nom_prec.strip()), None)
+        bud = self.budgets_mois(prec)[0] if prec else defaut
+        self._ecrit_budgets(dict(bud), nom_nouveau.strip())
 
     # --- nouveau compte d'épargne (ex. fonds d'urgence) : ligne d'investissement + retrait d'épargne ---
     def ajoute_compte_epargne(self, nom):
@@ -948,12 +1015,12 @@ class Application:
 
     def etat(self):
         return {"mois": self.mois, "categories": self.categories, "types": self.types, "type_cent_a_faire": self.type_cent_a_faire(), "correction_part_a_faire": self.correction_part_a_faire(), "reglages": self.reglages(),
-                "budgets": self.budgets(), "date_demo": self.config.get("date_demo"),
+                "budgets": self.budgets(), "date_demo": self.config.get("date_demo"), "ui_defaut": self.config.get("ui") or "pro",
                 "types_invest": self.types_invest,
                 "motscles": [{"mot": k, "categorie": v} for k, v in self.motscles],
                 "fichier": self.chemin, "excel_ouvert": self.excel_ouvert(),
                 "prochain_mois": self.prochain_mois(),
-                "descriptions_autres_revenus": self.descriptions_autres_revenus()}
+                "descriptions_autres_revenus": self.descriptions_autres_revenus(8)}
 
     RE_FIORELLINO = re.compile(r"fiorellino|esp[eè]ces|salaire horaire|pourboire", re.I)
 
@@ -1159,8 +1226,10 @@ class Application:
         f.ecrit(d.c_type + str(r), typ)
         self._ecrit_montant(f, d.c_deb + str(r), data.get("montant"))
         cat = (data.get("categorie") or "").strip()
+        if cat and cat != self.categorie_auto(desc) and self.reglages().get("pourboires"):
+            self._apprend_mot_cle(desc, cat)                 # app de Zach : les mots-clés suivent les catégories choisies
         if cat and cat != self.categorie_auto(desc):
-            f.ecrit(d.c_cat + str(r), cat)
+            f.ecrit(d.c_cat + str(r), cat)                   # au cas où un mot-clé plus général l'emporte encore
         else:
             self._restaure_categorie(f, d, r)
         return r
@@ -1240,6 +1309,84 @@ class Application:
         res = rapprochement.analyse(fichiers or [], info["cle"], app, self.modele(prec["feuille"]) if prec else None, o)
         res.update({"nom": info["nom"], "feuille": feuille})
         return res
+
+    def analyse_releve_revenus(self, feuille, images):
+        """Captures du compte : les entrées d'argent proposées comme revenus (même lecture que les dépenses)."""
+        import rapprochement as RP
+        info = self.info_mois(feuille)
+        an, mo = (int(x) for x in info["cle"].split("-"))
+        # captures d'un RELEVÉ (en-têtes Date / Retrait / Dépôt / Solde) : lecteur du rapprochement ; captures de l'app : lecture habituelle
+        app_imgs, lues = [], []
+        for img in images or []:
+            txt = "\n".join(RP.lignes_de([img]))
+            if RP.est_releve(txt):
+                em, txs, _, _ = RP.depuis_mots([img], an, mo)
+                for t in txs:
+                    if t["sens"] == "C" and em in ("desj_compte", None) or re.search(r"avance de fonds", RP.norm(t["desc_brute"])):
+                        lues.append({"date": t["date"], "description": RP.nettoie(RP.masque(t["desc_brute"])), "description_brute": t["desc_brute"],
+                                     "montant": t["montant"], "signe": "+", "source": "desjardins_compte", "raison": "", "autre_mois": t["date"][:7] != info["cle"]})
+            else:
+                app_imgs.append(img)
+        r = self.analyse_releve(feuille, app_imgs) if app_imgs else {"mois": info["nom"], "cle": info["cle"], "modifiable": info["modifiable"], "lignes": []}
+        if lues and info["canvas"]:
+            revs = [x for x in self.modele(feuille).get("revenus") or [] if x.get("utilise") and x.get("montant") is not None]
+            for l in lues:
+                v = next((x for x in revs if abs(x["montant"] - l["montant"]) < 0.005 and (not x.get("date") or abs((datetime.date.fromisoformat(x["date"]) - datetime.date.fromisoformat(l["date"])).days) <= 3)), None)
+                if v:
+                    revs.remove(v)
+                    l["raison"] = "Déjà dans tes revenus : « %s »" % (v.get("description") or "")
+        part = (self.reglages().get("partenaire") or "").lower()
+        frequentes = self.descriptions_autres_revenus(8)
+        out = []
+        for l in r["lignes"] + lues:
+            brute = (l.get("description_brute") or "").lower()
+            avance = bool(re.search(r"avance de fonds", brute)) and not re.search(r"avance fonds carte", brute)
+            if not (l["signe"] == "+" and l["source"] in ("desjardins_compte", "rbc_compte")) and not avance:
+                continue
+            raison, cocher = "", True
+            if (l.get("raison") or "").startswith("Déjà dans tes revenus"):
+                raison, cocher = l["raison"], False
+            elif l.get("autre_mois"):
+                raison, cocher = "Date hors du mois sélectionné", False
+            elif re.search(r"avance fonds carte|virement entre|transfert entre", brute):
+                raison, cocher = "Transfert entre tes comptes", False
+            elif part and part in brute and re.search(r"interac|virement", brute):
+                raison, cocher = "Virement de %s : règlement du split" % self.reglages().get("partenaire"), False
+            elif not l.get("date"):
+                raison = "Date non lue : vérifie-la"
+            desc = "Gain Poker" if avance else (l.get("description") or "").strip()
+            fq = next((x for x in frequentes if x.lower() in brute or (desc and desc.lower() in x.lower())), None)
+            out.append({"date": l.get("date"), "description": fq or desc, "description_lue": l.get("description"), "montant": l["montant"],
+                        "cocher": cocher, "raison": raison})
+        return {"mois": r["mois"], "cle": r["cle"], "modifiable": r["modifiable"], "lignes": out, "suggestions": frequentes}
+
+    def enregistre_revenus_lot(self, feuille, liste):
+        """Ajoute plusieurs revenus en une seule écriture (import de captures)."""
+        if not liste:
+            raise Erreur("Aucun revenu à ajouter.")
+        info = self.info_mois(feuille)
+        for k, t in enumerate(liste, 1):
+            if not (t.get("description") or "").strip():
+                raise Erreur("Ligne %d : description manquante." % k)
+            v, _ = self.montant_saisi(t.get("montant"))
+            if v is None:
+                raise Erreur("Ligne %d : montant invalide." % k)
+            if self._date(t.get("date")) is None:
+                raise Erreur("Ligne %d : date manquante." % k)
+
+        def op():
+            lignes = []
+            for t in liste:
+                f, d = self._verifie_modifiable(feuille)
+                r = self._assure_ligne_bloc(feuille, "revenus")
+                f, d = self.wb.feuille(feuille), self.dispo(feuille)
+                f.ecrit("A" + str(r), self._date(t.get("date")))
+                self._ecrit_montant(f, "B" + str(r), t.get("montant"))
+                f.ecrit("C" + str(r), (t.get("description") or "").strip())
+                lignes.append(r)
+                self.modeles.clear(); self.memo.clear()
+            return lignes
+        return self._ecriture(op)
 
     def supprime_transaction(self, feuille, ligne):
         def op():
@@ -1640,24 +1787,53 @@ class Application:
             raise Erreur("Mot-clé vide")
         if categorie not in self.categories:
             raise Erreur("Catégorie inconnue")
-        def op():
+        return self._ecriture(lambda: self._insere_mot_cle(mot, categorie))
+
+    def _insere_mot_cle(self, mot, categorie):
+        """Ajoute un mot-clé dans la table de l'onglet Listes (à appeler dans une écriture)."""
+        f = self.wb.feuille("Listes")
+        r = self.l_mot_der + 1
+        if r > 250:
+            raise Erreur("La table des mots-clés est pleine (ligne 250, limite des formules du Canvas).")
+        # Les 3 derniers mots-clés (les plus fréquents, ils l'emportent) restent en bas :
+        # on les descend d'une ligne et le nouveau mot-clé prend la place libérée.
+        premier = max(self.l_mot_debut, self.l_mot_der - 2) if self.l_mot_der >= self.l_mot_debut else r
+        for c in (self.l_mot_col, self.l_motcat_col):
+            ref = f.cell(c + str(self.l_mot_der))
+            st = ref.style if ref is not None else None
+            for x in range(self.l_mot_der, premier - 1, -1):
+                src = f.cell(c + str(x))
+                f.ecrit(c + str(x + 1), src.valeur if src is not None else None, style=st)
+        f.ecrit(self.l_mot_col + str(premier), mot)
+        f.ecrit(self.l_motcat_col + str(premier), categorie)
+        # mémoire à jour (plusieurs dépenses dans la même écriture)
+        k = premier - self.l_mot_debut
+        self.motscles.insert(max(0, min(k, len(self.motscles))), (mot, categorie))
+        self.l_mot_der += 1
+        return premier
+
+    def _apprend_mot_cle(self, desc, categorie):
+        """Catégorie choisie à la main pour une description : la table des mots-clés se met à jour toute seule
+        (mot-clé existant → nouvelle catégorie ; sinon nouveau mot-clé = la description). Ne bloque jamais l'enregistrement."""
+        mot = RX_A_REMBOURSER.sub("", desc or "").strip()
+        if len(mot) < 3 or not re.search(r"[A-Za-zÀ-ÿ]", mot) or categorie not in self.categories:
+            return None
+        try:
             f = self.wb.feuille("Listes")
-            r = self.l_mot_der + 1
-            if r > 250:
-                raise Erreur("La table des mots-clés est pleine (ligne 250, limite des formules du Canvas).")
-            # Les 3 derniers mots-clés (les plus fréquents, ils l'emportent) restent en bas :
-            # on les descend d'une ligne et le nouveau mot-clé prend la place libérée.
-            premier = max(self.l_mot_debut, self.l_mot_der - 2) if self.l_mot_der >= self.l_mot_debut else r
-            for c in (self.l_mot_col, self.l_motcat_col):
-                ref = f.cell(c + str(self.l_mot_der))
-                st = ref.style if ref is not None else None
-                for x in range(self.l_mot_der, premier - 1, -1):
-                    src = f.cell(c + str(x))
-                    f.ecrit(c + str(x + 1), src.valeur if src is not None else None, style=st)
-            f.ecrit(self.l_mot_col + str(premier), mot)
-            f.ecrit(self.l_motcat_col + str(premier), categorie)
-            return premier
-        return self._ecriture(op)
+            for i, (k, v) in enumerate(self.motscles):
+                if normalise(k) == normalise(mot):
+                    if v != categorie:
+                        r = self.l_mot_debut + i
+                        if normalise(f.texte(self.l_mot_col + str(r))) == normalise(k):
+                            f.ecrit(self.l_motcat_col + str(r), categorie)
+                            self.motscles[i] = (k, categorie)
+                    return "maj"
+            if self.l_mot_der + 1 > 250:
+                return None
+            self._insere_mot_cle(mot, categorie)
+            return "ajout"
+        except Exception:
+            return None
 
     def _etend_validations(self, col, nouvelle_der):
         """Étend les listes déroulantes qui pointent vers Listes!$col$3:$col$N."""
@@ -1957,5 +2133,10 @@ class Application:
                 self._ecrit_montant(f, d.a_marika, data["revenu_marika"])
             if data.get("revenu_zach") not in (None, "") and d.a_zach:
                 self._ecrit_montant(f, d.a_zach, data["revenu_zach"])
+            try:
+                if prec:
+                    self.reporte_budgets(prec["nom"], nom)
+            except Exception:
+                pass
             return nom
         return self._ecriture(op)

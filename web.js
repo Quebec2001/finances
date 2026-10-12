@@ -3,7 +3,7 @@
 // moteur Python exécuté dans le navigateur (Pyodide). Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "657a6766e0";
+const VERSION = "f3670bfb71";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPES_BASE = "Files.ReadWrite offline_access User.Read";
@@ -15,7 +15,7 @@ const PYODIDE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const CONFIG = {premier_mois_modifiable: "Octobre 2026", alias_investissements: {"Fonds communs de placement": "CÉLI"}};
 const CHEMIN = "/data/finances.xlsx";
 const MODULES = ["formules.py", "xlsx.py", "modele.py", "releve.py", "rapprochement.py", "routes.py", "pont.py"];
-const LECTURE_SEULE = ["/api/releve/analyse", "/api/rappro/lire", "/api/rappro/images", "/api/rappro/analyse"];   // POST sans écriture dans le fichier
+const LECTURE_SEULE = ["/api/releve/analyse", "/api/releve/revenus", "/api/rappro/lire", "/api/rappro/images", "/api/rappro/analyse"];   // POST sans écriture dans le fichier
 const REDIRECT = location.origin + location.pathname.replace(/[^/]*$/, "");
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 

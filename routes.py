@@ -24,6 +24,10 @@ def post(app, chemin, data):
         return app.enregistre_transactions_lot(f, data.get("transactions") or [])
     if chemin == "/api/releve/analyse":
         return app.analyse_releve(f, data.get("images") or [])
+    if chemin == "/api/releve/revenus":
+        return app.analyse_releve_revenus(f, data.get("images") or [])
+    if chemin == "/api/revenus/lot":
+        return app.enregistre_revenus_lot(f, data.get("revenus") or [])
     if chemin == "/api/rappro/lire":
         return app.rappro_lire(f, data.get("fichier") or {})
     if chemin == "/api/rappro/images":
