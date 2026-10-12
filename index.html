@@ -265,6 +265,7 @@ body.pro nav.tabs{display:none}
 body.pro header{border-bottom:0;background:color-mix(in srgb,var(--bg) 88%,transparent);padding-bottom:8px}
 body.pro .brand{font-size:18px;font-weight:750;letter-spacing:-.02em}
 body.pro .brand{display:flex;flex-direction:column;line-height:1.15}
+.ap-info{background:var(--accent-soft,var(--surface-2));border-radius:10px;padding:9px 12px;font-size:13px;color:var(--ink)}
 .p-alerte{position:absolute;top:6px;left:calc(50% + 7px);width:8px;height:8px;border-radius:50%;background:var(--neg);box-shadow:0 0 0 2px var(--surface)}
 #btab button{position:relative}
 .p-hero{position:relative}
@@ -382,7 +383,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=dfb9f10a49"></script>
+<script src="web.js?v=fcf63387e1"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -2746,8 +2747,59 @@ function dlgMotsCles(){
 function captePartage(){ const m = location.hash.match(/[#&]partage=([A-Za-z0-9_-]+)/);
   if(m){ try { localStorage.setItem("partage_recu", m[1]); } catch(e){} history.replaceState(null, "", location.pathname + location.search); return true; } return false; }
 captePartage();
-window.addEventListener("hashchange", () => { if(captePartage() && S.etat) verifiePartageRecu(); if(capteLier() && S.etat) syncDemarrage(); });
-(window.WEB ? WEB.demarre() : Promise.resolve()).then(init).then(() => syncDemarrage()).catch(e => { $("#main").innerHTML = `<div class="banner err">Impossible de charger les données : ${esc(e.message)}</div>`; });
+// ---------------------------------------------------------------- Apple Pay → dépense pré-remplie (app de Zach)
+// Le raccourci iPhone (automatisation « Transaction ») ouvre …/finances/#ajout&m=<marchand>&a=<montant>
+// La partie après « # » n'est envoyée à aucun serveur. On la garde le temps de la connexion Microsoft.
+function capteAjout(){
+  const h = location.hash; if(!/^#ajout\b/.test(h)) return false;
+  const q = new URLSearchParams(h.replace(/^#ajout&?/, "").replace(/^\?/, ""));
+  const o = {m: q.get("m") || "", a: q.get("a") || "", c: q.get("c") || "", t: Date.now()};
+  try { localStorage.setItem("ajout_recu", JSON.stringify(o)); } catch(e){}
+  history.replaceState(null, "", location.pathname + location.search);
+  return true;
+}
+capteAjout();
+function montantAP(x){
+  let t = String(x || "").replace(/[^0-9,.\-]/g, "");
+  if(t.includes(",") && t.includes(".")) t = t.lastIndexOf(",") > t.lastIndexOf(".") ? t.replace(/\./g, "").replace(",", ".") : t.replace(/,/g, "");
+  else if(t.includes(",")) t = t.replace(",", ".");
+  const v = parseFloat(t); return isFinite(v) && v > 0 ? Math.round(v * 100) / 100 : null;
+}
+function marchandAP(x){
+  let t = String(x || "").replace(/\s*[#*]\s*\d+.*$/, "").replace(/\s{2,}/g, " ").trim();
+  // tout en majuscules : « COSTCO WHOLESALE » → « Costco Wholesale », mais les sigles courts restent (SAQ, IGA, A&W)
+  if(t && t === t.toUpperCase()) t = t.split(" ").map(w => w.replace(/[^\p{L}]/gu, "").length <= 3 ? w : w.charAt(0) + w.slice(1).toLowerCase()).join(" ");
+  return t;
+}
+async function verifieAjoutRecu(){
+  let o = null; try { o = JSON.parse(localStorage.getItem("ajout_recu") || "null"); localStorage.removeItem("ajout_recu"); } catch(e){}
+  if(!o || MODE_PAYE()) return;
+  if(Date.now() - (o.t || 0) > 30 * 60 * 1000) return;                     // lien trop vieux : ignoré
+  const desc = marchandAP(o.m), mt = montantAP(o.a);
+  if(!desc && mt == null) return toast("Paiement Apple Pay reçu, mais sans marchand ni montant.", true);
+  // la dépense va dans le mois d'aujourd'hui
+  const mo = S.etat.mois.find(x => x.cle === today().slice(0, 7));
+  if(!mo || !mo.modifiable) return toast(`Paiement Apple Pay : crée d'abord le mois de ${MOIS_MOTS[+today().slice(5, 7) - 1]} pour l'inscrire.`, true);
+  if(S.feuille !== mo.feuille){ S.feuille = mo.feuille; $("#mois").value = S.feuille; await chargeMois(); }
+  // déjà inscrite ? (même montant aujourd'hui, même début de description)
+  const mot = desc.toLowerCase().split(/\s+/)[0] || "";
+  const deja = S.mois.transactions.find(t => t.utilise && t.date === today() && mt != null && Math.abs((t.deboursement || 0) - mt) < 0.005 && (!mot || (t.description || "").toLowerCase().startsWith(mot)));
+  // type suggéré : celui de la dernière dépense chez ce marchand (ce mois-ci ou le mois précédent)
+  let type = null, k = S.etat.mois.findIndex(x => x.feuille === mo.feuille);
+  const sources = [S.mois]; if(k > 0 && S.etat.mois[k - 1].canvas){ try { sources.push(await api("/api/mois?f=" + encodeURIComponent(S.etat.mois[k - 1].feuille))); } catch(e){} }
+  if(mot.length >= 3) for(const mm of sources){ const t = (mm.transactions || []).filter(t => t.utilise && semType(t.type) && (t.description || "").toLowerCase().startsWith(mot)).pop(); if(t){ type = t.type; break; } }
+  dlgTransaction(null, null, null, today());
+  const d = $("#dlg"), f = $("#ft", d); if(!f) return;
+  f.description.value = desc; if(mt != null) f.montant.value = mt.toFixed(2).replace(".", ",");
+  if(type){ const b = [...d.querySelectorAll("#seg button")].find(x => semType(x.dataset.t) === semType(type)); if(b) b.click(); }
+  f.description.dispatchEvent(new Event("input"));
+  const info = document.createElement("div"); info.className = "ap-info";
+  info.innerHTML = `<b>Paiement Apple Pay</b> · vérifie le type puis enregistre.${type && semType(type) !== "P" ? ` Type suggéré d'après ta dernière dépense chez ${esc(desc.split(" ")[0])}.` : ""}${deja ? `<br><span class="neg">Une dépense de ${$$(mt)} est déjà inscrite aujourd'hui (${esc(deja.description)}).</span>` : ""}`;
+  const corps = d.querySelector(".dlg-b"); corps.insertBefore(info, corps.firstChild);
+  const vi = $("#versImport", d); if(vi) vi.remove();
+}
+window.addEventListener("hashchange", () => { if(captePartage() && S.etat) verifiePartageRecu(); if(capteLier() && S.etat) syncDemarrage(); if(capteAjout() && S.etat) verifieAjoutRecu(); });
+(window.WEB ? WEB.demarre() : Promise.resolve()).then(init).then(() => verifieAjoutRecu()).then(() => syncDemarrage()).catch(e => { $("#main").innerHTML = `<div class="banner err">Impossible de charger les données : ${esc(e.message)}</div>`; });
 </script>
 </body>
 </html>
