@@ -1215,6 +1215,32 @@ class Application:
         lignes = releve.analyse(images or [], info["cle"], existantes, self.categorie_auto, revenus)
         return {"mois": info["nom"], "cle": info["cle"], "modifiable": info["modifiable"], "lignes": lignes}
 
+    # --- rapprochement bancaire (lecture seule : rien n'est écrit dans le fichier) ---
+    def rappro_lire(self, feuille, fichier):
+        import rapprochement
+        info = self.info_mois(feuille)
+        return rapprochement.lire(fichier, info["cle"])
+
+    def rappro_images(self, feuille, images, noms):
+        import rapprochement
+        return rapprochement.lire_images(images, noms, self.info_mois(feuille)["cle"])
+
+    def rappro_analyse(self, feuille, fichiers, options=None):
+        import rapprochement
+        info = self.info_mois(feuille)
+        if not info["canvas"]:
+            raise Erreur("Le rapprochement se fait sur un mois au format de l'app.")
+        app = self.modele(feuille)
+        an, mo = (int(x) for x in info["cle"].split("-"))
+        cle_prec = "%04d-%02d" % (an - (mo == 1), 12 if mo == 1 else mo - 1)
+        prec = next((m for m in self.mois if m.get("cle") == cle_prec and m.get("canvas")), None)
+        o = dict(options or {})
+        o.update({"partenaire": self.reglages().get("partenaire") or "", "categorie": self.categorie_auto,
+                  "modifiable": info["modifiable"]})
+        res = rapprochement.analyse(fichiers or [], info["cle"], app, self.modele(prec["feuille"]) if prec else None, o)
+        res.update({"nom": info["nom"], "feuille": feuille})
+        return res
+
     def supprime_transaction(self, feuille, ligne):
         def op():
             f, d = self._verifie_modifiable(feuille)

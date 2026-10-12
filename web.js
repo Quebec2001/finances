@@ -3,7 +3,7 @@
 // moteur Python exécuté dans le navigateur (Pyodide). Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "648b1aeddd";
+const VERSION = "5a26dd2e32";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPES_BASE = "Files.ReadWrite offline_access User.Read";
@@ -14,8 +14,8 @@ const G = "https://graph.microsoft.com/v1.0";
 const PYODIDE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const CONFIG = {premier_mois_modifiable: "Octobre 2026", alias_investissements: {"Fonds communs de placement": "CÉLI"}};
 const CHEMIN = "/data/finances.xlsx";
-const MODULES = ["formules.py", "xlsx.py", "modele.py", "releve.py", "routes.py", "pont.py"];
-const LECTURE_SEULE = ["/api/releve/analyse"];   // POST sans écriture dans le fichier
+const MODULES = ["formules.py", "xlsx.py", "modele.py", "releve.py", "rapprochement.py", "routes.py", "pont.py"];
+const LECTURE_SEULE = ["/api/releve/analyse", "/api/rappro/lire", "/api/rappro/images", "/api/rappro/analyse"];   // POST sans écriture dans le fichier
 const REDIRECT = location.origin + location.pathname.replace(/[^/]*$/, "");
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -24,7 +24,7 @@ const LS = {
   set(k, v){ try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch(e){} }
 };
 const esc = t => String(t ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let py = null, fichier = null, compte = null, derniereVerif = 0, file = Promise.resolve();
+let py = null, fichier = null, compte = null, nomCompte = "", derniereVerif = 0, file = Promise.resolve();
 
 // ------------------------------------------------------------------ écran de chargement
 function ecran(html){
@@ -218,7 +218,7 @@ async function api(chemin, corps){
   if(!corps){
     const j = appelPy("GET", chemin);
     if(j && j.erreur) throw new Error(j.erreur);
-    if(chemin === "/api/etat"){ j.excel_ouvert = false; j.web = {compte, fichier: fichier && fichier.name}; }
+    if(chemin === "/api/etat"){ j.excel_ouvert = false; j.web = {compte, nom: nomCompte, fichier: fichier && fichier.name}; }
     return j;
   }
   if(LECTURE_SEULE.includes(chemin)){
@@ -268,6 +268,7 @@ async function demarre(){
   try {
     const me = await (await graph("/me?$select=displayName,userPrincipalName,mail")).json();
     compte = me.userPrincipalName || me.mail || me.displayName || "";
+    nomCompte = me.displayName || "";
     if(compte) LS.set("w_login", compte);
     fichier = await choisitFichier(false);
     await chargePython();

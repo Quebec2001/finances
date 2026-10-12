@@ -362,6 +362,24 @@ body.pro .fab{width:54px;height:54px;font-size:28px;bottom:calc(84px + env(safe-
 .p-calc div{display:flex;justify-content:space-between;gap:10px}.p-calc span{color:var(--ink-2)}
 .p-calc .tot{border-top:1px solid var(--line);padding-top:8px;margin-top:2px;font-size:15.5px}.p-calc .tot span{color:var(--ink);font-weight:650}
 body.pro #dlg{max-width:560px}
+.rp-up h3{margin:0 0 6px}.rp-c{border-top:1px solid var(--line);padding:10px 0}.rp-c:first-of-type{border-top:0}
+.rp-cn{font-weight:650;font-size:14px}.rp-f{margin-top:6px}.rp-fn{display:flex;align-items:center;gap:8px}.rp-fn .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
+.rp-fn select{font:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--surface);color:var(--ink)}
+.rp-x{border:0;background:none;color:var(--ink-3);cursor:pointer;font-size:14px;padding:2px 4px}
+.rp-fs{font-size:12.5px;color:var(--ink-3);margin-top:2px}.rp-warn{font-size:12.5px;color:var(--warn);background:var(--warn-soft);border-radius:8px;padding:6px 10px;margin-top:8px}
+.rp-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.rp-som{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:14px 0}
+.rp-sc{padding:14px 16px}.rp-kv{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;color:var(--ink-2);margin-top:6px}.rp-kv b{color:var(--ink)}
+.rp-n{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.rp-info{font-size:13px;color:var(--ink-2);background:var(--surface-2);border-radius:10px;padding:10px 12px;margin:0 0 12px}
+.rp-g{padding:0;margin-bottom:10px;overflow:hidden}.rp-g summary{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:13px 16px;cursor:pointer;list-style:none}
+.rp-g summary::-webkit-details-marker{display:none}.rp-gt{font-weight:650}.rp-gs{grid-column:1/-1;font-size:12.5px;color:var(--ink-3)}
+.rp-l{padding:11px 16px;border-top:1px solid var(--line)}.rp-h{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline}
+.rp-d{font-size:12.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;min-width:38px}.rp-t{font-weight:550;min-width:0;overflow:hidden;text-overflow:ellipsis}.rp-m{white-space:nowrap}
+.rp-s{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px;color:var(--ink-2);margin:4px 0 0 48px;align-items:center}
+.rp-app,.rp-ex{font-size:12.5px;color:var(--ink-3);margin:3px 0 0 48px}.rp-ex{color:var(--ink-2);font-style:italic}
+.rp-a{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0 48px}.rp-vide{padding:10px 16px 14px;font-size:13px;color:var(--ink-3);border-top:1px solid var(--line)}
+@media (max-width:420px){.rp-s,.rp-app,.rp-ex,.rp-a{margin-left:0}}
 .p-retour{border:0;background:none;color:var(--accent);font-weight:650;padding:0 0 10px;cursor:pointer;font-size:15px}
 </style>
 </head>
@@ -390,7 +408,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=648b1aeddd"></script>
+<script src="web.js?v=5a26dd2e32"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1113,13 +1131,13 @@ function rend(){
     if(S.vue === "regl") S.vue = "plus"; if(S.vue === "couple") S.vue = "split";
     barreOngletsPro();
     const br = $(".brand"); if(br) br.innerHTML = dateEntete();
-    const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro, ctl:vueCtlPro}[S.vue] || vueBordPro;
+    const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro, ctl:vueCtlPro, rappro:vueRappro}[S.vue] || vueBordPro;
     m.innerHTML = bandeaux() + (S.vue === "split" ? syncZone() : "") + `<div id="vue"></div>`; vp($("#vue")); majBandeauSync(); return;
   }
   { const br = $(".brand"); if(br && br.querySelector(".br-j")) br.innerHTML = ""; }
   if(["split", "plus"].includes(S.vue)) S.vue = "bord";
   if(S.vue === "couple" && !MODE_PAYE()) S.vue = "bord";
-  const v = {bord:MODE_PAYE()?vueBordPaye:vueBord, trans:MODE_PAYE()?vueTransPaye:vueTrans, rev:vueRev, couple:vueCouple, inv:vueInv, regl:vueRegl}[S.vue] || vueBord;
+  const v = {bord:MODE_PAYE()?vueBordPaye:vueBord, trans:MODE_PAYE()?vueTransPaye:vueTrans, rev:vueRev, couple:vueCouple, inv:vueInv, regl:vueRegl, rappro:vueRappro}[S.vue] || vueBord;
   m.innerHTML = bandeaux() + ((S.vue === "couple" || (S.vue === "trans" && !MODE_PAYE())) ? syncZone() : "") + `<div id="vue"></div>`;
   { const cp = $("#corrPart", m); if(cp) cp.onclick = () => dlgCorrectionPart(); }
   v($("#vue")); majBandeauSync();
@@ -2425,6 +2443,8 @@ function vueRegl(el){
    <div class="grid" style="align-content:start">
     <div class="card"><h3>Nouveau mois</h3>
       <button class="btn primary" id="nm">Créer ${esc(e.prochain_mois)}</button></div>
+    <div class="card"><h3>Rapprochement bancaire</h3><p class="small" style="margin:0 0 8px">Compare tes relevés Amex et Desjardins à l'app (lecture seule).</p>
+      <button class="btn" id="rapR">Ouvrir le rapprochement</button></div>
     ${window.WEB ? WEB.carteReglages() : ""}
    </div>
    <div class="grid" style="align-content:start">
@@ -2437,6 +2457,7 @@ function vueRegl(el){
   const draw = () => { const q=$("#qm").value.toLowerCase(); $("#lm").innerHTML = e.motscles.map((k,i)=>[k,i]).filter(([k])=>!q||(k.mot+" "+k.categorie).toLowerCase().includes(q)).map(([k,i])=>`<div class="item" style="cursor:default;padding:6px 2px"><div class="main"><div class="t1" style="font-weight:500">${esc(k.mot)}</div></div><span class="chip">${esc(k.categorie)}</span><span class="muted small num" style="width:28px;text-align:right">${i+1}</span></div>`).join(""); };
   $("#qm").oninput = draw; draw();
   $("#nm").onclick = () => dlgNouveauMois();
+  { const rr = $("#rapR"); if(rr) rr.onclick = () => vaVers("rappro"); }
   $("#edBud").onclick = () => dlgBudgets();
   if(window.WEB) WEB.brancheReglages(el);
   $("#addCat").onclick = () => ouvre(`<form id="fx"><div class="dlg-h"><h2>Nouvelle catégorie</h2><button type="button" class="x" data-close>✕</button></div><div class="dlg-b"><label class="f">Nom<input name="nom" required></label><p class="hint" style="margin:0">Ajoutée dans l'onglet Listes, dans les listes déroulantes et dans le résumé par catégorie du Canvas et des mois modifiables.</p></div><div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary">Ajouter</button></div></form>`, d=>{ $("#fx",d).onsubmit=async ev=>{ev.preventDefault(); try{ await ecrit("/api/listes/categorie",{nom:$("#fx",d).nom.value},"Catégorie ajoutée"); d.close(); }catch(x){}}; });
@@ -2499,12 +2520,13 @@ const ICO = {
   nuage: `<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/></svg>`,
   oeil: `<svg viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg>`,
   pct: `<svg viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.3"/><circle cx="17" cy="17" r="2.3"/></svg>`,
+  rap: `<svg viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20.5H7z"/><path d="M14 3.5v4h4"/><path d="m9.8 14 2 2 3.6-4"/></svg>`,
   ctl: `<svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6z"/><path d="m8.8 12 2.3 2.3 4.3-4.6"/></svg>`,
 };
 const ONGLETS_PRO = [["bord", "Accueil"], ["trans", "Dépenses"], ["split", "Partage"], ["rev", "Revenus"], ["plus", "Plus"]];
 function barreOngletsPro(){
   const n = $("#btab"); if(!n) return;
-  const actif = ["inv", "ctl"].includes(S.vue) ? "plus" : S.vue, alerte = ctlEnErreur().length;
+  const actif = ["inv", "ctl", "rappro"].includes(S.vue) ? "plus" : S.vue, alerte = ctlEnErreur().length;
   n.innerHTML = ONGLETS_PRO.map(([v, t]) => `<button data-v="${v}" class="${v === actif ? "on" : ""}" aria-label="${t}${v === "plus" && alerte ? " – contrôle à vérifier" : ""}">${ICO[v]}${v === "plus" && alerte ? `<i class="p-alerte" title="${alerte} contrôle${alerte > 1 ? "s" : ""} à vérifier"></i>` : ""}<span>${t}</span></button>`).join("");
 }
 function vaVers(v){ S.vue = v; rend(); window.scrollTo({top: 0}); }
@@ -2727,6 +2749,205 @@ function dlgForcerCtl(c){
     $("#ffc", d).onsubmit = async ev => { ev.preventDefault(); try { await ecrit("/api/controle", {ligne: c.ligne, forcer: true, justification: $("#ffc", d).j.value}, "Contrôle forcé"); d.close(); } catch(e){} };
   });
 }
+// ---------------------------------------------------------------- rapprochement bancaire (lecture seule)
+// Les relevés restent en mémoire dans cette page (RAP) : rien dans le fichier Excel, rien dans le navigateur, rien d'envoyé.
+const RAP_COMPTES = [["amex", "Amex Cobalt"], ["desj_credit", "Desjardins crédit"], ["desj_compte", "Desjardins compte"]];
+let RAP = {feuille: null, fichiers: [], res: null, expl: {}, lecture: false, etat: ""};
+function rapReset(){ RAP = {feuille: S.feuille, fichiers: [], res: null, expl: {}, lecture: false, etat: ""}; }
+function rapExclusions(){ try { return JSON.parse(localStorage.getItem("rap_exclus") || "[]"); } catch(e){ return []; } }
+function rapSetExclusions(l){ try { localStorage.setItem("rap_exclus", JSON.stringify(l)); } catch(e){} }
+function rapNomFamille(){ const n = ((S.etat.web || {}).nom || "").trim().split(/\s+/); return n.length > 1 ? n[n.length - 1] : ""; }
+const rapNom = em => (RAP_COMPTES.find(c => c[0] === em) || [null, "Compte inconnu"])[1];
+const rapMt = v => $$(v);
+function rapLitFichier(f, mode){
+  return new Promise((ok, ko) => { const r = new FileReader(); r.onerror = () => ko(new Error("Lecture impossible : " + f.name)); r.onload = () => ok(r.result);
+    if(mode === "buf") r.readAsArrayBuffer(f); else r.readAsDataURL(f); });
+}
+function rapTexte(buf){
+  try { return new TextDecoder("utf-8", {fatal: true}).decode(buf); } catch(e){ return new TextDecoder("windows-1252").decode(buf); }
+}
+async function rapAjouteFichiers(liste){
+  const fs = [...liste]; if(!fs.length) return;
+  RAP.lecture = true; RAP.res = null; rapRend();
+  const etat = t => { RAP.etat = t; const x = $("#rpEtat"); if(x) x.innerHTML = `<span class="we-spin-inline"></span>${esc(t)}`; };
+  try {
+    const images = fs.filter(f => /^image\//.test(f.type) || /\.(png|jpe?g|heic|webp)$/i.test(f.name));
+    let lues = [];
+    if(images.length) lues = await lisCaptures(images, etat);
+    if(images.length){
+      etat("Analyse des captures…");
+      try { (await api("/api/rappro/images", {feuille: S.feuille, images: lues, noms: images.map(f => f.name)})).resultat.forEach(r => RAP.fichiers.push(r)); }
+      catch(x){ images.forEach(f => RAP.fichiers.push({nom: f.name, erreur: x.message || String(x), txs: []})); }
+    }
+    for(const f of fs){
+      if(images.includes(f)) continue;
+      etat("Lecture de " + f.name + "…");
+      let fichier;
+      if(/\.csv$|\.txt$/i.test(f.name) || f.type === "text/csv") fichier = {nom: f.name, type: "csv", texte: rapTexte(await rapLitFichier(f, "buf"))};
+      else if(/\.xlsx$|\.xls$/i.test(f.name)) fichier = {nom: f.name, type: "xlsx", b64: String(await rapLitFichier(f)).split(",")[1] || ""};
+      else if(/\.pdf$/i.test(f.name) || f.type === "application/pdf") fichier = {nom: f.name, type: "pdf", b64: String(await rapLitFichier(f)).split(",")[1] || ""};
+      else { RAP.fichiers.push({nom: f.name, erreur: "Format non pris en charge (CSV, Excel, PDF ou image).", txs: []}); continue; }
+      try { const r = (await api("/api/rappro/lire", {feuille: S.feuille, fichier})).resultat; RAP.fichiers.push(r); }
+      catch(x){ RAP.fichiers.push({nom: f.name, erreur: x.message || String(x), txs: []}); }
+    }
+  } catch(x){ toast(x.message || String(x), true); }
+  RAP.lecture = false; RAP.etat = ""; rapRend();
+}
+async function rapAnalyse(){
+  const lus = RAP.fichiers.filter(f => !f.erreur && f.emetteur);
+  if(!lus.length){ toast("Ajoute au moins un relevé reconnu.", true); return; }
+  const b = $("#rpGo"); if(b) b.disabled = true;
+  try {
+    const r = (await api("/api/rappro/analyse", {feuille: S.feuille, fichiers: lus, options: {exclusions: rapExclusions(), nom_famille: rapNomFamille()}})).resultat;
+    RAP.res = r; rapRend(); const z = $("#rpRes"); if(z) z.scrollIntoView({block: "start", behavior: "smooth"});
+  } catch(x){ toast(x.message || String(x), true); if(b) b.disabled = false; }
+}
+function rapRend(){ if(S.vue === "rappro"){ const v = $("#vue"); if(v) vueRappro(v); } }
+function rapPeriode(f){
+  const p = f.periode || f.periode_tx; if(!p) return "Période non lue";
+  return (f.periode ? "Période du relevé : " : "Transactions du ") + `${dL(p[0])} au ${dL(p[1])}`;
+}
+function rapManque(em, cov){
+  if(!cov || !cov.manque || !cov.manque.length) return "";
+  return cov.manque.map(([a, b]) => `Il manque ${a === b ? "le " + jourMots(a) : "du " + jourMots(a) + " au " + jourMots(b)} pour ${esc(rapNom(em))}${cov.periode_ecrite ? "" : " (d'après les dates des transactions lues)"}.`).join(" ");
+}
+const RAP_GROUPES = [
+  ["manquantes", "Manquantes dans l'app", "Au relevé, mais introuvables dans l'app", "ko"],
+  ["ecarts", "Écarts de montant ou de date", "Retrouvées dans l'app avec un montant ou une date différente", "fo"],
+  ["absentes", "Absentes des relevés", "Dans l'app, mais sur aucun relevé téléversé", "fo"],
+  ["revenus_exercice", "Revenus — comptabilité d'exercice", "Gagnés dans un mois, reçus dans un autre : normal", "ac"],
+  ["concordantes", "Concordantes", "Même compte, même montant, date à ±3 jours", "ok"],
+  ["normales", "Normales", "Règlements du split et achats payés par " + "{P}", "ac"],
+  ["exclues", "Exclues", "Ne vont jamais dans l'Excel (paiements de carte, virements internes…)", "ac"],
+];
+function rapLigne(x, g){
+  const mod = RAP.res && RAP.res.modifiable;
+  const sensTxt = x.source === "app" ? "App" : rapNom(x.compte);
+  const signe = x.sens === "C" ? "+" : "";
+  const app = x.app ? `<div class="rp-app">App : ${esc(x.app.desc)} · ${rapMt(x.app.montant)}${x.app.date ? " · " + dL(x.app.date) : ""}</div>` : "";
+  const insc = x.date_insc && x.date_insc !== x.date ? ` · inscrite le ${dL(x.date_insc)}` : "";
+  const note = x.note_date ? ` · ${esc(x.note_date)}` : "";
+  const ex = RAP.expl[x.id];
+  let actions = "";
+  if(g === "manquantes" && !ex){
+    if(mod && x.genre !== "credit") actions += `<button class="btn small primary" data-rp-aj="${x.id}">Ajouter</button>`;
+    if(x.genre === "depense") actions += `<button class="btn small" data-rp-part="${x.id}">Achat de ${esc(PART())}</button>`;
+    if(x.genre === "revenu") actions += `<button class="btn small" data-rp-excl="${x.id}">Toujours exclure</button>`;
+  }
+  if(["manquantes", "ecarts", "absentes"].includes(g) && !ex) actions += `<button class="btn small" data-rp-ex="${x.id}">Expliquée…</button>`;
+  if(ex) actions += `<button class="btn small" data-rp-unex="${x.id}">Annuler</button>`;
+  return `<div class="rp-l" data-id="${x.id}">
+    <div class="rp-h"><span class="rp-d">${x.date ? dC(x.date) : "—"}</span><span class="rp-t">${esc(x.desc)}</span><b class="num rp-m ${x.sens === "C" ? "pos" : ""}">${signe}${rapMt(x.montant)}</b></div>
+    <div class="rp-s"><span class="chip">${esc(sensTxt)}</span>${x.raison ? `<span>${esc(x.raison)}</span>` : ""}${x.note ? `<span>${esc(x.note)}</span>` : ""}${insc || note ? `<span class="muted">${insc.replace(/^ · /, "")}${note.replace(insc ? "" : /^ · /, "")}</span>` : ""}</div>
+    ${app}${ex ? `<div class="rp-ex">${esc(ex.quoi)}${ex.note ? " — " + esc(ex.note) : ""}</div>` : ""}
+    ${actions ? `<div class="rp-a">${actions}</div>` : ""}</div>`;
+}
+function vueRappro(el){
+  if(RAP.feuille !== S.feuille) rapReset();
+  const r = RAP.res, mod = S.info.modifiable;
+  const parCompte = Object.fromEntries(RAP_COMPTES.map(([k]) => [k, RAP.fichiers.filter(f => f.emetteur === k)]));
+  const inconnus = RAP.fichiers.filter(f => !f.emetteur || f.erreur);
+  const fichierHTML = (f, i) => `<div class="rp-f"><div class="rp-fn"><span class="t">${esc(f.nom)}</span>
+      <select data-rp-em="${i}" aria-label="Compte">${f.emetteur ? "" : `<option value="">Compte ?</option>`}${RAP_COMPTES.map(([k, n]) => `<option value="${k}" ${f.emetteur === k ? "selected" : ""}>${n}</option>`).join("")}</select>
+      <button class="x rp-x" data-rp-del="${i}" aria-label="Retirer">✕</button></div>
+      <div class="rp-fs">${f.erreur ? `<span class="neg">${esc(f.erreur)}</span>` : `${(f.txs || []).length} transaction${(f.txs || []).length > 1 ? "s" : ""} lue${(f.txs || []).length > 1 ? "s" : ""} · ${esc(rapPeriode(f))}${f.deux_dates ? " · date de transaction utilisée" : ""}${(f.notes || []).length ? " · " + esc(f.notes.join(" ")) : ""}`}</div></div>`;
+  const idx = f => RAP.fichiers.indexOf(f);
+  let html = `<button class="p-retour" id="pRet">‹ ${UIPRO() ? "Plus" : "Réglages"}</button>
+   <div class="card p-ctl-tete ${r ? ((r.groupes.manquantes.length + r.groupes.ecarts.length + r.groupes.absentes.length - Object.keys(RAP.expl).length) > 0 ? "ko" : "") : "ac"}"><div class="sceau">${ICO.rap}</div>
+     <div><div class="lbl">Rapprochement · ${esc(S.info.nom)}</div><div class="t">${r ? rapTitre(r) : "Relevés vs données de l'app"}</div>
+     <div class="s">${r ? `${r.n_releve} transaction${r.n_releve > 1 ? "s" : ""} au relevé dans le mois` : "Compare tes relevés du mois à tes dépenses et revenus inscrits."}</div></div></div>
+   <div class="spacer"></div>
+   <div class="card rp-up"><h3>Relevés du mois</h3>
+     <p class="small" style="margin:0 0 8px">Exports <b>CSV</b> ou <b>Excel</b> (recommandé), relevés <b>PDF</b> ou captures d'écran. Plusieurs fichiers par compte : les transactions en double ne comptent qu'une fois.</p>
+     ${RAP_COMPTES.map(([k, n]) => `<div class="rp-c"><div class="rp-cn">${n}</div>${parCompte[k].length ? parCompte[k].map(f => fichierHTML(f, idx(f))).join("") : `<div class="rp-fs muted">Aucun relevé</div>`}
+       ${r && r.comptes[k] && rapManque(k, r.comptes[k].couverture) ? `<div class="rp-warn">${rapManque(k, r.comptes[k].couverture)}</div>` : ""}</div>`).join("")}
+     ${inconnus.length ? `<div class="rp-c"><div class="rp-cn">À vérifier</div>${inconnus.map(f => fichierHTML(f, idx(f))).join("")}</div>` : ""}
+     <div class="rp-btns"><label class="btn ${RAP.fichiers.length ? "" : "primary"}" style="cursor:pointer">Ajouter des relevés<input type="file" id="rpF" accept=".csv,.txt,.xlsx,.xls,.pdf,image/*" multiple hidden></label>
+       <button class="btn primary" id="rpGo" ${RAP.fichiers.some(f => f.emetteur && !f.erreur) && !RAP.lecture ? "" : "disabled"}>Rapprocher</button>
+       ${RAP.fichiers.length ? `<button class="btn" id="rpVide">Tout retirer</button>` : ""}</div>
+     <div id="rpEtat" class="small muted">${RAP.lecture ? `<span class="we-spin-inline"></span>${esc(RAP.etat || "Lecture…")}` : ""}</div>
+     <p class="hint" style="margin:8px 0 0">Lecture seule : les relevés sont lus sur cet appareil, ne sont envoyés nulle part, ne sont pas copiés dans ton fichier Excel et disparaissent à la fermeture de la page.</p></div>`;
+  if(r){
+    const cmpt = RAP_COMPTES.filter(([k]) => r.comptes[k]);
+    html += `<div id="rpRes"></div>
+     <div class="rp-som">${cmpt.map(([k, n]) => { const c = r.comptes[k];
+       return `<div class="card rp-sc"><div class="rp-cn">${n}</div>
+         <div class="rp-kv"><span>Dépenses au relevé</span><b class="num">${rapMt(c.total_releve)}</b></div>
+         <div class="rp-kv"><span>Retrouvées dans l'app</span><b class="num">${rapMt(c.total_app)}</b></div>
+         <div class="rp-kv"><span>Écart</span><b class="num ${Math.abs(c.ecart) > 0.004 ? "neg" : "pos"}">${rapMt(c.ecart)}</b></div>
+         <div class="rp-n"><span class="p-st ok">${c.n.concordantes} concordante${c.n.concordantes > 1 ? "s" : ""}</span>${c.n.manquantes ? `<span class="p-st ko">${c.n.manquantes} manquante${c.n.manquantes > 1 ? "s" : ""}</span>` : ""}${c.n.ecarts ? `<span class="p-st fo">${c.n.ecarts} écart${c.n.ecarts > 1 ? "s" : ""}</span>` : ""}${c.n.exclues + c.n.normales ? `<span class="p-st ac">${c.n.exclues + c.n.normales} exclue${c.n.exclues + c.n.normales > 1 ? "s" : ""}</span>` : ""}</div></div>`; }).join("")}</div>
+     ${!mod ? `<div class="rp-info">${esc(S.info.nom)} est en lecture seule : le rapprochement fonctionne, mais les ajouts se font seulement dans un mois modifiable.</div>` : ""}`;
+    const expl = [];
+    for(const [g, titre, sous, ton] of RAP_GROUPES){
+      const l = r.groupes[g].filter(x => { if(RAP.expl[x.id]){ expl.push(x); return false; } return true; });
+      if(!l.length && !["manquantes", "ecarts", "absentes"].includes(g)) continue;
+      const ferme = ["concordantes", "exclues", "normales"].includes(g);
+      html += `<details class="card rp-g ${ton}" ${ferme ? "" : "open"} data-g="${g}"><summary><span class="rp-gt">${titre}</span><span class="p-st ${l.length ? ton : "ok"}">${l.length}</span><span class="rp-gs">${sous.replace("{P}", esc(PART()))}</span></summary>
+        ${l.length ? l.map(x => rapLigne(x, g)).join("") : `<div class="rp-vide">Aucune ligne</div>`}</details>`;
+    }
+    if(expl.length) html += `<details class="card rp-g ac" open data-g="expliquees"><summary><span class="rp-gt">Expliquées</span><span class="p-st ac">${expl.length}</span><span class="rp-gs">Notes gardées jusqu'à la fermeture de la page</span></summary>${expl.map(x => rapLigne(x, "expliquees")).join("")}</details>`;
+    const ex = rapExclusions();
+    html += `<p class="hint" style="margin:10px 4px 0">Exclusions mémorisées sur cet appareil : ${ex.length ? ex.map(e => `<span class="chip">${esc(e)} <a href="#" data-rp-rmx="${esc(e)}" aria-label="Retirer">✕</a></span>`).join(" ") : "aucune"}.</p>`;
+  }
+  el.innerHTML = html;
+  $("#pRet", el).onclick = () => vaVers(UIPRO() ? "plus" : "regl");
+  $("#rpF", el).onchange = ev => rapAjouteFichiers(ev.target.files);
+  $("#rpGo", el).onclick = () => rapAnalyse();
+  const vd = $("#rpVide", el); if(vd) vd.onclick = () => { rapReset(); rapRend(); };
+  el.querySelectorAll("[data-rp-em]").forEach(s => s.onchange = () => { RAP.fichiers[+s.dataset.rpEm].emetteur = s.value || null; RAP.res = null; rapRend(); });
+  el.querySelectorAll("[data-rp-del]").forEach(b => b.onclick = () => { RAP.fichiers.splice(+b.dataset.rpDel, 1); RAP.res = null; rapRend(); });
+  const trouve = id => { for(const g of Object.values(r.groupes)){ const x = g.find(y => y.id === id); if(x) return x; } return null; };
+  el.querySelectorAll("[data-rp-aj]").forEach(b => b.onclick = () => rapAjouter(trouve(b.dataset.rpAj)));
+  el.querySelectorAll("[data-rp-ex]").forEach(b => b.onclick = () => rapExpliquer(trouve(b.dataset.rpEx)));
+  el.querySelectorAll("[data-rp-unex]").forEach(b => b.onclick = () => { delete RAP.expl[b.dataset.rpUnex]; rapRend(); });
+  el.querySelectorAll("[data-rp-part]").forEach(b => b.onclick = () => { RAP.expl[b.dataset.rpPart] = {quoi: "Exclue — achat de " + PART()}; rapRend(); });
+  el.querySelectorAll("[data-rp-excl]").forEach(b => b.onclick = () => rapToujoursExclure(trouve(b.dataset.rpExcl)));
+  el.querySelectorAll("[data-rp-rmx]").forEach(a => a.onclick = ev => { ev.preventDefault(); rapSetExclusions(rapExclusions().filter(e => e !== a.dataset.rpRmx)); rapAnalyse(); });
+}
+function rapTitre(r){
+  const n = r.groupes.manquantes.length + r.groupes.ecarts.length + r.groupes.absentes.length - Object.keys(RAP.expl).filter(id => ["manquantes", "ecarts", "absentes"].some(g => r.groupes[g].some(x => x.id === id))).length;
+  return n ? `${n} ligne${n > 1 ? "s" : ""} à vérifier` : "Tout concorde";
+}
+function rapExpliquer(x){
+  if(!x) return;
+  ouvre(`<form id="frx"><div class="dlg-h"><h2>Ligne expliquée</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b"><p style="margin:0"><b>${esc(x.desc)}</b> · ${rapMt(x.montant)}${x.date ? " · " + dL(x.date) : ""}</p>
+     <label class="f">Note (facultative)<input name="n" maxlength="120" autocomplete="off" placeholder="Ex. : remboursé en argent comptant"></label>
+     <p class="hint" style="margin:0">La note reste sur cette page seulement ; rien n'est écrit dans ton fichier.</p></div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary">Marquer expliquée</button></div></form>`, d => {
+    $("#frx", d).onsubmit = ev => { ev.preventDefault(); RAP.expl[x.id] = {quoi: "Expliquée", note: $("#frx", d).n.value.trim()}; d.close(); rapRend(); };
+  });
+}
+function rapToujoursExclure(x){
+  if(!x) return;
+  const m = (x.desc_brute || x.desc).replace(/^(virement interac de|virement de|e-transfer from)\s+/i, "").replace(/\s+/g, " ").trim().slice(0, 40);
+  ouvre(`<form id="frt"><div class="dlg-h"><h2>Toujours exclure</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b"><p style="margin:0">Les lignes de relevé qui contiennent ce texte seront classées « Exclues » (ex. virements familiaux).</p>
+     <label class="f">Texte à reconnaître<input name="m" required maxlength="40" value="${esc(m)}"></label>
+     <p class="hint" style="margin:0">Mémorisé sur cet appareil seulement (pas dans ton fichier). Tu pourras le retirer plus bas.</p></div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary">Exclure</button></div></form>`, d => {
+    $("#frt", d).onsubmit = ev => { ev.preventDefault(); const v = $("#frt", d).m.value.trim(); if(v.length < 3) return; const l = rapExclusions(); if(!l.includes(v)) l.push(v); rapSetExclusions(l); d.close(); rapAnalyse(); };
+  });
+}
+function rapAjouter(x){
+  if(!x || !(RAP.res && RAP.res.modifiable) || !S.info.modifiable){ toast("Ce mois est en lecture seule.", true); return; }
+  const apres = () => { const dl = $("#dlg"); if(dl && dl.open) dl.close(); vaVers("rappro"); rapAnalyse(); };
+  if(x.genre === "revenu" || x.genre === "avance"){
+    dlgRevenu(null, apres, "autre");
+    const f = $("#fr"); if(!f) return;
+    if(f.autre) f.autre.value = x.genre === "avance" ? "Gain Poker" : x.desc;
+    if(f.montant) f.montant.value = String(x.montant.toFixed(2)).replace(".", ",");
+    if(f.date) f.date.value = x.date;
+    f.querySelectorAll("input").forEach(i => i.dispatchEvent(new Event("input", {bubbles: true})));
+  } else {
+    dlgTransaction(null, apres, undefined, x.date);
+    const f = $("#ft"); if(!f) return;
+    f.description.value = x.desc; f.montant.value = String(x.montant.toFixed(2)).replace(".", ",");
+    const v = $("#versImport"); if(v) v.remove();
+    f.querySelectorAll("input").forEach(i => i.dispatchEvent(new Event("input", {bubbles: true})));
+  }
+  const h = $("#dlg .dlg-b"); if(h) h.insertAdjacentHTML("afterbegin", `<p class="hint rp-src" style="margin:0">Depuis le relevé ${esc(rapNom(x.compte))} du ${dL(x.date)} · vérifie avant d'ajouter.</p>`);
+}
 // --- Plus : réglages regroupés, une ligne = une action
 function vuePlusPro(el){
   const e = S.etat, m = S.mois;
@@ -2736,6 +2957,7 @@ function vuePlusPro(el){
   el.innerHTML = `
    <div class="p-groupe"><div class="t">Patrimoine</div><div class="p-liste">${item("pInvB", "inv", "Placements", "CÉLI, CÉLIAPP et autres comptes", $$(tj))}</div></div>
    <div class="p-groupe"><div class="t">Mois</div><div class="p-liste">${item("pCtl", "ctl", "Contrôles", "Vérifications du fichier · " + esc(S.info.nom), ctlResumeCourt())}
+     ${item("pRap", "rap", "Rapprochement bancaire", "Relevés Amex et Desjardins vs l'app · " + esc(S.info.nom))}
      ${item("pNm", "cal", "Créer " + esc(e.prochain_mois), "Clôture du mois et nouveau départ")}</div></div>
    <div class="p-groupe"><div class="t">Partage avec ${PART()}</div><div class="p-liste">
      ${item("pPct", "pct", "Répartition", "Revenus et % utilisé pour le split proportionnel", pct(m.pct_marika))}
@@ -2752,6 +2974,7 @@ function vuePlusPro(el){
   $("#pInvB", el).onclick = () => vaVers("inv");
   $("#pNm", el).onclick = () => dlgNouveauMois();
   $("#pCtl", el).onclick = () => vaVers("ctl");
+  $("#pRap", el).onclick = () => vaVers("rappro");
   $("#pPct", el).onclick = () => vaVers("split");
   $("#pAut", el).onclick = () => dlgMarika();
   if($("#pSync", el)) $("#pSync", el).onclick = () => dlgSync();

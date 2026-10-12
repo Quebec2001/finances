@@ -24,6 +24,12 @@ def post(app, chemin, data):
         return app.enregistre_transactions_lot(f, data.get("transactions") or [])
     if chemin == "/api/releve/analyse":
         return app.analyse_releve(f, data.get("images") or [])
+    if chemin == "/api/rappro/lire":
+        return app.rappro_lire(f, data.get("fichier") or {})
+    if chemin == "/api/rappro/images":
+        return app.rappro_images(f, data.get("images") or [], data.get("noms") or [])
+    if chemin == "/api/rappro/analyse":
+        return app.rappro_analyse(f, data.get("fichiers") or [], data.get("options") or {})
     if chemin == "/api/transaction/supprimer":
         return app.supprime_transaction(f, int(data["ligne"]))
     if chemin == "/api/reglement":
