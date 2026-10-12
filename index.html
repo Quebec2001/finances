@@ -408,7 +408,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=5a26dd2e32"></script>
+<script src="web.js?v=97c1ef9c8b"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -2766,27 +2766,37 @@ function rapLitFichier(f, mode){
 function rapTexte(buf){
   try { return new TextDecoder("utf-8", {fatal: true}).decode(buf); } catch(e){ return new TextDecoder("windows-1252").decode(buf); }
 }
+async function rapSorte(f){
+  // d'après le contenu (pas seulement l'extension) : un « .pdf » peut être une page Web, une image, etc.
+  const u = new Uint8Array(await rapLitFichier(f.slice(0, 1024), "buf"));
+  const txt = Array.from(u, c => String.fromCharCode(c)).join("");
+  if(txt.includes("%PDF")) return "pdf";
+  if(u[0] === 0x50 && u[1] === 0x4B) return "xlsx";
+  if((u[0] === 0x89 && u[1] === 0x50) || (u[0] === 0xFF && u[1] === 0xD8) || /^ftyp(heic|heix|mif1)/.test(txt.slice(4, 12)) || /^image\//.test(f.type)) return "image";
+  if(/\.pdf$/i.test(f.name)) return "pdf";                 // laissé au lecteur : il dira ce que contient le fichier
+  if(/\.xlsx?$/i.test(f.name)) return "xlsx";
+  return "csv";
+}
 async function rapAjouteFichiers(liste){
   const fs = [...liste]; if(!fs.length) return;
   RAP.lecture = true; RAP.res = null; rapRend();
   const etat = t => { RAP.etat = t; const x = $("#rpEtat"); if(x) x.innerHTML = `<span class="we-spin-inline"></span>${esc(t)}`; };
   try {
-    const images = fs.filter(f => /^image\//.test(f.type) || /\.(png|jpe?g|heic|webp)$/i.test(f.name));
-    let lues = [];
-    if(images.length) lues = await lisCaptures(images, etat);
+    const sortes = [];
+    for(const f of fs) sortes.push(await rapSorte(f));
+    const images = fs.filter((f, i) => sortes[i] === "image");
     if(images.length){
+      const lues = await lisCaptures(images, etat);
       etat("Analyse des captures…");
       try { (await api("/api/rappro/images", {feuille: S.feuille, images: lues, noms: images.map(f => f.name)})).resultat.forEach(r => RAP.fichiers.push(r)); }
       catch(x){ images.forEach(f => RAP.fichiers.push({nom: f.name, erreur: x.message || String(x), txs: []})); }
     }
-    for(const f of fs){
-      if(images.includes(f)) continue;
+    for(let i = 0; i < fs.length; i++){
+      const f = fs[i], so = sortes[i];
+      if(so === "image") continue;
       etat("Lecture de " + f.name + "…");
-      let fichier;
-      if(/\.csv$|\.txt$/i.test(f.name) || f.type === "text/csv") fichier = {nom: f.name, type: "csv", texte: rapTexte(await rapLitFichier(f, "buf"))};
-      else if(/\.xlsx$|\.xls$/i.test(f.name)) fichier = {nom: f.name, type: "xlsx", b64: String(await rapLitFichier(f)).split(",")[1] || ""};
-      else if(/\.pdf$/i.test(f.name) || f.type === "application/pdf") fichier = {nom: f.name, type: "pdf", b64: String(await rapLitFichier(f)).split(",")[1] || ""};
-      else { RAP.fichiers.push({nom: f.name, erreur: "Format non pris en charge (CSV, Excel, PDF ou image).", txs: []}); continue; }
+      const fichier = so === "csv" ? {nom: f.name, type: "csv", texte: rapTexte(await rapLitFichier(f, "buf"))}
+        : {nom: f.name, type: so, b64: String(await rapLitFichier(f)).split(",")[1] || ""};
       try { const r = (await api("/api/rappro/lire", {feuille: S.feuille, fichier})).resultat; RAP.fichiers.push(r); }
       catch(x){ RAP.fichiers.push({nom: f.name, erreur: x.message || String(x), txs: []}); }
     }

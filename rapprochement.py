@@ -152,6 +152,127 @@ def glyphe(nom):
     return ""
 
 
+# ---------------------------------------------------------------------------- AES (pour les PDF protégés sans mot de passe d'ouverture)
+def _aes_tables():
+    sbox = [0] * 256
+    p = q = 1
+    while True:
+        p = p ^ ((p << 1) & 0xFF) ^ (0x1B if p & 0x80 else 0)
+        q ^= q << 1; q ^= q << 2; q ^= q << 4; q &= 0xFF
+        if q & 0x80:
+            q ^= 0x09
+        x = q ^ ((q << 1 | q >> 7) & 0xFF) ^ ((q << 2 | q >> 6) & 0xFF) ^ ((q << 3 | q >> 5) & 0xFF) ^ ((q << 4 | q >> 4) & 0xFF)
+        sbox[p] = x ^ 0x63
+        if p == 1:
+            break
+    sbox[0] = 0x63
+    inv = [0] * 256
+    for i, v in enumerate(sbox):
+        inv[v] = i
+    return sbox, inv
+
+
+_SBOX, _INV = _aes_tables()
+
+
+def _xt(a):
+    return ((a << 1) ^ 0x1B) & 0xFF if a & 0x80 else a << 1
+
+
+def _mul(a, b):
+    r = 0
+    while b:
+        if b & 1:
+            r ^= a
+        a = _xt(a)
+        b >>= 1
+    return r
+
+
+def _cles_aes(cle):
+    nk = len(cle) // 4
+    nr = nk + 6
+    w = [list(cle[4 * i:4 * i + 4]) for i in range(nk)]
+    rcon = 1
+    for i in range(nk, 4 * (nr + 1)):
+        t = list(w[i - 1])
+        if i % nk == 0:
+            t = [_SBOX[b] for b in t[1:] + t[:1]]
+            t[0] ^= rcon
+            rcon = _xt(rcon)
+        elif nk > 6 and i % nk == 4:
+            t = [_SBOX[b] for b in t]
+        w.append([a ^ b for a, b in zip(w[i - nk], t)])
+    return [sum(w[4 * r:4 * r + 4], []) for r in range(nr + 1)]
+
+
+def _aes_bloc(cles, b, inverse=False):
+    s = list(b)
+    nr = len(cles) - 1
+    if not inverse:
+        s = [x ^ k for x, k in zip(s, cles[0])]
+        for r in range(1, nr + 1):
+            s = [_SBOX[x] for x in s]
+            s = [s[(i + 4 * (i % 4)) % 16] for i in range(16)]          # décalage des lignes
+            if r != nr:
+                t = []
+                for c in range(4):
+                    a = s[4 * c:4 * c + 4]
+                    t += [_mul(a[0], 2) ^ _mul(a[1], 3) ^ a[2] ^ a[3], a[0] ^ _mul(a[1], 2) ^ _mul(a[2], 3) ^ a[3],
+                          a[0] ^ a[1] ^ _mul(a[2], 2) ^ _mul(a[3], 3), _mul(a[0], 3) ^ a[1] ^ a[2] ^ _mul(a[3], 2)]
+                s = t
+            s = [x ^ k for x, k in zip(s, cles[r])]
+        return bytes(s)
+    s = [x ^ k for x, k in zip(s, cles[nr])]
+    for r in range(nr - 1, -1, -1):
+        s = [s[(i - 4 * (i % 4)) % 16] for i in range(16)]
+        s = [_INV[x] for x in s]
+        s = [x ^ k for x, k in zip(s, cles[r])]
+        if r:
+            t = []
+            for c in range(4):
+                a = s[4 * c:4 * c + 4]
+                t += [_mul(a[0], 14) ^ _mul(a[1], 11) ^ _mul(a[2], 13) ^ _mul(a[3], 9),
+                      _mul(a[0], 9) ^ _mul(a[1], 14) ^ _mul(a[2], 11) ^ _mul(a[3], 13),
+                      _mul(a[0], 13) ^ _mul(a[1], 9) ^ _mul(a[2], 14) ^ _mul(a[3], 11),
+                      _mul(a[0], 11) ^ _mul(a[1], 13) ^ _mul(a[2], 9) ^ _mul(a[3], 14)]
+            s = t
+    return bytes(s)
+
+
+def aes_cbc(cle, iv, data, inverse=True):
+    cles = _cles_aes(cle)
+    out, prec = bytearray(), iv
+    for i in range(0, len(data) - len(data) % 16, 16):
+        b = data[i:i + 16]
+        if inverse:
+            out += bytes(x ^ y for x, y in zip(_aes_bloc(cles, b, True), prec))
+            prec = b
+        else:
+            prec = _aes_bloc(cles, bytes(x ^ y for x, y in zip(b, prec)))
+            out += prec
+    return bytes(out)
+
+
+def rc4(cle, data):
+    s = list(range(256))
+    j = 0
+    for i in range(256):
+        j = (j + s[i] + cle[i % len(cle)]) & 255
+        s[i], s[j] = s[j], s[i]
+    out = bytearray()
+    i = j = 0
+    for c in data:
+        i = (i + 1) & 255
+        j = (j + s[i]) & 255
+        s[i], s[j] = s[j], s[i]
+        out.append(c ^ s[(s[i] + s[j]) & 255])
+    return bytes(out)
+
+
+PAD_PDF = bytes.fromhex("28BF4E5E4E758A4164004E56FFFA01082E2E00B6D0683E802F0CA9FE6453697A")
+
+
 class PDF:
     """Lecteur PDF minimal : objets (y compris flux d'objets), pages, polices (ToUnicode, encodages simples),
     opérateurs de texte. Suffit pour les relevés générés par les banques ; un PDF numérisé (image) n'a pas de texte."""
@@ -161,12 +282,91 @@ class PDF:
         self.objs = {}
         for m in re.finditer(rb"(\d+)\s+(\d+)\s+obj\b(.*?)\bendobj", data, re.S):
             self.objs[int(m.group(1))] = m.group(3)
+        self.nums = {id(v): k for k, v in self.objs.items()}
+        self.cle, self.aes, self.cle_v5, self.chiffre = None, False, False, False
+        self._chiffrement()
         for num, raw in list(self.objs.items()):
             if re.search(rb"/Type\s*/ObjStm", raw):
                 try:
                     self._objstm(raw)
                 except Exception:
                     pass
+
+    # --- PDF protégé (permissions seulement, sans mot de passe d'ouverture) : clé du gestionnaire standard
+    def _chiffrement(self):
+        import hashlib
+        m = re.search(rb"/Encrypt\s+(\d+)\s+\d+\s+R", self.data)
+        if not m:
+            return
+        self.chiffre = True
+        e = self.objs.get(int(m.group(1)), b"")
+        self.objs.pop(int(m.group(1)), None)
+        def chaine(cle):
+            v = self.valeur(e, cle)
+            if v is None:
+                return b""
+            if v.startswith(b"<"):
+                return bytes.fromhex(re.sub(rb"[^0-9A-Fa-f]", b"", v).decode())
+            m2 = re.search(rb"/" + cle + rb"\s*\(", e)
+            return next(t[1] for t in self.jetons(e[m2.end() - 1:]) if t[0] == "s") if m2 else b""
+        num = lambda cle, d: int(float(self.valeur(e, cle) or d))
+        V, R = num(b"V", 0), num(b"R", 2)
+        O, U = chaine(b"O"), chaine(b"U")
+        self.aes = b"AESV2" in e or b"AESV3" in e
+        if R >= 5:
+            if R == 5:
+                k = hashlib.sha256(U[40:48]).digest()
+            else:
+                k = self._hash6(b"", U[40:48], b"")
+            self.cle = aes_cbc(k, b"\0" * 16, chaine(b"UE"))
+            self.cle_v5 = True
+            return
+        mid = re.search(rb"/ID\s*\[\s*(<[0-9A-Fa-f\s]*>|\()", self.data)
+        id0 = b""
+        if mid:
+            if mid.group(1).startswith(b"<"):
+                id0 = bytes.fromhex(re.sub(rb"[^0-9A-Fa-f]", b"", mid.group(1)).decode())
+            else:
+                id0 = next(t[1] for t in self.jetons(self.data[mid.end() - 1:mid.end() + 400]) if t[0] == "s")
+        n = 5 if R == 2 else (16 if V >= 4 else min(16, num(b"Length", 40) // 8))
+        h = hashlib.md5(PAD_PDF + O[:32] + (num(b"P", 0) & 0xFFFFFFFF).to_bytes(4, "little") + id0 +
+                        (b"\xff\xff\xff\xff" if R >= 4 and re.search(rb"/EncryptMetadata\s+false", e) else b"")).digest()
+        if R >= 3:
+            for _ in range(50):
+                h = hashlib.md5(h[:n]).digest()
+        self.cle = h[:n]
+
+    @staticmethod
+    def _hash6(mdp, sel, u):
+        import hashlib
+        k = hashlib.sha256(mdp + sel + u).digest()
+        i = 0
+        while True:
+            k1 = (mdp + k + u) * 64
+            e = aes_cbc(k[:16], k[16:32], k1, inverse=False)
+            r = sum(e[:16]) % 3
+            k = [hashlib.sha256, hashlib.sha384, hashlib.sha512][r](e).digest()
+            i += 1
+            if i >= 64 and e[-1] <= i - 32:
+                return k[:32]
+
+    def dechiffre(self, num, gen, s):
+        import hashlib
+        if self.cle is None or num is None:
+            return s
+        if self.cle_v5:
+            k = self.cle
+        else:
+            k = hashlib.md5(self.cle + num.to_bytes(3, "little") + gen.to_bytes(2, "little") + (b"sAlT" if self.aes else b"")).digest()[:min(len(self.cle) + 5, 16)]
+        if len(k) not in (16, 24, 32) and self.aes:
+            return s
+        if self.aes:
+            if len(s) < 32:
+                return b""
+            out = aes_cbc(k, s[:16], s[16:])
+            pad = out[-1] if out else 0
+            return out[:-pad] if 0 < pad <= 16 else out
+        return rc4(k, s)
 
     # --- objets
     def _objstm(self, raw):
@@ -187,6 +387,11 @@ class PDF:
         d = raw[:m.start()]
         fin = raw.rfind(b"endstream")
         s = raw[m.end():fin if fin > 0 else len(raw)]
+        lg = re.search(rb"/Length\s+(\d+)(?![\d]|\s+\d+\s+R)", d)
+        if lg and int(lg.group(1)) <= len(s):
+            s = s[:int(lg.group(1))]
+        if self.cle is not None and not re.search(rb"/Type\s*/XRef", d):
+            s = self.dechiffre(self.nums.get(id(raw)), 0, s)
         fm = re.search(rb"/Filter\s*(\[[^\]]*\]|/[A-Za-z0-9]+)", d)
         filtres = re.findall(rb"/([A-Za-z0-9]+)", fm.group(1)) if fm else []
         for flt in filtres:
@@ -250,7 +455,7 @@ class PDF:
                         return d[i:j + 1]
                 j += 1
             return d[i:]
-        m2 = re.match(rb"(\d+\s+\d+\s+R|/[^\s/<>\[\]()]+|-?[\d.]+|\([^)]*\)|true|false)", d[i:])
+        m2 = re.match(rb"(\d+\s+\d+\s+R|/[^\s/<>\[\]()]+|-?[\d.]+|<[0-9A-Fa-f\s]*>|\([^)]*\)|true|false)", d[i:])
         return m2.group(1) if m2 else None
 
     def dico(self, x):
@@ -565,12 +770,33 @@ class PDF:
             ops = []
 
 
+def sorte_fichier(data):
+    """Ce que contient vraiment un fichier, peu importe son extension."""
+    t = data[:1024]
+    if b"%PDF" in t:
+        return "pdf"
+    if t.startswith(b"PK"):
+        return "xlsx"
+    if t.startswith(b"\x89PNG") or t.startswith(b"\xff\xd8") or t[4:12] in (b"ftypheic", b"ftypmif1", b"ftypheix"):
+        return "image"
+    if re.search(rb"<!doctype html|<html", t.lower()):
+        return "html"
+    return "texte"
+
+
 def pdf_pages(b64):
     data = base64.b64decode(b64)
-    if not data.startswith(b"%PDF"):
-        raise ValueError("Ce fichier n'est pas un PDF.")
+    sorte = sorte_fichier(data)
+    if sorte != "pdf":
+        raise ValueError({"html": "Ce fichier est une page Web enregistrée sous le nom .pdf (souvent une page de connexion ou d'erreur de la banque) : retélécharge le relevé.",
+                          "image": "Ce fichier est une image : ajoute-le comme capture.", "xlsx": "Ce fichier est un classeur Excel (ou un fichier compressé), pas un PDF."
+                          }.get(sorte, "Ce fichier n'a pas le contenu d'un PDF (en-tête %%PDF absent ; début : %s)." % (" ".join("%02X" % b for b in data[:8]) or "fichier vide")))
+    data = data[data.find(b"%PDF"):]
     p = PDF(data)
-    return [p.texte_page(d, h) for d, h in p.pages()]
+    pages = [p.texte_page(d, h) for d, h in p.pages()]
+    if p.chiffre and not any(len(pg["mots"]) > 3 for pg in pages):
+        raise ValueError("Ce PDF est protégé par un mot de passe d'ouverture : ouvre-le, enregistre-le sans mot de passe (Fichier › Exporter en PDF), ou utilise l'export CSV.")
+    return pages
 
 
 # ---------------------------------------------------------------------------- lignes de texte
@@ -625,9 +851,19 @@ def periode_texte(txt, an_ref, mo_ref):
     return None
 
 
+RX_UUID = re.compile(r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")
+
+
 def masque(t):
-    """Numéros de carte ou de compte : 4 derniers chiffres au maximum."""
-    return re.sub(r"[\d*•Xx][\d*•Xx \-]{6,}(\d{4})\b", lambda m: "••••" + m.group(1) if sum(c.isdigit() or c in "*•" for c in m.group(0)) >= 8 else m.group(0), t or "")
+    """Numéros de carte ou de compte : 4 derniers chiffres au maximum (les identifiants de fichier restent)."""
+    def un(m):
+        return "••••" + m.group(1) if sum(c.isdigit() or c in "*•" for c in m.group(0)) >= 8 else m.group(0)
+    morceaux = RX_UUID.split(t or "")
+    uuids = RX_UUID.findall(t or "")
+    out = re.sub(r"(?<![0-9A-Za-z])[\d*•Xx][\d*•Xx \-]{6,}(\d{4})\b", un, morceaux[0])
+    for u, m in zip(uuids, morceaux[1:]):
+        out += u + re.sub(r"(?<![0-9A-Za-z])[\d*•Xx][\d*•Xx \-]{6,}(\d{4})\b", un, m)
+    return out
 
 
 def nettoie(desc):
