@@ -403,6 +403,8 @@ body.pro #dlg{max-width:560px}
 .inv-mod{font-size:12.5px;color:var(--accent);font-weight:600;margin-top:10px}
 @media (max-width:420px){.inv-tot{font-size:29px}.inv-kv b{font-size:13px}}
 .v.num,.gros,.inv-tot,.kpi .val,.p-stat .v,.inv-jv,.p-attendu .v,.p-hero .gros{line-height:1.3;padding-top:.06em;overflow:visible}
+html{-webkit-tap-highlight-color:transparent}
+:focus:not(input):not(select):not(textarea),:focus-visible:not(input):not(select):not(textarea){outline:none!important}
 .p-retour{border:0;background:none;color:var(--accent);font-weight:650;padding:0 0 10px;cursor:pointer;font-size:15px}
 </style>
 </head>
@@ -431,7 +433,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=f4ffa944ed"></script>
+<script src="web.js?v=dd97086018"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1285,7 +1287,7 @@ function splitDetail(m){
   const reps = m.reports || [];
   const opMoi = split.filter(t => apres(t) && t.marika > 0).map(t => ({date: t.date, desc: t.description, total: t.deboursement, part: t.marika}))
     .concat(reps.filter(r => !r.regle && r.montant > 0.004).map(r => ({date: null, desc: r.libelle || "Autre montant", total: null, part: r.montant})));
-  const opLui = util.filter(t => t.a_rembourser).map(t => ({date: t.date, desc: t.description.replace(/\s*\(carte [^()]+ – à rembourser\)\s*$/, ""), total: null, part: t.deboursement}))
+  const opLui = util.filter(t => t.a_rembourser).map(t => ({date: t.date, desc: t.description.replace(/\s*\(carte [^()]+ – à rembourser\)\s*$/, ""), total: null, part: t.deboursement, lib: "payé par " + REG().partenaire}))
     .concat(split.filter(t => apres(t) && t.marika < 0).map(t => ({date: t.date, desc: t.description, total: t.deboursement, part: -t.marika})))
     .concat(reps.filter(r => !r.regle && r.montant < -0.004).map(r => ({date: null, desc: r.libelle || "Autre montant", total: null, part: -r.montant})));
   const parDate = (a, b) => (b.date || "0000").localeCompare(a.date || "0000");      // plus récente d'abord ; autres montants (sans date) à la fin
@@ -2683,7 +2685,7 @@ function vuePartagePro(el){
   const m = S.mois, mod = S.info.modifiable;
   if(S.info.groupe === "historique" || !m.transactions){ el.innerHTML = `<div class="card"><div class="empty">Mois d'historique : pas de détail du partage.</div></div>`; return; }
   const x = splitDetail(m), cl = Math.abs(x.net || 0) < 0.005 ? "" : (x.net > 0 ? "pos" : "neg");
-  const ligne = (o, lib) => `<div class="p-row"><div class="d">${jourCourt(o.date)}</div><div class="m"><div class="t">${esc(o.desc)}</div><div class="s">${o.total != null ? "payé " + $$(o.total) : "autre montant"}</div></div><div class="v num">${$$(o.part)}<small>${lib}</small></div></div>`;
+  const ligne = (o, lib) => `<div class="p-row"><div class="d">${jourCourt(o.date)}</div><div class="m"><div class="t">${esc(o.desc)}</div><div class="s">${o.total != null ? "payé " + $$(o.total) : esc(o.lib || "autre montant")}</div></div><div class="v num">${$$(o.part)}<small>${lib}</small></div></div>`;
   const bloc = (titre, sous, l, lib) => `<div class="card"><div class="p-sec"><b>${titre}</b><span>${sous}</span></div>
      ${l.length ? l.map(o => ligne(o, lib)).join("") : `<div class="p-vide">Rien en cours.</div>`}
      <div class="p-sub"><span>Sous-total</span><span class="num">${$$(l.reduce((a, o) => a + (o.part || 0), 0))}</span></div></div>`;
@@ -2691,7 +2693,6 @@ function vuePartagePro(el){
   el.innerHTML = `
    <div class="card p-bal"><div class="lbl">Solde avec ${PART()}</div>
      <div class="gros num ${cl}" id="splitNet">${netSplitTexte(x.net)}</div>
-     <div class="sous">${x.marq ? `Depuis le dernier règlement du ${dateLongue(x.marq.date)}` : "Aucun règlement ce mois-ci"}</div>
      <div class="p-duo"><div><span>À recevoir de ${PART()}</span><b class="num">${$$(x.recevoir)}</b></div><div><span>À payer à ${PART()}</span><b class="num">${$$(x.payer)}</b></div></div>
      <div class="p-actions">
        <button class="p-act prim" id="aRegle" ${mod ? "" : "disabled"}>${ICO.regle}<span>Régler</span></button>
@@ -2757,7 +2758,7 @@ function dlgReglementsMois(){
      ${!recus.length && !verses.length ? `<div class="p-vide">Aucun règlement ce mois-ci.</div>` : `
      <div class="p-bal" style="padding:4px 0 6px"><div class="lbl">${marq ? "Réglé le " + dateLongue(marq.date) : "Réglé"}</div>
        <div class="gros num ${net > 0.004 ? "pos" : net < -0.004 ? "neg" : ""}" style="font-size:26px">${Math.abs(net) < 0.005 ? "0,00 $" : (net > 0 ? `Reçu ${$$(net)}` : `Versé ${$$(-net)}`)}</div>
-       <div class="sous">${$$(som(recus))} de ${P} − ${$$(som(verses))} à ${P}</div></div>
+</div>
      <div class="p-sec" style="margin-top:8px"><b>Parts de ${P} sur mes dépenses</b><span>${recus.length} · ${$$(som(recus))}</span></div>
      <div class="p-scroll">${recus.length ? recus.map(ligne).join("") : `<div class="p-vide">Aucune.</div>`}</div>
      <div class="p-sec" style="margin-top:12px"><b>Mes parts sur ses dépenses</b><span>${verses.length} · ${$$(som(verses))}</span></div>
@@ -2786,7 +2787,7 @@ function dlgMarikaPro(filtre){
   ouvre(`<div class="dlg-h"><h2>Split avec ${PART()} · ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
    <div class="dlg-b">
      <div class="p-bal" style="padding:6px 0 0"><div class="lbl">Remboursement dû (net)</div><div class="gros num ${cl}" style="font-size:26px">${netSplitTexte(net)}</div>
-       <div class="sous">% ${PART()} ${pct(m.pct_marika)} · ${x.marq ? "dernier règlement le " + dL(x.marq.date) : "aucun règlement ce mois-ci"}</div></div>
+       <div class="sous">% ${PART()} ${pct(m.pct_marika)} · ${x.marq ? "dernier règlement le " + dateLongue(x.marq.date) : "aucun règlement ce mois-ci"}</div></div>
      <div class="p-sec" style="margin-top:6px"><b>Dépenses partagées</b><span>${split.length} au total</span></div>
      <div class="seg p-seg" id="pf">${seg("cours", "En cours", cours.length)}${seg("reglees", "Réglées", reglees.length)}${seg("tout", "Tout", split.length)}</div>
      <div class="p-scroll">${vis.length ? vis.map(ligne).join("") : `<div class="p-vide">${S.splitFiltre === "cours" ? "Rien en cours : tout a été réglé." : "Aucune dépense."}</div>`}</div>

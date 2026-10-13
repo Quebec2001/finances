@@ -3,7 +3,7 @@
 // moteur Python exécuté dans le navigateur (Pyodide). Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "f4ffa944ed";
+const VERSION = "dd97086018";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPES_BASE = "Files.ReadWrite offline_access User.Read";
@@ -391,4 +391,23 @@ async function delie(){
 const partage = {lien, chargeLien, assureScope, apres, creePartage, rejoint, lit: litPartage, ecrit: ecritPartage, delie,
   pause: () => LS.get("w_sync_off") === "1", metPause: b => LS.set("w_sync_off", b ? "1" : null), compte: () => compte};
 window.WEB = {demarre, api, carteReglages, brancheReglages, partage, version: VERSION};
+// Mise à jour automatique : l'iPhone garde parfois l'ancienne page (icône de l'écran d'accueil). Au lancement et au
+// retour dans l'app, on compare la version publiée sur GitHub à celle-ci ; si elle a changé, on recharge (jamais
+// pendant une écriture ni avec une fenêtre ouverte).
+async function verifieMiseAJour(){
+  if(VERSION.indexOf("__") === 0) return;
+  try {
+    const t = await (await fetch(location.pathname + "?maj=" + Date.now(), {cache: "no-store"})).text();
+    const v = (t.match(/web\.js\?v=(\w+)/) || [])[1];
+    if(!v || v === VERSION) return;
+    const dl = document.querySelector("#dlg");
+    if((dl && dl.open) || document.body.classList.contains("loading")) return;
+    let deja = null; try { deja = sessionStorage.getItem("maj_" + v); sessionStorage.setItem("maj_" + v, "1"); } catch(e){}
+    if(deja) return;                                   // déjà essayé : pas de boucle
+    location.replace(location.pathname + "?v=" + v + location.hash);
+  } catch(e){}
+}
+window.WEB.verifieMiseAJour = verifieMiseAJour;
+setTimeout(verifieMiseAJour, 4000);
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") verifieMiseAJour(); });
 })();
