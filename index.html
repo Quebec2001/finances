@@ -314,7 +314,7 @@ body.pro .fab{width:54px;height:54px;font-size:28px;bottom:calc(84px + env(safe-
 /* éléments des vues pro */
 .p-hero{display:grid;gap:4px;padding:20px}
 .p-hero .lbl{font-size:13px;color:var(--ink-3);font-weight:600}
-.p-hero .gros{font-size:36px;font-weight:750;letter-spacing:-.03em;line-height:1.1}
+.p-hero .gros{font-size:36px;font-weight:750;letter-spacing:-.03em;line-height:1.25}
 .p-hero .sous{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--ink-2)}
 .p-chip{display:inline-flex;align-items:center;gap:4px;border-radius:99px;padding:2px 9px;font-size:12.5px;font-weight:650;background:var(--surface-2);color:var(--ink-2)}
 .p-chip.pos{background:var(--pos-soft);color:var(--pos)}.p-chip.neg{background:var(--neg-soft);color:var(--neg)}
@@ -402,6 +402,7 @@ body.pro #dlg{max-width:560px}
 .inv-kv{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.inv-kv span{display:block;font-size:11.5px;color:var(--ink-3);font-weight:600}.inv-kv b{font-size:14px}.inv-kv small{font-size:11.5px;font-weight:600}
 .inv-mod{font-size:12.5px;color:var(--accent);font-weight:600;margin-top:10px}
 @media (max-width:420px){.inv-tot{font-size:29px}.inv-kv b{font-size:13px}}
+.v.num,.gros,.inv-tot,.kpi .val,.p-stat .v,.inv-jv,.p-attendu .v,.p-hero .gros{line-height:1.3;padding-top:.06em;overflow:visible}
 .p-retour{border:0;background:none;color:var(--accent);font-weight:650;padding:0 0 10px;cursor:pointer;font-size:15px}
 </style>
 </head>
@@ -430,7 +431,7 @@ body.pro #dlg{max-width:560px}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=f3670bfb71"></script>
+<script src="web.js?v=f4ffa944ed"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -607,6 +608,8 @@ function dlgCollePartage(){
 async function verifiePartageRecu(){
   let code = null; try { code = localStorage.getItem("partage_recu"); localStorage.removeItem("partage_recu"); } catch(e){}
   if(!code) return;
+  let essai = false; try { essai = localStorage.getItem("test_liens") === "1"; } catch(e){}     // tests automatiques seulement
+  if(!MODE_PAYE() && !essai) return toast("Les liens de partage ne sont plus utilisés : la synchronisation avec " + REG().partenaire + " s'en charge.");
   try { dlgRecoitPartage(decodePartage(code)); } catch(e){ toast(e.message, true); }
 }
 async function dlgRecoitPartage(o){
@@ -1285,7 +1288,7 @@ function splitDetail(m){
   const opLui = util.filter(t => t.a_rembourser).map(t => ({date: t.date, desc: t.description.replace(/\s*\(carte [^()]+ – à rembourser\)\s*$/, ""), total: null, part: t.deboursement}))
     .concat(split.filter(t => apres(t) && t.marika < 0).map(t => ({date: t.date, desc: t.description, total: t.deboursement, part: -t.marika})))
     .concat(reps.filter(r => !r.regle && r.montant < -0.004).map(r => ({date: null, desc: r.libelle || "Autre montant", total: null, part: -r.montant})));
-  const parDate = (a, b) => (a.date || "9999").localeCompare(b.date || "9999");      // ordre chronologique ; autres montants (sans date) à la fin
+  const parDate = (a, b) => (b.date || "0000").localeCompare(a.date || "0000");      // plus récente d'abord ; autres montants (sans date) à la fin
   opMoi.sort(parDate); opLui.sort(parDate);
   const somme = l => l.reduce((a, x) => a + (x.part || 0), 0);
   // règlements du mois (le fichier garde le dernier marqueur « Solde réglé » du mois)
@@ -1435,7 +1438,7 @@ function vueTrans(el){
       else { z.querySelectorAll("[data-dl]").forEach(it => it.onclick = () => dlgTransaction(m.transactions.find(t => t.ligne == it.dataset.dl))); const dt = $("#ddTout", z); if(dt) dt.onclick = () => dlgToutesDepenses(); }
       return;
     }
-    const l = lignesDepenses().filter(t => correspondRecherche(t, q)).sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.ligne || 0) - (b.ligne || 0));
+    const l = lignesDepenses().filter(t => correspondRecherche(t, q)).sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.ligne || 0) - (a.ligne || 0));
     z.innerHTML = `<div class="card cadre"><div class="list">${l.length ? l.map(t=>{
         const st = semType(t.type);
         return `<div class="item" ${t.hist||!mod?'style="cursor:default"':`data-l="${t.ligne}"`}><div class="main"><div class="t1">${esc(t.description)}</div>
@@ -1634,7 +1637,7 @@ function revueImport(d, r){
 function dlgCategorieDepenses(cat){
   const g = groupesDepenses().find(x=>x.categorie===cat) || {categorie:cat, lignes:[], total:0};
   const hist = S.info.groupe==="historique", mod = S.info.modifiable && !hist;
-  const lignes = g.lignes.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  const lignes = g.lignes.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   ouvre(`<div class="dlg-h"><h2>${esc(cat)} – ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
   <div class="dlg-b">
     ${lignes.length?`<div class="scroll-x"><table class="t"><thead><tr><th>Date</th><th style="text-align:left">Description</th>${hist?"":`<th class="c-type" style="text-align:left">Type</th><th>Payé</th>`}<th>${hist?"Montant":"Ma part"}</th></tr></thead><tbody>
@@ -1814,14 +1817,13 @@ function vueRev(el){
       </div>`).join("")}
       <div class="kv" style="margin-top:8px"><div class="k total">Total des revenus</div><div class="num total">${$$(m.total_revenus)}</div></div>
     </div>
-    ${MODE_PAYE() ? "" : `<div class="grid" style="align-content:start">${carteRepartitionHTML(m, mod)}</div>`}
+
    </div>
    <div class="spacer"></div>
    <div class="card cadre" id="calPb"></div>`;
   el.querySelectorAll(".grp-h").forEach(h=>h.onclick=()=>dlgGroupeRevenus(h.parentNode.dataset.g));
   { const bi = $("#btnImpRev", el); if(bi) bi.onclick = () => dlgImportRevenus(); }
   if(MODE_PAYE()) calendrierPaye($("#calPb", el)); else calendrierPourboires($("#calPb", el));
-  if(mod && !MODE_PAYE()) brancheRepartition(el, m);
 }
 function carteRepartitionHTML(m, mod){
   return `<div class="card cadre"><h3>Répartition avec ${PART()} <span class="sp">${mod?`<button class="btn small" id="edRep">Modifier</button>`:""}</span></h3>
@@ -2640,6 +2642,7 @@ const ICO = {
   nuage: `<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/></svg>`,
   oeil: `<svg viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg>`,
   pct: `<svg viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.3"/><circle cx="17" cy="17" r="2.3"/></svg>`,
+  sommaire: `<svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="2.5"/><path d="M9 8.5h6M9 12h6M9 15.5h4"/></svg>`,
   rap: `<svg viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20.5H7z"/><path d="M14 3.5v4h4"/><path d="m9.8 14 2 2 3.6-4"/></svg>`,
   ctl: `<svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6z"/><path d="m8.8 12 2.3 2.3 4.3-4.6"/></svg>`,
 };
@@ -2650,6 +2653,7 @@ function barreOngletsPro(){
   n.innerHTML = ONGLETS_PRO.map(([v, t]) => `<button data-v="${v}" class="${v === actif ? "on" : ""}" aria-label="${t}${v === "plus" && alerte ? " – contrôle à vérifier" : ""}">${ICO[v]}${v === "plus" && alerte ? `<i class="p-alerte" title="${alerte} contrôle${alerte > 1 ? "s" : ""} à vérifier"></i>` : ""}<span>${t}</span></button>`).join("");
 }
 function vaVers(v){ S.vue = v; rend(); window.scrollTo({top: 0}); }
+const dateLongue = iso => { if(!iso) return ""; const [y, m, d] = iso.split("-").map(Number); return `${d === 1 ? "1er" : d} ${MOIS_MOTS[m - 1]} ${y}`; };
 const jourCourt = iso => iso ? `<b>${+iso.slice(8,10)}</b>${(MOIS_MOTS[+iso.slice(5,7)-1] || "").slice(0,4)}.` : "—";
 // --- Accueil
 function vueBordPro(el){
@@ -2685,15 +2689,13 @@ function vuePartagePro(el){
      <div class="p-sub"><span>Sous-total</span><span class="num">${$$(l.reduce((a, o) => a + (o.part || 0), 0))}</span></div></div>`;
   const netReg = x.regMoi.tot - x.regLui.tot;
   el.innerHTML = `
-   <div class="card p-bal"><div class="lbl">Solde avec ${PART()} · % ${PART()} ${pct(m.pct_marika)}</div>
+   <div class="card p-bal"><div class="lbl">Solde avec ${PART()}</div>
      <div class="gros num ${cl}" id="splitNet">${netSplitTexte(x.net)}</div>
-     <div class="sous">${x.marq ? `Depuis le dernier règlement du ${dL(x.marq.date)}` : "Aucun règlement ce mois-ci"}</div>
+     <div class="sous">${x.marq ? `Depuis le dernier règlement du ${dateLongue(x.marq.date)}` : "Aucun règlement ce mois-ci"}</div>
      <div class="p-duo"><div><span>À recevoir de ${PART()}</span><b class="num">${$$(x.recevoir)}</b></div><div><span>À payer à ${PART()}</span><b class="num">${$$(x.payer)}</b></div></div>
      <div class="p-actions">
        <button class="p-act prim" id="aRegle" ${mod ? "" : "disabled"}>${ICO.regle}<span>Régler</span></button>
-       <button class="p-act" id="aEnvoi">${ICO.envoi}<span>Envoyer</span></button>
-       <button class="p-act" id="aRecoit">${ICO.recoit}<span>Recevoir</span></button>
-       <button class="p-act" id="aAutres">${ICO.autres}<span>Autres</span></button></div></div>
+       <button class="p-act" id="aAutres">${ICO.sommaire}<span>Sommaire</span></button></div></div>
    <div class="spacer"></div>
    <div class="grid two">
      ${bloc(`Payé par moi`, `part de ${PART()}`, x.opMoi, "sa part")}
@@ -2701,7 +2703,7 @@ function vuePartagePro(el){
    </div>
    <div class="spacer"></div>
    <div class="grid two">
-     <div class="card"><div class="p-sec"><b>Règlements du mois</b><span>${x.marq ? dL(x.marq.date) : ""}</span></div>
+     <div class="card clic" id="cReg" role="button" tabindex="0"><div class="p-sec"><b>Règlements du mois</b><span>${x.marq ? dateLongue(x.marq.date) + " ›" : ""}</span></div>
        ${x.regMoi.n || x.regLui.n ? `<div class="kv"><div class="k">Reçus de ${PART()} (${x.regMoi.n} opération${x.regMoi.n > 1 ? "s" : ""})</div><div class="num">${$$(x.regMoi.tot)}</div>
          <div class="k">Versés à ${PART()} (${x.regLui.n} opération${x.regLui.n > 1 ? "s" : ""})</div><div class="num">${$$(x.regLui.tot)}</div>
          <div class="k total">Règlements nets du mois</div><div class="num total">${Math.abs(netReg) < 0.005 ? "0,00 $" : (netReg > 0 ? `Reçu ${$$(netReg)}` : `Versé ${$$(-netReg)}`)}</div></div>`
@@ -2709,9 +2711,8 @@ function vuePartagePro(el){
      ${carteRepartitionHTML(m, mod)}
    </div>`;
   $("#aRegle", el).onclick = () => { const util = m.transactions.filter(t => t.utilise); if(!util.length) return toast("Aucune transaction", true); dlgConfirmeReglement(m, util[util.length - 1]); };
-  $("#aEnvoi", el).onclick = () => dlgPartage();
-  $("#aRecoit", el).onclick = () => dlgCollePartage();
-  $("#aAutres", el).onclick = () => dlgMarika();
+  $("#aAutres", el).onclick = () => dlgMarikaPro();
+  { const rg = $("#cReg", el); if(rg) rg.onclick = () => dlgReglementsMois(); }
   if(mod) brancheRepartition(el, m);
 }
 // --- Placements (depuis « Plus »)
@@ -2719,10 +2720,10 @@ function ligneDepensePro(t, mod){
   const typ = t => { const s = semType(t.type); return s && s !== "P" ? ` · <span class="p-chip" style="padding:0 7px;font-size:11px">${esc(TYPES_COURTS[s])}</span>` : (t.a_rembourser ? ` · <span class="p-chip" style="padding:0 7px;font-size:11px">payé par ${PART()}</span>` : ""); };
   return `<div class="p-row" ${mod ? `data-dl="${t.ligne}" style="cursor:pointer"` : ""}><div class="d">${jourCourt(t.date)}</div><div class="m"><div class="t">${esc(t.description)}</div><div class="s">${t.categorie ? iconeCat(t.categorie) + " " + esc(t.categorie) : ""}${typ(t)}</div></div><div class="v num">${$$(t.depense != null ? t.depense : t.deboursement)}${t.depense != null && Math.abs((t.depense || 0) - (t.deboursement || 0)) > 0.004 ? `<small>sur ${$$(t.deboursement)}</small>` : ""}</div></div>`;
 }
-const ordreDate = (a, b) => (a.date || "9999").localeCompare(b.date || "9999") || (a.ligne || 0) - (b.ligne || 0);
+const ordreDate = (a, b) => (b.date || "").localeCompare(a.date || "") || (b.ligne || 0) - (a.ligne || 0);      // plus récente d'abord
 function depensesProDuMois(m){ return m.transactions.filter(t => t.utilise && t.date && !horsMesDepenses(t)).sort(ordreDate); }
 function dernieresDepensesHTML(m){
-  const tout = depensesProDuMois(m), l = tout.slice(-8), mod = S.info.modifiable;      // les 8 plus récentes, en ordre de date
+  const tout = depensesProDuMois(m), l = tout.slice(0, 8), mod = S.info.modifiable;      // les 8 plus récentes, la plus récente d'abord
   return `<div class="card"><button type="button" class="p-sec p-sec-btn" id="ddTout"><b>Dernières dépenses</b><span>${tout.length > l.length ? `voir les ${tout.length} ›` : (mod ? "touche pour modifier" : "")}</span></button>
     ${l.length ? l.map(t => ligneDepensePro(t, mod)).join("") : `<div class="p-vide">Aucune dépense ce mois-ci.</div>`}</div>`;
 }
@@ -2735,6 +2736,36 @@ function dlgToutesDepenses(){
     d.querySelectorAll("[data-dl]").forEach(it => it.onclick = () => dlgTransaction(m.transactions.find(t => t.ligne == it.dataset.dl), () => dlgToutesDepenses()));
   });
 }
+// Règlements du mois : détail de ce qui a été réglé avec le partenaire (dépenses avant le dernier « Solde réglé »)
+function dlgReglementsMois(){
+  const m = S.mois, der = m.ligne_dernier_reglement, P = PART();
+  const util = m.transactions.filter(t => t.utilise), avant = t => der != null && t.ligne <= der;
+  const RX_CZ = /\(carte [^()]+\)\s*$/;
+  const split = util.filter(t => avant(t) && semType(t.type) && semType(t.type) !== "P" && Math.abs(t.marika || 0) > 0.004);
+  const recus = split.filter(t => t.marika > 0).map(t => ({date: t.date, desc: t.description, total: t.deboursement, part: t.marika, type: TYPES_COURTS[semType(t.type)]}));
+  const verses = split.filter(t => t.marika < 0).map(t => ({date: t.date, desc: t.description, total: t.deboursement, part: -t.marika, type: TYPES_COURTS[semType(t.type)]}))
+    .concat(util.filter(t => avant(t) && semType(t.type) === "P" && RX_CZ.test(t.description)).map(t => ({date: t.date, desc: t.description.replace(/\s*\(carte [^()]+\)\s*$/, ""), total: null, part: t.depense || t.deboursement || 0, type: "payé par " + P})));
+  const reps = (m.reports || []).filter(r => r.regle && Math.abs(r.montant_origine || 0) > 0.004);
+  reps.forEach(r => (r.montant_origine > 0 ? recus : verses).push({date: null, desc: r.libelle || "Autre montant", total: null, part: Math.abs(r.montant_origine), type: "autre montant"}));
+  const tri = l => l.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  tri(recus); tri(verses);
+  const som = l => l.reduce((a, x) => a + (x.part || 0), 0), net = som(recus) - som(verses);
+  const ligne = x => `<div class="p-row"><div class="d">${jourCourt(x.date)}</div><div class="m"><div class="t">${esc(x.desc)}</div><div class="s">${esc(x.type || "")}${x.total != null ? " · payé " + $$(x.total) : ""}</div></div><div class="v num">${$$(x.part)}</div></div>`;
+  const marq = util.find(t => t.ligne === der);
+  ouvre(`<div class="dlg-h"><h2>Règlements · ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     ${!recus.length && !verses.length ? `<div class="p-vide">Aucun règlement ce mois-ci.</div>` : `
+     <div class="p-bal" style="padding:4px 0 6px"><div class="lbl">${marq ? "Réglé le " + dateLongue(marq.date) : "Réglé"}</div>
+       <div class="gros num ${net > 0.004 ? "pos" : net < -0.004 ? "neg" : ""}" style="font-size:26px">${Math.abs(net) < 0.005 ? "0,00 $" : (net > 0 ? `Reçu ${$$(net)}` : `Versé ${$$(-net)}`)}</div>
+       <div class="sous">${$$(som(recus))} de ${P} − ${$$(som(verses))} à ${P}</div></div>
+     <div class="p-sec" style="margin-top:8px"><b>Parts de ${P} sur mes dépenses</b><span>${recus.length} · ${$$(som(recus))}</span></div>
+     <div class="p-scroll">${recus.length ? recus.map(ligne).join("") : `<div class="p-vide">Aucune.</div>`}</div>
+     <div class="p-sec" style="margin-top:12px"><b>Mes parts sur ses dépenses</b><span>${verses.length} · ${$$(som(verses))}</span></div>
+     <div class="p-scroll">${verses.length ? verses.map(ligne).join("") : `<div class="p-vide">Aucune.</div>`}</div>
+     <div class="p-calc"><div><span>Reçu de ${P}</span><b class="num">${$$(som(recus))}</b></div><div><span>Versé à ${P}</span><b class="num">− ${$$(som(verses))}</b></div><div class="tot"><span>Règlement net</span><b class="num">${Math.abs(net) < 0.005 ? "0,00 $" : (net > 0 ? `Reçu ${$$(net)}` : `Versé ${$$(-net)}`)}</b></div></div>`}
+   </div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn primary" data-close>Fermer</button></div>`);
+}
 // Détail du split (interface pro) : lisible même avec beaucoup de dépenses (filtres, lignes compactes, réglées repliées)
 function dlgMarikaPro(filtre){
   const m = S.mois, mod = S.info.modifiable, der = m.ligne_dernier_reglement;
@@ -2743,7 +2774,7 @@ function dlgMarikaPro(filtre){
   const arem = m.transactions.filter(t => t.utilise && t.a_rembourser);
   const regle = t => der != null && t.ligne <= der;
   const cours = split.filter(t => !regle(t)), reglees = split.filter(regle);
-  const vis = (S.splitFiltre === "cours" ? cours : S.splitFiltre === "reglees" ? reglees : split).slice().sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999") || a.ligne - b.ligne);
+  const vis = (S.splitFiltre === "cours" ? cours : S.splitFiltre === "reglees" ? reglees : split).slice().sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.ligne - a.ligne);
   const x = splitDetail(m), net = x.net, cl = Math.abs(net || 0) < 0.005 ? "" : (net > 0 ? "pos" : "neg");
   const somme = l => l.reduce((a, t) => a + (t.marika || 0), 0);
   const ligne = t => { const s = semType(t.type), dette = t.marika < 0;
@@ -2766,13 +2797,11 @@ function dlgMarikaPro(filtre){
         <div class="m"><div class="t">${esc(r.libelle || "(sans description)")}</div><div class="s">${r.auto ? "Report automatique" : "Ajout manuel"}${r.regle ? ` · réglé (était ${$$(r.montant_origine)})` : ""}</div></div>
         <div class="v num ${r.montant < 0 ? "neg" : ""} ${r.regle ? "muted" : ""}">${$$(Math.abs(r.regle ? (r.montant_origine || 0) : r.montant))}<small>${r.montant < 0 || (r.montant_origine || 0) < 0 ? "tu dois" : `${PART()} doit`}</small></div></div>`).join("")
        : `<div class="p-vide">Aucun montant.</div>`}
-     ${arem.length ? `<div class="p-sec" style="margin-top:14px"><b>Payé par ${PART()}</b><span>reçu par lien</span></div>${arem.slice().sort((a, b) => (a.date || "").localeCompare(b.date || "")).map(t => `<div class="p-row"><div class="d">${jourCourt(t.date)}</div><div class="m"><div class="t">${esc(t.description.replace(/\s*\(carte [^()]+ – à rembourser\)\s*$/, ""))}</div><div class="s">à rembourser</div></div><div class="v num neg">${$$(t.deboursement)}<small>tu dois</small></div></div>`).join("")}` : ""}
+     ${arem.length ? `<div class="p-sec" style="margin-top:14px"><b>Payé par ${PART()}</b><span>reçu par lien</span></div>${arem.slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(t => `<div class="p-row"><div class="d">${jourCourt(t.date)}</div><div class="m"><div class="t">${esc(t.description.replace(/\s*\(carte [^()]+ – à rembourser\)\s*$/, ""))}</div><div class="s">à rembourser</div></div><div class="v num neg">${$$(t.deboursement)}<small>tu dois</small></div></div>`).join("")}` : ""}
      <div class="p-calc"><div><span>À recevoir de ${PART()}</span><b class="num">${$$(x.recevoir)}</b></div><div><span>À payer à ${PART()}</span><b class="num">− ${$$(x.payer)}</b></div><div class="tot"><span>Solde net</span><b class="num ${cl}">${netSplitTexte(net)}</b></div></div>
    </div>
-   <div class="dlg-f"><button type="button" class="btn" id="btnPartage">Envoyer à ${PART()}</button><button type="button" class="btn" id="btnRecoit">Recevoir</button><span class="grow"></span><button type="button" class="btn primary" data-close>Fermer</button></div>`, d => {
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn primary" data-close>Fermer</button></div>`, d => {
     $("#pf", d).onclick = ev => { const b = ev.target.closest("button"); if(b) dlgMarikaPro(b.dataset.f); };
-    $("#btnPartage", d).onclick = () => dlgPartage();
-    $("#btnRecoit", d).onclick = () => dlgCollePartage();
     const a = $("#addAj", d); if(a) a.onclick = () => dlgAjust(null);
     d.querySelectorAll("[data-aj]").forEach(it => it.onclick = () => dlgAjust(m.reports.find(r => r.ligne == it.dataset.aj)));
     d.querySelectorAll("[data-l]").forEach(it => it.onclick = () => dlgTransaction(m.transactions.find(t => t.ligne == it.dataset.l), () => dlgMarikaPro()));
