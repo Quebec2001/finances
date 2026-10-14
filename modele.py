@@ -699,13 +699,28 @@ class Application:
             if t["cat_manuelle"] and t["categorie"] != t["cat_auto"]:
                 ajust.append("Catégorie corrigée à la main ligne %d : « %s » → %s (auto : %s)"
                              % (t["ligne"], t["description"], t["categorie"], t["cat_auto"]))
+        # Parts payées par le partenaire (« – à rembourser ») : celles du mois, plus celles des mois précédents pas encore
+        # réglées. Le report automatique « Portion <mois> » reprend le total du mois précédent AVANT leur déduction ;
+        # sans ce report, elles disparaîtraient du solde net au changement de mois (corrigé le 2026-10-14).
+        a_remb_rep = 0
+        if der_marq is None:
+            for x in reports:
+                mm = re.match(r"^=?(?:IF\(.*,)?'?([^'!]+?)'?!", x.get("formule") or "") if x.get("auto") else None
+                prec = mm.group(1) if mm else None
+                if prec and prec != nom and any(i["feuille"] == prec and i["canvas"] for i in self.mois):
+                    try:
+                        pm = self.modele(prec)
+                        a_remb_rep += pm.get("total_a_rembourser") or 0
+                    except Exception:
+                        pass
+        a_remb = sum(t["deboursement"] or 0 for t in trans if t.get("a_rembourser")) + a_remb_rep
         m.update({
             "feuille": nom, "nom": nom.strip(), "groupe": info["groupe"], "modifiable": info["modifiable"],
             "pct_marika": pct, "pct_manuel": pct_manuel, "revenu_marika": marika_rev, "revenu_zach": zach_rev,
             "pct_repartition": pct_repart, "transactions": trans, "total_depenses": total,
             "total_split": k_total, "du_depuis_reglement": du_depuis, "reports": reports, "du_total": du_total,
-            "total_a_rembourser": r2(sum(t["deboursement"] or 0 for t in trans if t.get("a_rembourser"))),
-            "du_net": r2((du_total or 0) - sum(t["deboursement"] or 0 for t in trans if t.get("a_rembourser"))),
+            "total_a_rembourser": r2(a_remb), "a_rembourser_reporte": r2(a_remb_rep),
+            "du_net": r2((du_total or 0) - a_remb),
             "ligne_dernier_reglement": der_marq, "par_categorie": resume_cats, "hors_resume": hors_resume,
             "pourboires": pourb,
             "total_pourboires": {"recu": sum(p.get("recu") or 0 for p in pourb if p["utilise"]),
@@ -1412,11 +1427,17 @@ class Application:
                 f.ecrit(d.c_marq + str(ligne), marque)
                 self._regle_autres_montants(f, d)
                 perso = next((b for b in self.types_bruts if sem_type(b) == "P"), "Personnel ")
-                for t in self.modele(feuille)["transactions"]:
-                    if t.get("a_rembourser"):
-                        f.ecrit(d.c_type + str(t["ligne"]), perso)
-                        f.ecrit(d.c_desc + str(t["ligne"]), RX_A_REMBOURSER.sub(
-                            lambda mm: mm.group(0).replace(" – à rembourser", ""), t["description"]))
+                # le règlement couvre aussi les parts payées par le partenaire des mois précédents encore ouverts
+                # (reportées dans le solde) : elles passent en « Personnel » elles aussi (corrigé le 2026-10-14)
+                cle = self.info_mois(feuille)["cle"]
+                cibles = [(feuille, f, d)] + [(i["feuille"],) + tuple(self._verifie_modifiable(i["feuille"]))
+                                              for i in self.mois if i["modifiable"] and i["cle"] < cle]
+                for nomf, ff, dd in cibles:
+                    for t in self.modele(nomf)["transactions"]:
+                        if t.get("a_rembourser"):
+                            ff.ecrit(dd.c_type + str(t["ligne"]), perso)
+                            ff.ecrit(dd.c_desc + str(t["ligne"]), RX_A_REMBOURSER.sub(
+                                lambda mm: mm.group(0).replace(" – à rembourser", ""), t["description"]))
         return self._ecriture(op)
 
     def _condition_reglement(self, d):
