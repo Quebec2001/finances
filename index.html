@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-tkljpoxj5HJQpJrr9RWK/cJBVB8mNsiMU2BzYqu9ONw=' 'sha256-CCxVA+jZAxIoLWUy4knNvQMerW10shyAd570lfCcgGg='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -433,7 +434,7 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=bcf05692f0"></script>
+<script src="web.js?v=20ba5dd34b"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1477,9 +1478,10 @@ async function graphDepenses6(z){
 }
 // ---------------------------------------------------------------- import de captures d'écran (relevés)
 const TESSERACT = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+const TESSERACT_SRI = "sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F"; // empreinte exacte (le navigateur refuse un fichier modifié)
 function chargeScriptUneFois(src){
   if(!window.__scripts) window.__scripts = {};
-  if(!window.__scripts[src]) window.__scripts[src] = new Promise((ok, ko) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => { delete window.__scripts[src]; ko(new Error("Chargement impossible de l'outil de lecture (connexion Internet ?)")); }; document.head.appendChild(s); });
+  if(!window.__scripts[src]) window.__scripts[src] = new Promise((ok, ko) => { const s = document.createElement("script"); s.src = src; if(src === TESSERACT){ s.integrity = TESSERACT_SRI; s.crossOrigin = "anonymous"; } s.onload = ok; s.onerror = () => { delete window.__scripts[src]; ko(new Error("Chargement impossible de l'outil de lecture (connexion Internet ?)")); }; document.head.appendChild(s); });
   return window.__scripts[src];
 }
 function imageVersCanvas(fichier){
@@ -1663,7 +1665,14 @@ function evalMontant(txt){
   let t = String(txt||"").replace(/\s|\$/g,"").replace(/^=/,"").replace(/,/g,".");
   if(!t) return null;
   if(!/^[\d.+\-*/()]+$/.test(t)) return NaN;
-  try { const v = Function(`"use strict";return (${t})`)(); return typeof v==="number" && isFinite(v) ? v : NaN; } catch(e){ return NaN; }
+  // petite calculatrice (+ − × ÷ et parenthèses), sans eval : compatible avec la politique de sécurité du site
+  let i = 0;
+  const nb = () => { const m = /^(\d+\.?\d*|\.\d+)/.exec(t.slice(i)); if(!m) throw 0; i += m[0].length; return parseFloat(m[0]); };
+  const fact = () => { const c = t[i]; if(c === "+"){ i++; return fact(); } if(c === "-"){ i++; return -fact(); }
+    if(c === "("){ i++; const v = somme(); if(t[i] !== ")") throw 0; i++; return v; } return nb(); };
+  const prod = () => { let v = fact(); while(t[i] === "*" || t[i] === "/"){ const o = t[i++]; const w = fact(); v = o === "*" ? v * w : v / w; } return v; };
+  const somme = () => { let v = prod(); while(t[i] === "+" || t[i] === "-"){ const o = t[i++]; const w = prod(); v = o === "+" ? v + w : v - w; } return v; };
+  try { const v = somme(); return i === t.length && isFinite(v) ? v : NaN; } catch(e){ return NaN; }
 }
 
 function ouvre(html, onReady){
@@ -3183,7 +3192,7 @@ function vuePlusPro(el){
      ${item("pMot", "mot", "Mots-clés", e.motscles.length + " mots-clés → catégorie")}
      ${item("pTyp", "cat", "Types de dépenses", e.types.map(x => TYPES_COURTS[semType(x)] || x).join(" · "))}</div></div>
    <div class="p-groupe"><div class="t">Compte</div><div class="p-liste">
-     ${window.WEB ? item("pWeb", "nuage", "Compte Microsoft et fichier", "Fichier OneDrive, sauvegardes, déconnexion") : item("pFich", "nuage", "Fichier", esc(e.fichier || ""))}</div></div>`;
+     ${window.WEB ? item("pWeb", "nuage", "Compte, fichier et sécurité", "Fichier OneDrive, sauvegardes, verrouillage Face ID, déconnexion") : item("pFich", "nuage", "Fichier", esc(e.fichier || ""))}</div></div>`;
   $("#pInvB", el).onclick = () => vaVers("inv");
   $("#pNm", el).onclick = () => dlgNouveauMois();
   $("#pCtl", el).onclick = () => vaVers("ctl");
@@ -3192,7 +3201,7 @@ function vuePlusPro(el){
   $("#pCat", el).onclick = () => dlgCategories();
   $("#pMot", el).onclick = () => dlgMotsCles();
   $("#pTyp", el).onclick = () => dlgTypes();
-  if($("#pWeb", el)) $("#pWeb", el).onclick = () => ouvre(`<div class="dlg-h"><h2>Compte et fichier</h2><button type="button" class="x" data-close>✕</button></div><div class="dlg-b">${WEB.carteReglages()}</div>`, d => WEB.brancheReglages(d));
+  if($("#pWeb", el)) $("#pWeb", el).onclick = () => ouvre(`<div class="dlg-h"><h2>Compte, fichier et sécurité</h2><button type="button" class="x" data-close>✕</button></div><div class="dlg-b">${WEB.carteReglages()}</div>`, d => WEB.brancheReglages(d));
   if($("#pFich", el)) $("#pFich", el).onclick = () => toast(e.fichier || "");
 }
 function dlgCategories(){

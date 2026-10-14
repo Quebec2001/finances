@@ -3,7 +3,7 @@
 // moteur Python exécuté dans le navigateur (Pyodide). Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "bcf05692f0";
+const VERSION = "20ba5dd34b";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPES_BASE = "Files.ReadWrite offline_access User.Read";
@@ -12,6 +12,8 @@ const SCOPES_SYNC = SCOPES_BASE + " Files.ReadWrite.All";
 const scopes = () => LS.get("w_scope") === "all" ? SCOPES_SYNC : SCOPES_BASE;
 const G = "https://graph.microsoft.com/v1.0";
 const PYODIDE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
+// empreinte exacte de pyodide.js 0.26.4 : si le fichier servi par le CDN était modifié, le navigateur refuserait de l'exécuter
+const PYODIDE_SRI = "sha384-i3R37b3tF+HWudsUf1VSEOY2YxwSNMqY8DQa9Z0O3xh+NkJ9o+yjcGyIi5huj+nB";
 const CONFIG = {premier_mois_modifiable: "Octobre 2026", alias_investissements: {"Fonds communs de placement": "CÉLI"}};
 const CHEMIN = "/data/finances.xlsx";
 const MODULES = ["formules.py", "xlsx.py", "modele.py", "releve.py", "rapprochement.py", "routes.py", "pont.py"];
@@ -40,7 +42,7 @@ const style = document.createElement("style");
 style.textContent = `#webEcran{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px}
 .we-boite{max-width:380px;text-align:center}.we-boite p{color:var(--ink-2);margin:12px 0}.we-boite h1{font-size:22px;margin:8px 0}
 .we-logo{width:72px;height:72px;border-radius:18px}.we-spin{width:28px;height:28px;margin:18px auto 0;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:we 0.8s linear infinite}
-@keyframes we{to{transform:rotate(360deg)}}.we-liste{display:grid;gap:8px;margin-top:12px;text-align:left}.we-liste button{text-align:left}`;
+#webVerrou{position:fixed;inset:0;z-index:300;background:var(--bg);display:none;align-items:center;justify-content:center;padding:24px}@keyframes we{to{transform:rotate(360deg)}}.we-liste{display:grid;gap:8px;margin-top:12px;text-align:left}.we-liste button{text-align:left}`;
 document.head.appendChild(style);
 
 // ------------------------------------------------------------------ connexion Microsoft
@@ -193,12 +195,12 @@ async function sauvegardeDuJour(){
 }
 
 // ------------------------------------------------------------------ moteur Python
-function chargeScript(src){
-  return new Promise((ok, ko) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => ko(new Error("Chargement impossible : " + src)); document.head.appendChild(s); });
+function chargeScript(src, integrite){
+  return new Promise((ok, ko) => { const s = document.createElement("script"); s.src = src; if(integrite){ s.integrity = integrite; s.crossOrigin = "anonymous"; } s.onload = ok; s.onerror = () => ko(new Error("Chargement impossible : " + src)); document.head.appendChild(s); });
 }
 async function chargePython(){
   etape("Chargement du moteur de calcul… (la première fois peut prendre une dizaine de secondes)");
-  await chargeScript(PYODIDE + "pyodide.js");
+  await chargeScript(PYODIDE + "pyodide.js", PYODIDE_SRI);
   py = await loadPyodide({indexURL: PYODIDE});
   py.FS.mkdirTree("/app"); py.FS.mkdirTree("/data");
   for(const n of MODULES){
@@ -265,6 +267,7 @@ async function demarre(){
     });
     return new Promise(() => {});
   }
+  if(LS.get("w_verrou")) await verrouille(true);       // Face ID / code de l'appareil avant d'ouvrir quoi que ce soit
   try {
     const me = await (await graph("/me?$select=displayName,userPrincipalName,mail")).json();
     compte = me.userPrincipalName || me.mail || me.displayName || "";
@@ -283,8 +286,13 @@ async function demarre(){
     try { if(await aChange()){ await telecharge(); if(typeof rafraichit === "function") await rafraichit(); toast("Données mises à jour depuis OneDrive"); } } catch(e){}
   });
 }
+// si la politique de sécurité bloque une adresse imprévue (ex. un nouveau serveur de téléchargement OneDrive),
+// on l'affiche dans le message d'erreur pour pouvoir l'ajouter à la liste
+const bloques = [];
+document.addEventListener("securitypolicyviolation", ev => { try { const h = new URL(ev.blockedURI).host; if(h && !bloques.includes(h)) bloques.push(h); } catch(x){} });
 function erreurDemarrage(e){
   console.error(e);
+  if(bloques.length) e = new Error((e.message || e) + " (adresse bloquée par la sécurité : " + bloques.join(", ") + ")");
   const el = ecran(`<h1>Oups</h1><p>${esc(e.message || e)}</p><button class="btn primary" id="weRe">Réessayer</button>
     <p><button class="btn small" id="weOut">Se déconnecter</button></p>`);
   el.querySelector("#weRe").onclick = () => location.reload();
@@ -292,7 +300,7 @@ function erreurDemarrage(e){
   return new Promise(() => {});
 }
 function deconnexion(){
-  ["w_at", "w_exp", "w_rt", "w_login", "w_fichier", "w_lien", "w_scope", "w_sync_off"].forEach(k => LS.set(k, null));
+  ["w_at", "w_exp", "w_rt", "w_login", "w_fichier", "w_lien", "w_scope", "w_sync_off", "w_verrou"].forEach(k => LS.set(k, null));
   location.href = REDIRECT;
 }
 async function changerFichier(){
@@ -304,13 +312,74 @@ function carteReglages(){
     <div class="kv small"><div class="k">Compte Microsoft</div><div style="word-break:break-all">${esc(compte)}</div>
     <div class="k">Fichier OneDrive</div><div style="word-break:break-all">${esc(fichier && fichier.name)}</div></div>
     <p class="hint">Une copie de sécurité est faite chaque jour d'utilisation dans le dossier OneDrive « Sauvegardes app finances », à côté du fichier Excel.</p>
+    <div class="we-verrou" style="display:flex;align-items:center;gap:10px;margin:10px 0"><div class="grow" style="flex:1"><b>Verrouillage Face ID / code</b><div class="hint" style="margin:2px 0 0">${LS.get("w_verrou") ? "Activé : demandé à l'ouverture et après 5 minutes hors de l'app." : "Demande Face ID ou le code de l'appareil pour ouvrir l'app."}</div></div><button class="btn small" id="weVerrou">${LS.get("w_verrou") ? "Désactiver" : "Activer"}</button></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="weFich">Changer de fichier</button><button class="btn small" id="weDec">Se déconnecter</button>${typeof window.dlgSync === "function" ? `<button class="btn small" id="weSync">Synchronisation du partage</button>` : ""}</div></div>`;
 }
 function brancheReglages(el){
   const a = el.querySelector("#weFich"); if(a) a.onclick = changerFichier;
   const b = el.querySelector("#weDec"); if(b) b.onclick = deconnexion;
+  const v = el.querySelector("#weVerrou");
+  if(v) v.onclick = async () => {
+    try {
+      if(LS.get("w_verrou")){ await verifieIdentite(); LS.set("w_verrou", null); toast("Verrouillage désactivé"); }
+      else { await activeVerrou(); toast("Verrouillage activé"); }
+    } catch(e){ if(!(e && e.name === "NotAllowedError")) toast(e.message || String(e)); return; }
+    const c = v.closest(".card"); if(c){ const par = c.parentNode; c.outerHTML = carteReglages(); brancheReglages(par); }
+  };
   const c = el.querySelector("#weSync"); if(c) c.onclick = () => window.dlgSync();
 }
+
+// ------------------------------------------------------------------ verrouillage (Face ID / Touch ID / code de l'appareil)
+// WebAuthn avec l'authentificateur intégré de l'appareil : l'app demande au téléphone de confirmer l'identité de la
+// personne (Face ID, empreinte ou code). Aucune donnée biométrique n'est vue par l'app ni envoyée nulle part.
+// C'est un verrou d'accès à l'app : il empêche quelqu'un qui prend le téléphone déverrouillé d'ouvrir les finances.
+const VERROU_DELAI = 5 * 60 * 1000;            // re-verrouiller après 5 minutes hors de l'app
+const deB64 = t => Uint8Array.from(atob(t.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
+const octets = n => crypto.getRandomValues(new Uint8Array(n));
+let verrouOuvert = null, quitteLe = 0;
+async function verrouDispo(){
+  try { return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); } catch(e){ return false; }
+}
+async function verifieIdentite(){
+  const id = LS.get("w_verrou"); if(!id) return true;
+  await navigator.credentials.get({publicKey: {challenge: octets(32), rpId: location.hostname, timeout: 60000, userVerification: "required",
+    allowCredentials: [{type: "public-key", id: deB64(id), transports: ["internal", "hybrid"]}]}});
+  return true;
+}
+function verrouille(auto){
+  if(verrouOuvert) return verrouOuvert;
+  let el = document.getElementById("webVerrou");
+  if(!el){ el = document.createElement("div"); el.id = "webVerrou"; document.body.appendChild(el); }
+  el.innerHTML = `<div class="we-boite"><img src="icone.png" alt="" class="we-logo"><h1>Finances verrouillées</h1>
+    <p>Confirme ton identité avec Face ID ou le code de ton appareil.</p><p id="wvMsg" class="small"></p>
+    <button class="btn primary" id="wvOk">Déverrouiller</button>
+    <p><button class="btn small" id="wvOut">Se déconnecter</button></p></div>`;
+  el.style.display = "flex";
+  verrouOuvert = new Promise(ok => {
+    const essai = async () => {
+      try { await verifieIdentite(); el.style.display = "none"; el.innerHTML = ""; verrouOuvert = null; ok(); }
+      catch(e){ el.querySelector("#wvMsg").textContent = e && e.name === "NotAllowedError" ? "" : "Vérification impossible : " + (e.message || e); }
+    };
+    el.querySelector("#wvOk").onclick = essai;
+    el.querySelector("#wvOut").onclick = deconnexion;
+    if(auto) essai();
+  });
+  return verrouOuvert;
+}
+async function activeVerrou(){
+  if(!await verrouDispo()) throw new Error("Cet appareil ou ce navigateur n'offre pas Face ID / code pour les sites web.");
+  const c = await navigator.credentials.create({publicKey: {
+    challenge: octets(32), rp: {name: "Finances", id: location.hostname}, timeout: 60000, attestation: "none",
+    user: {id: octets(16), name: compte || "finances", displayName: nomCompte || compte || "Finances"},
+    pubKeyCredParams: [{type: "public-key", alg: -7}, {type: "public-key", alg: -257}],
+    authenticatorSelection: {authenticatorAttachment: "platform", userVerification: "required", residentKey: "discouraged"}}});
+  LS.set("w_verrou", b64url(c.rawId));
+}
+document.addEventListener("visibilitychange", () => {
+  if(!LS.get("w_verrou")) return;
+  if(document.visibilityState === "hidden") quitteLe = Date.now();
+  else if(quitteLe && Date.now() - quitteLe > VERROU_DELAI) verrouille(true);
+});
 
 // ------------------------------------------------------------------ fichier partagé du couple (synchronisation)
 // « Partage couple.json » est créé dans le OneDrive de la personne qui lie les comptes, à côté de son Excel,
