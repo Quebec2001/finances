@@ -433,7 +433,7 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="web.js?v=dd97086018"></script>
+<script src="web.js?v=bcf05692f0"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -798,8 +798,10 @@ async function syncReconcilie(opts = {}){
       const dejaCouv = new Set(j.reglements.flatMap(g => g.couvre || []));
       const couvre = Object.keys(sortie).filter(id => sortie[id] === "reglee").concat(couvertesAutre).filter(id => !dejaCouv.has(id));
       if(marqueChange && couvre.length) j.reglements.push({id: "r" + Date.now().toString(36), par: moi, date: today(), cle: mo.cle, net: precedent.net ?? null, couvre, confirme: false});
-      j.soldes[moi] = {net, mois: mo.cle, maj: maintenant, marq};
-      j.membres[moi] = maintenant;
+      j.soldes[moi] = {net, mois: mo.cle, marq};
+      j.membres[moi] = true;          // présence seulement : aucune heure d'ouverture dans le fichier partagé
+      Object.keys(j.membres).forEach(k => { j.membres[k] = true; });
+      Object.values(j.soldes).forEach(x => { if(x) delete x.maj; });
       // ménage : ce qui est terminé depuis longtemps
       const vieux = iso => iso && (Date.now() - Date.parse(iso)) > 120 * 864e5;
       j.depenses = j.depenses.filter(d => !(vieux(d.maj || d.ajoute) && (d.statut === "reglee" || (d.statut === "retiree" && (!d.recue || d.recue.supprimee)))));
@@ -884,10 +886,10 @@ function bandeauSyncHTML(){
   let pt = "ok", ligne = `Synchronisé ${depuisQuand(SYNC.maj)}`, sous = "";
   if(!j){ pt = "off"; ligne = "Synchronisation…"; }
   else if(prop){ pt = "ko"; ligne = `${esc(prop.par)} a marqué le solde réglé`; sous = "Touche pour confirmer le remboursement."; }
-  else if(c && c.attente) sous = `En attente de la première ouverture de l'app de ${P}.`;
+  else if(c && c.attente) sous = `La comparaison des soldes apparaîtra après la synchronisation de l'app de ${P}.`;
   else if(c && c.autreMois) sous = `L'app de ${P} est sur un autre mois.`;
   else if(c && c.egal) sous = Math.abs(c.ecart) < 0.005 ? `Vos deux apps affichent le même solde.` : `Vos deux apps affichent le même solde (à ${$$(Math.abs(c.ecart))} près, arrondis des parts).`;
-  else if(c){ pt = "ko"; sous = `Écart de ${$$(Math.abs(c.ecart))} avec l'app de ${P} (ouverte ${depuisQuand(Date.parse(c.b.maj))}).`; }
+  else if(c){ pt = "ko"; sous = `Écart de ${$$(Math.abs(c.ecart))} avec l'app de ${P}.`; }
   if(mienne && !prop) sous = `Remboursement du ${dL(mienne.date)} en attente de confirmation par ${P}.`;
   return `<button type="button" class="sync-b" data-sync ${prop ? `data-prop="${esc(prop.id)}"` : ""}><span class="sync-pt ${pt}"></span><span class="tx"><b>${ligne}</b>${sous ? `<small>${sous}</small>` : ""}</span><span class="chev">›</span></button>`;
 }
@@ -995,13 +997,11 @@ function dlgSync(){
     return;
   }
   const l = WEB.partage.lien(), pause = WEB.partage.pause(), c = comparaisonSoldes(), j = SYNC.etat;
-  const autreVu = j && j.membres[REG().partenaire];
   ouvre(`<div class="dlg-h"><h2>Synchronisation avec ${P}</h2><button type="button" class="x" data-close>✕</button></div>
    <div class="dlg-b">
      <div class="kv small">
        <div class="k">État</div><div>${pause ? "En pause" : SYNC.erreur ? `<span class="neg">${esc(SYNC.erreur)}</span>` : "Active"}</div>
        <div class="k">Dernière synchronisation</div><div>${depuisQuand(SYNC.maj)}</div>
-       <div class="k">App de ${P}</div><div>${autreVu ? "ouverte " + depuisQuand(Date.parse(autreVu)) : "pas encore ouverte"}</div>
        <div class="k">Fichier partagé</div><div>dans le OneDrive de ${esc(l.proprio || "?")}</div>
        ${c && c.a && c.b ? `<div class="k">Soldes</div><div>${c.egal ? (Math.abs(c.ecart) < 0.005 ? "identiques ✓" : `identiques à ${$$(Math.abs(c.ecart))} près (arrondis) ✓`) : `écart de ${$$(Math.abs(c.ecart))}`}</div>` : ""}
      </div>
