@@ -32,7 +32,7 @@
 
   const TABLES = ["reglages","categories","mots_cles","reglements","depenses","autres_montants","pourboires","revenus","revenus_pourboires",
     "repartition","comptes_placement","placements_mois","versements_epargne","soldes_mois","ajustements_solde","releves_banque","budgets",
-    "exclusions_rappro","journal"];
+    "exclusions_rappro","journal","financements","financements_recus","financements_soldes"];
   function API(D, opts = {}){
     for(const t of TABLES) if(!Array.isArray(D[t])) D[t] = [];
     const auj = () => opts.aujourdhui ? opts.aujourdhui() : new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -175,6 +175,9 @@
         solde_debut: ch.debut, retrait: ch.epargne, retraits, revenu_net: ch.revenuNet, solde_fin: ch.fin, solde_fin_standard: ch.fin,
         solde_reel: rel ? rel.solde_c / 100 : null, controles: [], resume_controles: "", nb_a_verifier: 0, ajustements: [],
         mois_param: i.nom, lignes_libres: 9999};
+      out.financements = m.financements(mo).map(f => ({ligne: f.id, nom: f.nom, recu: f.recu, recu_mois: f.recuMois, solde_du: f.soldeDu, solde_du_date: f.soldeDuDate,
+        recus: f.recus.map(x => ({ligne: x.id, date: x.date, montant: x.montant_c / 100, note: x.note}))}));
+      out.financement_recu_mois = ch.financement || 0;
       if(mo === auj().slice(0, 7)) out.soldes_jour = soldesJour(m);
       return out;
     }
@@ -418,8 +421,8 @@
     // ------------------------------------------------------------------ historique des modifications et « Annuler »
     const TABLE_FR = {depenses: "Dépense", revenus: "Revenu", pourboires: "Pourboires", autres_montants: "Autre montant", reglements: "Règlement",
       mots_cles: "Mot-clé", categories: "Catégorie", placements_mois: "Placement", repartition: "Répartition", budgets: "Budgets",
-      ajustements_solde: "Ajustement de solde", comptes_placement: "Compte de placement", releves_banque: "Solde de la banque", versements_epargne: "Épargne"};
-    const ANNULABLES = new Set(["releves_banque", "depenses", "revenus", "pourboires", "autres_montants", "reglements", "mots_cles", "ajustements_solde", "placements_mois", "categories"]);
+      ajustements_solde: "Ajustement de solde", comptes_placement: "Compte de placement", financements: "Financement", financements_recus: "Financement reçu", financements_soldes: "Solde dû d'un financement", releves_banque: "Solde de la banque", versements_epargne: "Épargne"};
+    const ANNULABLES = new Set(["financements", "financements_recus", "financements_soldes", "releves_banque", "depenses", "revenus", "pourboires", "autres_montants", "reglements", "mots_cles", "ajustements_solde", "placements_mois", "categories"]);
     function resume(j){
       const o = JSON.parse(j.apres || j.avant || "null") || {};
       const mt = o.montant_c != null ? " · " + (o.montant_c / 100).toFixed(2).replace(".", ",") + " $" : "";
@@ -500,6 +503,25 @@
           D.ajustements_solde.push(x); journal("ajustements_solde", x.id, "ajout", null, x); res = x.id; break; }
         case "/api/ajustement/supprimer": res = supprime("ajustements_solde", corps.ligne); break;
         case "/api/annuler": res = annuler(+corps.id); break;
+        // ---- financement (prêts) : argent reçu (entre au compte, pas un revenu) et solde dû inscrit à la main
+        case "/api/financement": {
+          const n = String(corps.nom || "").trim(); if(!n) throw new Erreur("Nom obligatoire (ex. « Prêt étudiant »).");
+          const x = {id: nouvelId("financements"), nom: n, ordre: D.financements.length + 1, cree: f ? info(f).cle : auj().slice(0, 7)};
+          D.financements.push(x); journal("financements", x.id, "ajout", null, x); res = x.id; break; }
+        case "/api/financement/recu": {
+          const i = modifiable(f); const fid = +corps.financement; if(!D.financements.some(x => x.id === fid)) throw new Erreur("Financement introuvable");
+          const c = calcule(corps.montant); if(!c || !c.valeur) throw new Erreur("Le montant est obligatoire.");
+          const date = corps.date || auj(); const mois_ = date.slice(0, 7) >= verrou() ? date.slice(0, 7) : i.cle;
+          const champs = {financement_id: fid, mois: mois_, date, montant_c: cents(c.valeur), note: String(corps.note || "").trim() || null};
+          if(corps.ligne != null){ const x = D.financements_recus.find(y => y.id === +corps.ligne); if(!x) throw new Erreur("Ligne introuvable");
+            const av = Object.assign({}, x); Object.assign(x, champs); journal("financements_recus", x.id, "modification", av, x); res = x.id; break; }
+          const x = Object.assign({id: nouvelId("financements_recus")}, champs); D.financements_recus.push(x); journal("financements_recus", x.id, "ajout", null, x); res = x.id; break; }
+        case "/api/financement/recu/supprimer": res = supprime("financements_recus", corps.ligne); break;
+        case "/api/financement/solde": {
+          const fid = +corps.financement; if(!D.financements.some(x => x.id === fid)) throw new Erreur("Financement introuvable");
+          const c = calcule(corps.solde_du); if(!c) throw new Erreur("Le solde dû est obligatoire.");
+          const x = {id: nouvelId("financements_soldes"), financement_id: fid, date: corps.date || auj(), solde_du_c: cents(c.valeur)};
+          D.financements_soldes.push(x); journal("financements_soldes", x.id, "ajout", null, x); res = x.id; break; }
         case "/api/listes/categorie": {
           const n = String(corps.nom || "").trim(); if(!n) throw new Erreur("Nom obligatoire"); if(catId(n)) throw new Erreur("Cette catégorie existe déjà.");
           const c = {id: nouvelId("categories"), nom: n, ordre: D.categories.length + 1, couleur: null, active: 1}; D.categories.push(c); journal("categories", c.id, "ajout", null, c); res = c.id; break; }

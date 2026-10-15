@@ -72,6 +72,13 @@ CREATE TABLE soldes_mois (                                       -- un mois : po
   ajustement_raison TEXT);
 CREATE TABLE ajustements_solde (                                 -- « Ajustement de solde » inscrit par la personne (écart inexpliqué)
   id INTEGER PRIMARY KEY, mois TEXT NOT NULL, date TEXT NOT NULL, montant_c INTEGER NOT NULL, note TEXT);
+CREATE TABLE financements (                                      -- prêts et autres financements (ex. prêt étudiant)
+  id INTEGER PRIMARY KEY, nom TEXT NOT NULL, ordre INTEGER NOT NULL, cree TEXT);
+CREATE TABLE financements_recus (                                -- argent reçu d'un financement : entre au compte, mais ce n'est PAS un revenu
+  id INTEGER PRIMARY KEY, financement_id INTEGER NOT NULL REFERENCES financements(id), mois TEXT NOT NULL, date TEXT NOT NULL,
+  montant_c INTEGER NOT NULL, note TEXT);
+CREATE TABLE financements_soldes (                               -- solde dû inscrit à la main (ex. relevé du prêt)
+  id INTEGER PRIMARY KEY, financement_id INTEGER NOT NULL REFERENCES financements(id), date TEXT NOT NULL, solde_du_c INTEGER NOT NULL);
 CREATE TABLE releves_banque (id INTEGER PRIMARY KEY, date TEXT NOT NULL, solde_c INTEGER NOT NULL, origine TEXT);
 
 CREATE TABLE budgets (categorie_id INTEGER NOT NULL REFERENCES categories(id), mois TEXT NOT NULL DEFAULT '',  -- '' = défaut

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-tkljpoxj5HJQpJrr9RWK/cJBVB8mNsiMU2BzYqu9ONw=' 'sha256-6ys/BwQH5D51dL1dTIUIV6RBLXWiqQVG8ojs4VBYqoY='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-tkljpoxj5HJQpJrr9RWK/cJBVB8mNsiMU2BzYqu9ONw=' 'sha256-gVrGrSF8joszJneUyuIY3ZHBSF6JXBx6cNfMlxUuHpw='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -267,6 +267,7 @@ body.pro header{border-bottom:0;background:color-mix(in srgb,var(--bg) 88%,trans
 body.pro .brand{font-size:18px;font-weight:750;letter-spacing:-.02em}
 body.pro .brand{display:flex;flex-direction:column;line-height:1.15}
 .p-attendu{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;margin-top:8px;padding:11px 16px;border-radius:14px;background:var(--surface);border:1px solid var(--line);cursor:pointer}
+.fin-l{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:10px 0;border-top:1px solid var(--line)}.fin-l:first-of-type{border-top:0}.fin-t{display:flex;flex-direction:column;gap:2px}.fin-v{text-align:right}.fin-b{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
 .p-conc{display:block;width:100%;text-align:left;margin-top:6px;padding:8px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font:inherit;font-size:13px;font-weight:600;cursor:pointer}.p-conc.ok{color:var(--pos,#15803d)}.p-conc.ko{color:var(--neg,#b91c1c);border-color:currentColor}.p-conc.neutre{color:var(--ink-3);font-weight:500}
 .p-attendu .l{font-size:13px;font-weight:650;color:var(--ink-2)}.p-attendu .s{font-size:12px;color:var(--ink-3);margin-top:1px}.p-attendu .v{font-size:17px;font-weight:700}.p-attendu .chev{color:var(--ink-3);font-size:18px}
 .p-at{border:1px solid var(--line);border-radius:12px;padding:2px 14px}
@@ -435,10 +436,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=1a5e27e92b"></script>
-<script src="api2.js?v=1a5e27e92b"></script>
-<script src="export_xlsx.js?v=1a5e27e92b"></script>
-<script src="web2.js?v=1a5e27e92b" data-version="web.js?v=1a5e27e92b"></script>
+<script src="calculs.js?v=5113908d33"></script>
+<script src="api2.js?v=5113908d33"></script>
+<script src="export_xlsx.js?v=5113908d33"></script>
+<script src="web2.js?v=5113908d33" data-version="web.js?v=5113908d33"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -2540,7 +2541,9 @@ function vueInv(el){
    </tbody></table></div></div>`}
    ${MODE_PAYE() && mod && !inv.some(x=>/urgence/i.test(x.type)) ? `<div class="spacer"></div><div class="card"><h3>Fonds d'urgence</h3><p class="small muted" style="margin:0 0 10px">Suis ton fonds d'urgence avec tes autres placements : montant mis de côté, épargne du mois et valeur actuelle.</p><button class="btn primary" id="addFu">Ajouter mon fonds d'urgence</button></div>` : ""}
    <div class="spacer"></div>
-   <div class="card cadre"><h3>Évolution des investissements</h3><div id="g3"><div class="empty">Chargement…</div></div><div class="legend"><span><i style="background:var(--accent)"></i>Valeur marchande</span><span><i style="background:var(--ink-3)"></i>Montant investi</span></div></div>`;
+   <div class="card cadre"><h3>Évolution des investissements</h3><div id="g3"><div class="empty">Chargement…</div></div><div class="legend"><span><i style="background:var(--accent)"></i>Valeur marchande</span><span><i style="background:var(--ink-3)"></i>Montant investi</span></div></div>
+    <div class="spacer"></div>${carteFinancementHTML(S.mois, S.info.modifiable, (S.mois.investissements || []).reduce((a, x) => a + (x.jv || 0), 0))}`;
+  brancheFinancement(el, S.mois);
   (async () => { try { if(!S.tend) S.tend = await api("/api/tendances"); const g = $("#g3", el); if(g) graphLignes(g, S.tend, [{f:x=>x.jv||null,c:"var(--accent)",n:"Valeur marchande"},{f:x=>x.investi||null,c:"var(--ink-3)",n:"Montant investi"}]); } catch(e){} })();
   el.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>dlgInvest(inv.find(i=>i.ligne==b.dataset.i)));
   const fu = $("#addFu", el); if(fu) fu.onclick = () => dlgFondsUrgence();
@@ -2845,12 +2848,58 @@ function dlgMarikaPro(filtre){
     d.querySelectorAll("[data-l]").forEach(it => it.onclick = () => dlgTransaction(m.transactions.find(t => t.ligne == it.dataset.l), () => dlgMarikaPro()));
   });
 }
+// --- Financement (prêts) : l'argent reçu entre au compte sans être un revenu ; solde dû mis à jour à la main
+function carteFinancementHTML(m, mod, placements){
+  const l = m.financements || [], du = l.reduce((a, f) => a + (f.solde_du || 0), 0);
+  return `<div class="card cadre" id="fin"><h3>Financement${mod ? ` <span class="sp"><button class="btn small" id="finAj">Ajouter</button></span>` : ""}</h3>
+    ${l.length ? l.map(f => `<div class="fin-l"><div class="fin-t"><b>${esc(f.nom)}</b><span class="small muted">Reçu : ${$$(f.recu)}${f.recu_mois ? ` (dont ${$$(f.recu_mois)} ce mois-ci)` : ""}</span></div>
+        <div class="fin-v"><div class="num" style="font-weight:650">${$$(f.solde_du)}</div><div class="small muted">dû${f.solde_du_date ? " au " + dateLongue(f.solde_du_date) : ""}</div></div>
+        ${mod ? `<div class="fin-b"><button class="btn small" data-fr="${f.ligne}">+ Montant reçu</button><button class="btn small" data-fs="${f.ligne}">Solde dû</button></div>` : ""}</div>`).join("")
+      + (placements ? `<div class="kv small" style="margin-top:8px"><div class="k">Total dû</div><div class="num">${$$(du)}</div><div class="k">Valeur nette (placements − financement)</div><div class="num">${$$(placements - du)}</div></div>` : "")
+      : `<div class="small muted">Aucun financement. Un prêt reçu (ex. prêt étudiant) s'inscrit ici : l'argent entre au compte, mais ce n'est pas un revenu.</div>`}</div>`;
+}
+function brancheFinancement(z, m){
+  const a = $("#finAj", z); if(a) a.onclick = () => dlgFinancement();
+  z.querySelectorAll("[data-fr]").forEach(b => b.onclick = () => dlgFinRecu((m.financements || []).find(f => f.ligne == b.dataset.fr)));
+  z.querySelectorAll("[data-fs]").forEach(b => b.onclick = () => dlgFinSolde((m.financements || []).find(f => f.ligne == b.dataset.fs)));
+}
+function dlgFinancement(){
+  ouvre(`<form id="ffn"><div class="dlg-h"><h2>Nouveau financement</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b"><label class="f">Nom<input name="nom" required placeholder="Prêt étudiant"></label>
+     <label class="f">Montant reçu<input name="montant" inputmode="decimal" autocomplete="off" required></label>
+     <label class="f">Date de réception<input name="date" type="date" value="${today()}"></label>
+     <p class="hint" style="margin:0">L'argent reçu s'ajoute au solde du compte, mais ne compte pas comme un revenu.</p></div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary">Ajouter</button></div></form>`, d => {
+    const f = $("#ffn", d); f.onsubmit = async ev => { ev.preventDefault();
+      try { const r = await api("/api/financement", {feuille: S.feuille, nom: f.nom.value});
+        await ecrit("/api/financement/recu", {financement: r.resultat, montant: f.montant.value, date: f.date.value}, "Financement ajouté"); d.close(); } catch(e){ toast(e.message, true); } };
+  });
+}
+function dlgFinRecu(fi){
+  ouvre(`<form id="ffr"><div class="dlg-h"><h2>${esc(fi.nom)} – montant reçu</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b"><label class="f">Montant reçu<input name="montant" inputmode="decimal" autocomplete="off" required></label>
+     <label class="f">Date de réception<input name="date" type="date" value="${today()}"></label>
+     ${fi.recus && fi.recus.length ? `<div class="small muted">Déjà reçu : ${fi.recus.map(x => `${$$(x.montant)} (${dateLongue(x.date)})`).join(", ")}</div>` : ""}</div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary">Inscrire</button></div></form>`, d => {
+    const f = $("#ffr", d); f.onsubmit = async ev => { ev.preventDefault();
+      try { await ecrit("/api/financement/recu", {financement: fi.ligne, montant: f.montant.value, date: f.date.value}, "Montant reçu inscrit"); d.close(); } catch(e){} };
+  });
+}
+function dlgFinSolde(fi){
+  ouvre(`<form id="ffs"><div class="dlg-h"><h2>${esc(fi.nom)} – solde dû</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b"><label class="f">Solde dû (selon ton relevé du prêt)<input name="solde" inputmode="decimal" autocomplete="off" value="${esc(v2(fi.solde_du))}" required></label>
+     <label class="f">En date du<input name="date" type="date" value="${today()}"></label></div>
+   <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary">Enregistrer</button></div></form>`, d => {
+    const f = $("#ffs", d); f.onsubmit = async ev => { ev.preventDefault();
+      try { await ecrit("/api/financement/solde", {financement: fi.ligne, solde_du: f.solde.value, date: f.date.value}, "Solde dû enregistré"); d.close(); } catch(e){} };
+  });
+}
 function vueInvPro(el){
   const m = S.mois, mod = S.info.modifiable, inv = (m.investissements || []).slice().sort((a, b) => (b.jv || 0) - (a.jv || 0));
   el.innerHTML = `<button class="p-retour" id="pRet">‹ Plus</button><div id="pInv"></div>`;
   $("#pRet", el).onclick = () => vaVers("plus");
   const z = $("#pInv", el);
-  if(!inv.length){ z.innerHTML = `<div class="card"><div class="empty">Aucun investissement pour ce mois.</div></div>`; return; }
+  if(!inv.length){ z.innerHTML = `<div class="card"><div class="empty">Aucun investissement pour ce mois.</div></div><div class="spacer"></div>${carteFinancementHTML(m, mod, 0)}`; brancheFinancement(z, m); return; }
   const ti = inv.reduce((a, x) => a + (x.investi || 0), 0), tj = inv.reduce((a, x) => a + (x.jv || 0), 0), gain = tj - ti;
   const epargne = (m.retraits || []).reduce((a, x) => a + (x.montant || 0), 0);
   const epCompte = x => (m.retraits || []).filter(r => r.compte && x.type && r.compte.toLowerCase() === x.type.toLowerCase()).reduce((a, r) => a + (r.montant || 0), 0);
@@ -2877,9 +2926,12 @@ function vueInvPro(el){
          <div><span>Épargne du mois</span><b class="num">${ep ? $$(ep) : "—"}</b></div></div>
        ${mod && x.ligne ? `<div class="inv-mod">Mettre à jour la valeur ›</div>` : ""}</div>`; }).join("")}</div>
    <div class="spacer"></div>
+   ${carteFinancementHTML(m, mod, tj)}
+   <div class="spacer"></div>
    <div class="card cadre"><h3>Évolution</h3><div id="g3"><div class="empty">Chargement…</div></div>
      <div class="legend"><span><i style="background:var(--accent)"></i>Valeur marchande</span><span><i style="background:var(--ink-3)"></i>Capital investi</span></div><div class="small muted" id="invDepuis" style="margin-top:6px"></div></div>`;
   z.querySelectorAll("[data-i]").forEach(c => c.onclick = () => dlgInvest(inv.find(x => x.ligne == c.dataset.i)));
+  brancheFinancement(z, m);
   (async () => { try {
     if(!S.tend) S.tend = await api("/api/tendances");
     const T = S.tend.filter(x => x.jv), k = T.findIndex(x => x.feuille === S.feuille);
@@ -3269,7 +3321,7 @@ function vuePlusPro(el){
   const nbBud = Object.keys(BUDGETS()).length;
   const item = (id, ic, t1, t2, val = "") => `<button class="p-item" id="${id}"><span class="ic">${ICO[ic]}</span><span class="tx"><div class="t1">${t1}</div>${t2 ? `<div class="t2">${t2}</div>` : ""}</span>${val ? `<span class="val num">${val}</span>` : ""}<span class="chev">›</span></button>`;
   el.innerHTML = `
-   <div class="p-groupe"><div class="t">Patrimoine</div><div class="p-liste">${item("pInvB", "inv", "Placements", "CÉLI, CÉLIAPP et autres comptes", $$(tj))}</div></div>
+   <div class="p-groupe"><div class="t">Patrimoine</div><div class="p-liste">${item("pInvB", "inv", "Placements et financement", "CÉLI, CÉLIAPP, prêts", $$(tj))}</div></div>
    <div class="p-groupe"><div class="t">Mois</div><div class="p-liste">
      ${item("pRap", "rap", "Rapprochement bancaire", "Relevés Amex et Desjardins vs l'app · " + esc(S.info.nom))}</div></div>
    <div class="p-groupe"><div class="t">Organisation</div><div class="p-liste">

@@ -73,8 +73,10 @@
         const s = soldes.get(mo) || {debut_c: null, ajustement_c: 0}, m = M.mois(mo, logique);
         const debut = s.debut_c != null ? s.debut_c / 100 : (prec ?? 0);
         const ajust = (s.ajustement_c || 0) / 100 + somme((D.ajustements_solde || []).filter(a => a.mois === mo), a => a.montant_c) / 100;
-        const fin = debut + m.revenuNet - m.epargne + ajust;
-        out[mo] = Object.assign({debut, fin, ajustement: ajust}, m); prec = fin;
+        // financement reçu (prêt) : l'argent entre au compte, sans être un revenu (le revenu net n'en tient pas compte)
+        const finan = somme((D.financements_recus || []).filter(f => f.mois === mo), f => f.montant_c) / 100;
+        const fin = debut + m.revenuNet - m.epargne + ajust + finan;
+        out[mo] = Object.assign({debut, fin, ajustement: ajust, financement: finan}, m); prec = fin;
       }
       return out;
     };
@@ -106,7 +108,8 @@
       const depFut = dep.filter(d => jusque(d) && !d.historique && d.paye_par !== "partenaire" && d.date && d.date > auj && d.montant_c > 0);
       const p = M.detailPartenaire(auj, mo);
       const nonRegl = p.sesParts;
-      const sR = somme(revFut, r => r.montant_c) / 100, sD = somme(depFut, d => d.montant_c) / 100;
+      const finFut = (D.financements_recus || []).filter(f => f.mois <= mo && f.date > auj);
+      const sR = (somme(revFut, r => r.montant_c) + somme(finFut, f => f.montant_c)) / 100, sD = somme(depFut, d => d.montant_c) / 100;
       // en logique v1 (ancienne app de Zach), le solde de l'app comptait déjà ses parts payées par le partenaire
       const aRembDansApp = logique === "v1-zach" ? nonRegl : 0;
       const auCompte = app + aRembDansApp - sR + sD - (p.mesParts + p.autres);
@@ -114,7 +117,7 @@
       const sPb = somme(pbAttente, x => x.carte_c) / 100;
       const attendu = auCompte + sR - sD + p.net + sPb;
       const releve = D.releves_banque.filter(r => r.date <= auj).sort((a, b) => a.date.localeCompare(b.date)).pop() || null;
-      return {app, auCompte, attendu, revFut, depFut, sR, sD, partenaire: p, pbAttente, sPb,
+      return {app, auCompte, attendu, revFut: revFut.concat(finFut.map(f => ({id: "F" + f.id, date: f.date, description: "Financement reçu", montant_c: f.montant_c}))), depFut, sR, sD, partenaire: p, pbAttente, sPb,
               releve: releve && {date: releve.date, solde: releve.solde_c / 100}};
     };
     // contrôle gardé : le solde au compte calculé à la date d'un relevé de banque, comparé à ce relevé
@@ -142,6 +145,15 @@
       }).filter(Boolean);
       _pl.set(mo, out); return out;
     };
+
+    // ------------------------------------------------------------ financement (prêts) : reçu à ce jour et solde dû
+    M.financements = mo => (D.financements || []).slice().sort((a, b) => a.ordre - b.ordre).filter(f => !f.cree || f.cree <= mo).map(f => {
+      const recus = (D.financements_recus || []).filter(x => x.financement_id === f.id && x.mois <= mo);
+      const sd = (D.financements_soldes || []).filter(x => x.financement_id === f.id && x.date.slice(0, 7) <= mo).sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id).pop();
+      const recu = somme(recus, x => x.montant_c) / 100;
+      return {id: f.id, nom: f.nom, recu, recuMois: somme(recus.filter(x => x.mois === mo), x => x.montant_c) / 100,
+              soldeDu: sd ? sd.solde_du_c / 100 : recu, soldeDuDate: sd ? sd.date : null, recus};
+    });
 
     // ------------------------------------------------------------ budgets
     // budgets d'un mois (comme la v1) : la liste du dernier mois fixé (ce mois-ci ou avant) — une catégorie absente de
