@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-gVrGrSF8joszJneUyuIY3ZHBSF6JXBx6cNfMlxUuHpw='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-Wp4gFPMmj3Gz2YYsPGMUvESv8ujqIP9reI7mrkfjSWA='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -323,6 +323,7 @@ body.pro .fab{width:54px;height:54px;font-size:28px;bottom:calc(84px + env(safe-
 .p-chip.pos{background:var(--pos-soft);color:var(--pos)}.p-chip.neg{background:var(--neg-soft);color:var(--neg)}
 .p-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .p-stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);min-width:0}
+.p-stat.clic{cursor:pointer}.p-stat.clic:active{border-color:var(--accent)}
 .p-stat .l{font-size:12px;color:var(--ink-3);font-weight:600}.p-stat .v{font-size:18px;font-weight:700;letter-spacing:-.01em;margin-top:2px;white-space:nowrap}
 @media (max-width:420px){.p-stat .v{font-size:15.5px}.p-stat{padding:10px 11px}}
 .p-split{display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer}
@@ -341,6 +342,7 @@ body.pro .fab{width:54px;height:54px;font-size:28px;bottom:calc(84px + env(safe-
 .p-act svg{width:22px;height:22px;stroke:var(--accent);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .p-act.prim{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}.p-act.prim svg{stroke:var(--accent-ink)}
 .p-act:disabled{opacity:.45;cursor:default}
+.p-actions.deux{grid-template-columns:1fr 1fr;gap:10px}.p-actions.deux .p-act{padding:16px 8px 14px;font-size:14px;gap:7px}.p-actions.deux .p-act svg{width:26px;height:26px}
 .p-sec{display:flex;justify-content:space-between;align-items:baseline;margin:2px 0 6px}.p-sec b{font-size:15px}.p-sec span{font-size:13px;color:var(--ink-3)}
 .p-row{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
 .p-row:first-of-type{border-top:0}
@@ -401,7 +403,8 @@ body.pro #dlg{max-width:560px}
 .inv-cartes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
 .inv-c{padding:14px 16px}.inv-c[role=button]{cursor:pointer}.inv-c[role=button]:hover{border-color:var(--cadre)}
 .inv-ch{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.inv-ch .grow{flex:1}.inv-pt{width:10px;height:10px;border-radius:3px;flex:none}.inv-jv{font-size:18px}
-.inv-barre{height:6px;border-radius:99px;background:var(--pos);margin:10px 0 10px;overflow:hidden}.inv-barre i{display:block;height:100%;background:var(--ink-3);opacity:.55}
+.inv-barre{height:8px;border-radius:99px;margin:10px 0 10px;overflow:hidden;display:flex;gap:2px}.inv-barre i{display:block;height:100%}.inv-barre i.ren{flex:1;background:var(--pos)}
+.inv-kv .pt{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
 .inv-kv{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.inv-kv span{display:block;font-size:11.5px;color:var(--ink-3);font-weight:600}.inv-kv b{font-size:14px}.inv-kv small{font-size:11.5px;font-weight:600}
 .inv-mod{font-size:12.5px;color:var(--accent);font-weight:600;margin-top:10px}
 @media (max-width:420px){.inv-tot{font-size:29px}.inv-kv b{font-size:13px}}
@@ -436,10 +439,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=b9bd55c361"></script>
-<script src="api2.js?v=b9bd55c361"></script>
-<script src="export_xlsx.js?v=b9bd55c361"></script>
-<script src="web2.js?v=b9bd55c361" data-version="web.js?v=b9bd55c361"></script>
+<script src="calculs.js?v=46cdaddf63"></script>
+<script src="api2.js?v=46cdaddf63"></script>
+<script src="export_xlsx.js?v=46cdaddf63"></script>
+<script src="web2.js?v=46cdaddf63" data-version="web.js?v=46cdaddf63"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -459,7 +462,9 @@ const dateFR = iso => { if(!iso) return ""; const [y,m,d] = iso.split("-"); retu
 // app de Marika : dates toujours en mots (« 5 octobre »)
 const MOIS_MOTS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 const jourMots = iso => { if(!iso || !/^\d{4}-\d\d-\d\d/.test(iso)) return iso || ""; const [y,m,d] = iso.split("-").map(Number); return `${d===1?"1er":d} ${MOIS_MOTS[m-1]}`; };
-const dC = iso => MODE_PAYE() ? jourMots(iso) : dateFR(iso).slice(0,5);
+const MOIS_ABR = ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+// date courte des listes : « 16 oct. »
+const dC = iso => MODE_PAYE() ? jourMots(iso) : (iso && /^\d{4}-\d{2}-\d{2}/.test(iso) ? `${+iso.slice(8, 10)} ${MOIS_ABR[+iso.slice(5, 7) - 1]}` : dateFR(iso).slice(0,5));
 const dL = iso => MODE_PAYE() ? jourMots(iso) : dateFR(iso);
 const today = () => { if(S.etat && S.etat.date_demo) return S.etat.date_demo; const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 const TYPES_COURTS = {P:"Personnel", "50":"50/50", SP:"Proportionnel", R:"Remboursement", get M(){ return "100 % " + REG().partenaire; }};
@@ -1460,7 +1465,6 @@ function vueTrans(el){
             <div class="main"><div class="t1">${esc(x.categorie)}</div><div class="t2">${x.lignes.length} dépense${x.lignes.length>1?"s":""}${bud[x.categorie] ? ` · budget ${$$(bud[x.categorie].max)}` : ""}</div></div>
             <div class="amt num">${$$(x.total)}</div><span class="chev">›</span></div>${bud[x.categorie] ? budgetCategorie(bud[x.categorie]) : ""}</div>`).join("") : `<div class="empty">Aucune dépense ce mois-ci.</div>`}
           <div class="kv" style="margin-top:8px"><div class="k total">Total des dépenses</div><div class="num total">${$$(m.total_depenses)}</div></div>
-          ${Object.keys(bud).length ? `<div class="small muted" style="margin-top:6px">Budgets : ${nbKo ? `<span class="neg">${nbKo} dépassé${nbKo > 1 ? "s" : ""}</span>` : "aucun dépassé"} · le trait marque le rythme prévu à ce jour.${mod && !MODE_PAYE() ? ` <a href="#" id="edBud2" style="color:var(--accent);text-decoration:none;font-weight:600">Modifier les budgets</a>` : ""}</div>` : ""}
         </div>
         ${hist ? "" : UIPRO() ? dernieresDepensesHTML(m) : carteMarikaHTML(m)}
       </div>
@@ -1557,47 +1561,38 @@ async function lisCaptures(fichiers, etat){
     return images;
   } finally { try { await worker.terminate(); } catch(e){} }
 }
-function dlgImportCaptures(){
-  const e = S.etat, m = S.mois;
+// choisir des captures tout de suite (le sélecteur de photos s'ouvre au toucher du bouton), puis la fenêtre de lecture
+function choisirImages(suite){
+  const i = document.createElement("input"); i.type = "file"; i.accept = "image/*"; i.multiple = true; i.hidden = true;
+  i.onchange = () => { const f = [...i.files]; i.remove(); if(f.length) suite(f); };
+  document.body.appendChild(i); i.click();
+}
+function dlgImportCaptures(){ choisirImages(lisImportDepenses); }
+function lisImportDepenses(fichiers){
   ouvre(`<div class="dlg-h"><h2>Importer des captures</h2><button type="button" class="x" data-close>✕</button></div>
-   <div class="dlg-b" id="impB">
-     <p style="margin:0">Prends des captures d'écran de la liste de tes transactions dans l'app <b>Desjardins</b> (compte ou carte de crédit) ou <b>Amex</b>, puis choisis-les ici. Tu pourras tout vérifier avant l'ajout dans <b>${esc(S.info.nom)}</b>.</p>
-     <p class="hint" style="margin:0">La lecture se fait sur ton appareil : les images ne sont envoyées nulle part.</p>
-     <label class="btn primary" style="align-self:flex-start;cursor:pointer">Choisir des captures<input type="file" id="impF" accept="image/*" multiple hidden></label>
-     <div id="impEtat" class="small muted"></div>
-   </div>
-   <div class="dlg-f" id="impF2"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button></div>`, d => {
-    $("#impF", d).onchange = async ev => {
-      const fichiers = [...ev.target.files]; if(!fichiers.length) return;
-      const etat = t => { $("#impEtat", d).innerHTML = `<span class="we-spin-inline"></span>${esc(t)}`; };
-      try {
-        const images = await lisCaptures(fichiers, etat);
-        etat("Analyse des transactions…");
-        const r = (await api("/api/releve/analyse", {feuille: S.feuille, images})).resultat;
-        revueImport(d, r);
-      } catch(x){ $("#impEtat", d).innerHTML = `<span class="neg">${esc(x.message || x)}</span>`; }
-    };
+   <div class="dlg-b" id="impB"><div id="impEtat" class="small muted"></div></div>
+   <div class="dlg-f" id="impF2"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button></div>`, async d => {
+    const etat = t => { $("#impEtat", d).innerHTML = `<span class="we-spin-inline"></span>${esc(t)}`; };
+    try {
+      const images = await lisCaptures(fichiers, etat);
+      etat("Analyse des transactions…");
+      const r = (await api("/api/releve/analyse", {feuille: S.feuille, images})).resultat;
+      revueImport(d, r);
+    } catch(x){ $("#impEtat", d).innerHTML = `<span class="neg">${esc(x.message || x)}</span>`; }
   });
 }
 // --- revenus depuis des captures du compte (même lecture que les dépenses)
-function dlgImportRevenus(){
+function dlgImportRevenus(){ choisirImages(lisImportRevenus); }
+function lisImportRevenus(fichiers){
   ouvre(`<div class="dlg-h"><h2>Importer des revenus</h2><button type="button" class="x" data-close>✕</button></div>
-   <div class="dlg-b" id="irB">
-     <p style="margin:0">Prends des captures d'écran des opérations de ton <b>compte</b> (Desjardins ou RBC) : les entrées d'argent te seront proposées comme revenus de <b>${esc(S.info.nom)}</b>. Tu pourras tout vérifier avant l'ajout.</p>
-     <p class="hint" style="margin:0">La lecture se fait sur ton appareil : les images ne sont envoyées nulle part.</p>
-     <label class="btn primary" style="align-self:flex-start;cursor:pointer">Choisir des captures<input type="file" id="irF" accept="image/*" multiple hidden></label>
-     <div id="irEtat" class="small muted"></div>
-   </div>
-   <div class="dlg-f" id="irF2"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button></div>`, d => {
-    $("#irF", d).onchange = async ev => {
-      const fichiers = [...ev.target.files]; if(!fichiers.length) return;
-      const etat = t => { $("#irEtat", d).innerHTML = `<span class="we-spin-inline"></span>${esc(t)}`; };
-      try {
-        const images = await lisCaptures(fichiers, etat);
-        etat("Analyse des entrées d'argent…");
-        revueImportRevenus(d, (await api("/api/releve/revenus", {feuille: S.feuille, images})).resultat);
-      } catch(x){ $("#irEtat", d).innerHTML = `<span class="neg">${esc(x.message || x)}</span>`; }
-    };
+   <div class="dlg-b" id="irB"><div id="irEtat" class="small muted"></div></div>
+   <div class="dlg-f" id="irF2"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button></div>`, async d => {
+    const etat = t => { $("#irEtat", d).innerHTML = `<span class="we-spin-inline"></span>${esc(t)}`; };
+    try {
+      const images = await lisCaptures(fichiers, etat);
+      etat("Analyse des entrées d'argent…");
+      revueImportRevenus(d, (await api("/api/releve/revenus", {feuille: S.feuille, images})).resultat);
+    } catch(x){ $("#irEtat", d).innerHTML = `<span class="neg">${esc(x.message || x)}</span>`; }
   });
 }
 function revueImportRevenus(d, r){
@@ -1708,8 +1703,15 @@ function evalMontant(txt){
   try { const v = somme(); return i === t.length && isFinite(v) ? v : NaN; } catch(e){ return NaN; }
 }
 
+// toucher en dehors de la fenêtre = comme le ✕ (seulement si le toucher a commencé ET fini dehors : pas en sélectionnant du texte)
+function fermeAuFond(d){
+  if(d._fond) return; d._fond = true; let dehors = false;
+  const hors = ev => { const r = d.getBoundingClientRect(); return ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom; };
+  d.addEventListener("pointerdown", ev => { dehors = ev.target === d && hors(ev); });
+  d.addEventListener("click", ev => { if(dehors && ev.target === d && hors(ev)) d.close(); dehors = false; });
+}
 function ouvre(html, onReady){
-  const d = $("#dlg"); d.innerHTML = html; if(!d.open) d.showModal(); onReady && onReady(d);
+  const d = $("#dlg"); d.innerHTML = html; if(!d.open) d.showModal(); fermeAuFond(d); onReady && onReady(d);
   d.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>d.close());
 }
 
@@ -1731,7 +1733,7 @@ function dlgTransaction(t, apres, catDefaut, dateDef){
       <label class="f">Catégorie<select name="categorie"><option value="">Automatique</option>${e.categories.map(c=>`<option>${esc(c)}</option>`).join("")}</select></label>
       <div class="preview" id="pv"></div>
     </div>
-    <div class="dlg-f">${edit?`<button type="button" class="btn danger" id="del">Supprimer</button><button type="button" class="btn" id="reg">Solde réglé ici</button>`:""}<span class="grow"></span><button type="button" class="btn" data-close>Annuler</button><button class="btn primary" id="ok">${edit?"Enregistrer":"Ajouter"}</button></div>
+    <div class="dlg-f">${edit?`<button type="button" class="btn danger" id="del">Supprimer</button>`:""}<span class="grow"></span>${edit?"":`<button type="button" class="btn" data-close>Annuler</button>`}<button class="btn primary" id="ok">${edit?"Enregistrer":"Ajouter"}</button></div>
   </form>`, d => {
     const vi = $("#versImport", d); if(vi) vi.onclick = () => dlgImportCaptures();
     const f = $("#ft", d);
@@ -1774,7 +1776,7 @@ function dlgTransaction(t, apres, catDefaut, dateDef){
     };
     if(edit){
       $("#del", d).onclick = async () => { if(confirm("Supprimer cette transaction ?")){ try{ await ecrit("/api/transaction/supprimer", {ligne:t.ligne}, "Transaction supprimée"); apres ? apres() : d.close(); }catch(e){} } };
-      $("#reg", d).onclick = async () => { if(confirm("Placer le marqueur « Solde réglé » sur cette transaction ?")){ try{ await ecrit("/api/reglement", {ligne:t.ligne}, "Solde réglé marqué"); apres ? apres() : d.close(); }catch(e){} } };
+      const rg = $("#reg", d); if(rg) rg.onclick = async () => { if(confirm("Placer le marqueur « Solde réglé » sur cette transaction ?")){ try{ await ecrit("/api/reglement", {ligne:t.ligne}, "Solde réglé marqué"); apres ? apres() : d.close(); }catch(e){} } };
     }
   });
 }
@@ -2550,6 +2552,23 @@ function vueInv(el){
   el.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>dlgInvest(inv.find(i=>i.ligne==b.dataset.i)));
   const fu = $("#addFu", el); if(fu) fu.onclick = () => dlgFondsUrgence();
 }
+// un placement : verser de l'argent (sort du compte, entre dans le placement) ou mettre à jour sa valeur
+function dlgPlacement(x, epCompte){
+  const ep = epCompte ? epCompte(x) : 0;
+  ouvre(`<form id="fv"><div class="dlg-h"><h2>${esc(x.type)}</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     <label class="f">Montant versé<input name="montant" inputmode="decimal" autocomplete="off" required placeholder="ex. 3001"></label>
+     <label class="f">Date<input name="date" type="date" value="${today()}" required></label>
+     ${x.valeur_fixe ? "" : `<label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" name="ajoute" checked style="width:18px;height:18px;accent-color:var(--accent)"> Ajouter aussi ce montant à la valeur du placement</label>`}
+     <p class="hint" style="margin:0">L'argent sort de ton compte (ton solde baisse d'autant) et s'ajoute au capital investi de ${esc(x.type)}.${ep ? ` Déjà versé ce mois-ci : ${$$(ep)}.` : ""}</p>
+   </div>
+   <div class="dlg-f"><button type="button" class="btn" id="vMaj">Mettre à jour la valeur</button><span class="grow"></span><button class="btn primary">Verser</button></div></form>`, d => {
+    const f = $("#fv", d);
+    $("#vMaj", d).onclick = () => dlgInvest(x);
+    f.onsubmit = async ev => { ev.preventDefault();
+      try { await ecrit("/api/versement", {feuille: S.feuille, compte: x.ligne, montant: f.montant.value, date: f.date.value, ajoute_valeur: !!(f.ajoute && f.ajoute.checked)}, "Versement inscrit"); d.close(); } catch(e){} };
+  });
+}
 function dlgInvest(x){
   // capital investi : calculé normalement (mois précédent + épargne du mois) ; modifiable à la main au besoin
   let manuel = !x.investi_auto || !x.investi_auto_possible; const LIB = x.valeur_fixe ? "Montant mis de côté" : "Capital investi";
@@ -2698,21 +2717,21 @@ function barreOngletsPro(){
 }
 function vaVers(v){ S.vue = v; rend(); window.scrollTo({top: 0}); }
 const dateLongue = iso => { if(!iso) return ""; const [y, m, d] = iso.split("-").map(Number); return `${d === 1 ? "1er" : d} ${MOIS_MOTS[m - 1]} ${y}`; };
-const jourCourt = iso => iso ? `<b>${+iso.slice(8,10)}</b>${(MOIS_MOTS[+iso.slice(5,7)-1] || "").slice(0,4)}.` : "—";
+const jourCourt = iso => iso ? `<b>${+iso.slice(8,10)}</b>${MOIS_ABR[+iso.slice(5,7)-1] || ""}` : "—";
 // --- Accueil
 function vueBordPro(el){
   const m = S.mois, hist = S.info.groupe === "historique", mod = S.info.modifiable;
   const rn = m.revenu_net || 0;
   let split = "";
   if(!hist && m.transactions){ const x = splitDetail(m), cl = Math.abs(x.net || 0) < 0.005 ? "" : (x.net > 0 ? "pos" : "neg");
-    split = `<div class="card p-split" id="pSplit" role="button" tabindex="0"><div class="ic">${ICO.split}</div><div class="tx"><div class="t1 ${cl}">${netSplitTexte(x.net)}</div><div class="t2">${x.marq ? "Depuis le règlement du " + dL(x.marq.date) : "Aucun règlement ce mois-ci"} · voir le partage</div></div><span class="chev" style="color:var(--ink-3)">›</span></div>`; }
+    split = `<div class="card p-split" id="pSplit" role="button" tabindex="0"><div class="ic">${ICO.split}</div><div class="tx"><div class="t1 ${cl}">${netSplitTexte(x.net)}</div></div><span class="chev" style="color:var(--ink-3)">›</span></div>`; }
   el.innerHTML = `
    <div class="card p-hero">${ctlEnErreur().length ? `<button class="p-ctl-al" id="pCtlAl" title="Voir les contrôles"><i></i>${ctlEnErreur().length} à vérifier</button>` : ""}<div class="lbl" ${ctlEnErreur().length ? `style="padding-right:104px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"` : ""}>Solde au compte · ${esc(S.info.nom)}</div><div class="gros num">${$$(soldeAuCompte(m))}</div>
      <div class="sous"><span>Début ${$$(m.solde_debut)}${mod ? ` · <a href="#" id="edSol" style="color:var(--accent);text-decoration:none;font-weight:600">Modifier</a>` : ""}</span><span class="p-chip ${rn < 0 ? "neg" : "pos"}">${rn < 0 ? "▼" : "▲"} ${$$(Math.abs(rn))} ce mois</span></div></div>
    ${soldeAttenduHTML()}
    <div class="spacer"></div>${split}${split ? `<div class="spacer"></div>` : ""}
-   <div class="p-stats"><div class="p-stat"><div class="l">Revenus</div><div class="v num">${$$(m.total_revenus)}</div></div>
-     <div class="p-stat"><div class="l">Dépenses</div><div class="v num">${$$(m.total_depenses)}</div></div>
+   <div class="p-stats"><div class="p-stat clic" id="pRev" role="button" tabindex="0"><div class="l">Revenus</div><div class="v num">${$$(m.total_revenus)}</div></div>
+     <div class="p-stat clic" id="pDep" role="button" tabindex="0"><div class="l">Dépenses</div><div class="v num">${$$(m.total_depenses)}</div></div>
      <div class="p-stat"><div class="l">Revenu net</div><div class="v num ${rn < 0 ? "neg" : "pos"}">${$$(rn)}</div></div></div>
    <div class="spacer"></div>
    <div class="card cadre"><h3>Revenus et dépenses – 6 derniers mois</h3><div id="g12"><div class="empty">Chargement…</div></div></div>`;
@@ -2720,6 +2739,7 @@ function vueBordPro(el){
   const ca = $("#pCtlAl", el); if(ca) ca.onclick = () => vaVers("ctl");
   brancheSoldes(el);
   const ps = $("#pSplit", el); if(ps){ ps.onclick = () => vaVers("split"); ps.onkeydown = ev => { if(ev.key === "Enter") vaVers("split"); }; }
+  [["#pRev", "rev"], ["#pDep", "trans"]].forEach(([id, v]) => { const b = $(id, el); if(b){ b.onclick = () => vaVers(v); b.onkeydown = ev => { if(ev.key === "Enter") vaVers(v); }; } });
   const es = $("#edSol", el); if(es) es.onclick = ev => { ev.preventDefault(); dlgSoldes(m); };
 }
 // --- Partage (split) : la fonction phare
@@ -2736,7 +2756,7 @@ function vuePartagePro(el){
    <div class="card p-bal"><div class="lbl">Solde avec ${PART()}</div>
      <div class="gros num ${cl}" id="splitNet">${netSplitTexte(x.net)}</div>
      <div class="p-duo"><div><span>À recevoir de ${PART()}</span><b class="num">${$$(x.recevoir)}</b></div><div><span>À payer à ${PART()}</span><b class="num">${$$(x.payer)}</b></div></div>
-     <div class="p-actions">
+     <div class="p-actions deux">
        <button class="p-act prim" id="aRegle" ${mod ? "" : "disabled"}>${ICO.regle}<span>Régler</span></button>
        <button class="p-act" id="aAutres">${ICO.sommaire}<span>Sommaire</span></button></div></div>
    <div class="spacer"></div>
@@ -2854,10 +2874,9 @@ function dlgMarikaPro(filtre){
 function carteFinancementHTML(m, mod, placements){
   const l = m.financements || [], du = l.reduce((a, f) => a + (f.solde_du || 0), 0);
   return `<div class="card cadre" id="fin"><h3>Financement${mod ? ` <span class="sp"><button class="btn small" id="finAj">Ajouter</button></span>` : ""}</h3>
-    ${l.length ? l.map(f => `<div class="fin-l"><div class="fin-t"><b>${esc(f.nom)}</b><span class="small muted">Reçu : ${$$(f.recu)}${f.recu_mois ? ` (dont ${$$(f.recu_mois)} ce mois-ci)` : ""}</span></div>
+    ${l.length ? l.map(f => `<div class="fin-l"><div class="fin-t"><b>${esc(f.nom)}</b></div>
         <div class="fin-v"><div class="num" style="font-weight:650">${$$(f.solde_du)}</div><div class="small muted">dû${f.solde_du_date ? " au " + dateLongue(f.solde_du_date) : ""}</div></div>
         ${mod ? `<div class="fin-b"><button class="btn small" data-fr="${f.ligne}">+ Montant reçu</button><button class="btn small" data-fs="${f.ligne}">Solde dû</button></div>` : ""}</div>`).join("")
-      + (placements ? `<div class="kv small" style="margin-top:8px"><div class="k">Total dû</div><div class="num">${$$(du)}</div><div class="k">Valeur nette (placements − financement)</div><div class="num">${$$(placements - du)}</div></div>` : "")
       : `<div class="small muted">Aucun financement. Un prêt reçu (ex. prêt étudiant) s'inscrit ici : l'argent entre au compte, mais ce n'est pas un revenu.</div>`}</div>`;
 }
 function brancheFinancement(z, m){
@@ -2897,14 +2916,15 @@ function dlgFinSolde(fi){
   });
 }
 function vueInvPro(el){
-  const m = S.mois, mod = S.info.modifiable, inv = (m.investissements || []).slice().sort((a, b) => (b.jv || 0) - (a.jv || 0));
+  const m = S.mois, mod = S.info.modifiable, inv = (m.investissements || []).map(x => Object.assign({}, x)).sort((a, b) => (b.jv || 0) - (a.jv || 0));
   el.innerHTML = `<button class="p-retour" id="pRet">‹ Plus</button><div id="pInv"></div>`;
   $("#pRet", el).onclick = () => vaVers("plus");
   const z = $("#pInv", el);
   if(!inv.length){ z.innerHTML = `<div class="card"><div class="empty">Aucun investissement pour ce mois.</div></div><div class="spacer"></div>${carteFinancementHTML(m, mod, 0)}`; brancheFinancement(z, m); return; }
-  const ti = inv.reduce((a, x) => a + (x.investi || 0), 0), tj = inv.reduce((a, x) => a + (x.jv || 0), 0), gain = tj - ti;
-  const epargne = (m.retraits || []).reduce((a, x) => a + (x.montant || 0), 0);
   const epCompte = x => (m.retraits || []).filter(r => r.compte && x.type && r.compte.toLowerCase() === x.type.toLowerCase()).reduce((a, r) => a + (r.montant || 0), 0);
+  // capital à jour : les versements du mois comptent tout de suite (le mois suivant, ils sont déjà dans le capital)
+  inv.forEach(x => { const ep = epCompte(x); if(ep){ x.investi = (x.investi || 0) + ep; if(x.valeur_fixe) x.jv = (x.jv || 0) + ep; } });
+  const ti = inv.reduce((a, x) => a + (x.investi || 0), 0), tj = inv.reduce((a, x) => a + (x.jv || 0), 0), gain = tj - ti;
   const coul = i => PALETTE[i % PALETTE.length] || "var(--accent)";
   const pctTxt = v => (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(1).replace(".", ",") + " %";
   const sg = v => (v >= 0 ? "+" : "−") + $$(Math.abs(v));
@@ -2915,30 +2935,25 @@ function vueInvPro(el){
      <div class="inv-alloc">${inv.map((x, i) => `<i style="width:${tj ? Math.max(0.8, (x.jv || 0) / tj * 100).toFixed(2) : 0}%;background:${coul(i)}" title="${esc(x.type)} : ${$$(x.jv)}"></i>`).join("")}</div>
      <div class="inv-leg">${inv.map((x, i) => `<span><i style="background:${coul(i)}"></i>${esc(x.type)} <b class="num">${tj ? Math.round((x.jv || 0) / tj * 100) : 0} %</b></span>`).join("")}</div></div>
    <div class="spacer"></div>
-   <div class="p-stats"><div class="p-stat"><div class="l">Rendement total</div><div class="v num ${gain < 0 ? "neg" : "pos"}">${sg(gain)}</div></div>
-     <div class="p-stat"><div class="l">Épargne du mois</div><div class="v num">${$$(epargne)}</div></div>
-     <div class="p-stat"><div class="l">Vs mois précédent</div><div class="v num" id="invVar">—</div></div></div>
-   <div class="spacer"></div>
    <div class="inv-cartes">${inv.map((x, i) => { const g = (x.jv || 0) - (x.investi || 0), ep = epCompte(x), part = x.jv ? Math.min(100, Math.max(0, (x.investi || 0) / x.jv * 100)) : 100;
      return `<div class="card inv-c" ${mod && x.ligne ? `data-i="${x.ligne}" role="button" tabindex="0"` : ""}>
        <div class="inv-ch"><span class="inv-pt" style="background:${coul(i)}"></span><b>${esc(x.type)}</b>${x.valeur_fixe ? `<span class="p-chip">valeur fixe</span>` : ""}${x.investi_auto === false && x.investi_auto_possible ? `<span class="p-chip">capital saisi à la main</span>` : ""}<span class="grow"></span><b class="num inv-jv">${$$(x.jv)}</b></div>
-       <div class="inv-barre" title="Capital ${$$(x.investi)} · rendement ${sg(g)}"><i style="width:${part.toFixed(1)}%"></i></div>
-       <div class="inv-kv"><div><span>Capital investi</span><b class="num">${$$(x.investi)}</b></div>
-         <div><span>Rendement</span><b class="num ${x.valeur_fixe ? "" : g < 0 ? "neg" : "pos"}">${x.valeur_fixe ? "—" : sg(g) + (x.investi ? ` <small>${pctTxt(g / x.investi)}</small>` : "")}</b></div>
-         <div><span>Épargne du mois</span><b class="num">${ep ? $$(ep) : "—"}</b></div></div>
-       ${mod && x.ligne ? `<div class="inv-mod">Mettre à jour la valeur ›</div>` : ""}</div>`; }).join("")}</div>
+       <div class="inv-barre" title="Capital ${$$(x.investi)} · rendement ${sg(g)}"><i style="width:${part.toFixed(1)}%;background:${coul(i)}"></i>${part < 99.95 ? `<i class="ren"></i>` : ""}</div>
+       <div class="inv-kv"><div><span><i class="pt" style="background:${coul(i)}"></i>Capital investi</span><b class="num">${$$(x.investi)}</b></div>
+         <div><span>${x.valeur_fixe ? "" : `<i class="pt" style="background:var(--pos)"></i>`}Rendement</span><b class="num ${x.valeur_fixe ? "" : g < 0 ? "neg" : "pos"}">${x.valeur_fixe ? "—" : sg(g) + (x.investi ? ` <small>${pctTxt(g / x.investi)}</small>` : "")}</b></div>
+         <div><span>Versé ce mois-ci</span><b class="num">${ep ? $$(ep) : "—"}</b></div></div>
+       ${mod && x.ligne ? `<div class="inv-mod">Verser ou mettre à jour la valeur ›</div>` : ""}</div>`; }).join("")}</div>
    <div class="spacer"></div>
    ${carteFinancementHTML(m, mod, tj)}
    <div class="spacer"></div>
    <div class="card cadre"><h3>Évolution</h3><div id="g3"><div class="empty">Chargement…</div></div>
      <div class="legend"><span><i style="background:var(--accent)"></i>Valeur marchande</span><span><i style="background:var(--ink-3)"></i>Capital investi</span></div><div class="small muted" id="invDepuis" style="margin-top:6px"></div></div>`;
-  z.querySelectorAll("[data-i]").forEach(c => c.onclick = () => dlgInvest(inv.find(x => x.ligne == c.dataset.i)));
+  z.querySelectorAll("[data-i]").forEach(c => c.onclick = () => dlgPlacement((m.investissements || []).find(x => x.ligne == c.dataset.i), epCompte));
   brancheFinancement(z, m);
   (async () => { try {
     if(!S.tend) S.tend = await api("/api/tendances");
     const T = S.tend.filter(x => x.jv), k = T.findIndex(x => x.feuille === S.feuille);
     const g = $("#g3", z); if(g) graphLignes(g, S.tend, [{f: x => x.jv || null, c: "var(--accent)", n: "Valeur marchande"}, {f: x => x.investi || null, c: "var(--ink-3)", n: "Capital investi"}]);
-    if(k > 0){ const v = tj - T[k - 1].jv, e = $("#invVar", z); if(e){ e.textContent = sg(v); e.classList.add(v < 0 ? "neg" : "pos"); e.title = "Valeur par rapport à " + T[k - 1].nom; } }
     if(T.length > 1){ const p0 = T[0], d = $("#invDepuis", z); if(d) d.textContent = `Depuis ${p0.nom} : valeur ${sg(tj - p0.jv)}, capital ${sg(ti - (p0.investi || 0))}.`; }
   } catch(e){} })();
 }
@@ -2957,9 +2972,10 @@ function soldeAttenduHTML(){
 function concordanceHTML(){
   const x = soldeAttendu(); if(!x) return "";
   const c = x.concordance;
-  if(!c) return S.info.modifiable ? `<button class="p-conc neutre" id="pConc">Inscrire le solde de ta banque pour vérifier la concordance ›</button>` : "";
-  const ok = Math.abs(c.ecart) < 0.005;
-  return `<button class="p-conc ${ok ? "ok" : "ko"}" id="pConc">${ok ? `✓ Concorde avec ta banque (${dateLongue(c.date)})` : `Écart de ${$$(Math.abs(c.ecart))} avec ta banque (${dateLongue(c.date)}) ›`}</button>`;
+  // l'accueil reste épuré : rien quand tout concorde (ou sans solde de banque inscrit) ; un avertissement seulement s'il y a un écart.
+  // Le solde de la banque s'inscrit dans la fenêtre « Solde réel attendu ».
+  if(!c || Math.abs(c.ecart) < 0.005) return "";
+  return `<button class="p-conc ko" id="pConc">Écart de ${$$(Math.abs(c.ecart))} avec ta banque (${dateLongue(c.date)}) ›</button>`;
 }
 function brancheSoldes(el){
   const sa = $("#pAttendu", el); if(sa){ sa.onclick = () => dlgSoldeAttendu(); sa.onkeydown = ev => { if(ev.key === "Enter") dlgSoldeAttendu(); }; }
@@ -2984,8 +3000,7 @@ function dlgSoldeAttendu(){
        <div class="p-at-l tot"><div class="t">Solde réel attendu</div><div class="num">${$$(x.attendu)}</div></div>
        <p class="small muted" style="margin:2px 0 0">Ton solde une fois tes revenus encaissés et le remboursement fait.</p>
      </div>
-     ${c ? `<div class="p-at-c ${Math.abs(c.ecart) < 0.005 ? "ok" : "ko"}"><span>Solde de ta banque le ${dateLongue(c.date)} : <b class="num">${$$(c.banque)}</b></span><span>${Math.abs(c.ecart) < 0.005 ? "Concorde avec le solde au compte" : `Écart de ${$$(Math.abs(c.ecart))}`}</span></div>`
-         : `<p class="small muted" style="margin:0">Inscris le solde de ta banque : l'app vérifie qu'il concorde avec le solde au compte.</p>`}
+     ${c && Math.abs(c.ecart) >= 0.005 ? `<div class="p-at-c ko"><span>Solde de ta banque le ${dateLongue(c.date)} : <b class="num">${$$(c.banque)}</b></span><span>Écart de ${$$(Math.abs(c.ecart))}</span></div>` : ""}
    </div>
    <div class="dlg-f">${mod ? `<button type="button" class="btn" id="atReel">Inscrire le solde de ma banque</button>` : ""}${c && Math.abs(c.ecart) >= 0.005 ? `<button type="button" class="btn" id="atEcart">Trouver l'écart</button>` : ""}<span class="grow"></span><button type="button" class="btn primary" data-close>Fermer</button></div>`, d => {
     const b = $("#atReel", d); if(b) b.onclick = () => dlgSoldes(S.mois);

@@ -61,7 +61,8 @@ CREATE TABLE placements_mois (
   valeur_c INTEGER, investi_c INTEGER, investi_manuel INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (compte_id, mois));
 CREATE TABLE versements_epargne (                                -- argent sorti du compte vers un placement
-  id INTEGER PRIMARY KEY, mois TEXT NOT NULL, date TEXT NOT NULL, compte_id INTEGER REFERENCES comptes_placement(id), montant_c INTEGER NOT NULL, origine TEXT);
+  id INTEGER PRIMARY KEY, mois TEXT NOT NULL, date TEXT NOT NULL, compte_id INTEGER REFERENCES comptes_placement(id), montant_c INTEGER NOT NULL, origine TEXT,
+  libelle TEXT, valeur_ajoutee INTEGER);                         -- versement fait dans l'app ; 1 = la valeur du placement a augmenté d'autant
 
 CREATE TABLE soldes_mois (                                       -- un mois : point de départ et ajustement repris de l'Excel
   mois TEXT PRIMARY KEY,

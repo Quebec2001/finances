@@ -381,6 +381,25 @@
       else if(data.investi != null && data.investi !== ""){ x.investi_manuel = 1; x.investi_c = cents(calcule(data.investi).valeur); }
       journal("placements_mois", cid, "modification", av, x); return true;
     }
+    // versement vers un placement (Placements › compte › Verser) : l'argent sort du compte (épargne du mois) ;
+    // au besoin, la valeur du placement augmente du même montant (annuler le versement retire aussi cet ajout)
+    function versement(f, data){
+      const i = modifiable(f), cid = +data.compte, c = D.comptes_placement.find(x => x.id === cid);
+      if(!c) throw new Erreur("Compte de placement introuvable");
+      const mt = calcule(data.montant); if(!mt || !mt.valeur || mt.valeur <= 0) throw new Erreur("Indique le montant versé.");
+      const date = data.date || auj(), mo = moisDeDate(date, i);
+      if(mo < verrou()) throw new Erreur("Date dans un mois en lecture seule.");
+      const ajoute = !!data.ajoute_valeur && !c.valeur_fixe;
+      const r = {id: nouvelId("versements_epargne"), mois: mo, date, compte_id: cid, montant_c: cents(mt.valeur), origine: "app",
+                 libelle: "Versement " + c.nom, valeur_ajoutee: ajoute ? 1 : 0};
+      if(ajoute){
+        const pl = M().placements(mo).find(y => y.id === cid);
+        let x = D.placements_mois.find(y => y.compte_id === cid && y.mois === mo);
+        if(!x){ x = {compte_id: cid, mois: mo, valeur_c: null, investi_c: null, investi_manuel: 0}; D.placements_mois.push(x); }
+        x.valeur_c = (x.valeur_c != null ? x.valeur_c : Math.round(((pl && pl.valeur) || 0) * 100)) + r.montant_c;
+      }
+      D.versements_epargne.push(r); journal("versements_epargne", r.id, "ajout", null, r); return r.id;
+    }
     function budgets(f, data){
       const mo = data.par_mois && f ? info(f).cle : "";
       // budgets d'un mois : la liste envoyée remplace celle du mois (comme une colonne de mois dans la v1)
@@ -422,7 +441,7 @@
     const TABLE_FR = {depenses: "Dépense", revenus: "Revenu", pourboires: "Pourboires", autres_montants: "Autre montant", reglements: "Règlement",
       mots_cles: "Mot-clé", categories: "Catégorie", placements_mois: "Placement", repartition: "Répartition", budgets: "Budgets",
       ajustements_solde: "Ajustement de solde", comptes_placement: "Compte de placement", financements: "Financement", financements_recus: "Financement reçu", financements_soldes: "Solde dû d'un financement", releves_banque: "Solde de la banque", versements_epargne: "Épargne"};
-    const ANNULABLES = new Set(["financements", "financements_recus", "financements_soldes", "releves_banque", "depenses", "revenus", "pourboires", "autres_montants", "reglements", "mots_cles", "ajustements_solde", "placements_mois", "categories"]);
+    const ANNULABLES = new Set(["versements_epargne", "financements", "financements_recus", "financements_soldes", "releves_banque", "depenses", "revenus", "pourboires", "autres_montants", "reglements", "mots_cles", "ajustements_solde", "placements_mois", "categories"]);
     function resume(j){
       const o = JSON.parse(j.apres || j.avant || "null") || {};
       const mt = o.montant_c != null ? " · " + (o.montant_c / 100).toFixed(2).replace(".", ",") + " $" : "";
@@ -449,6 +468,10 @@
         const k = t.findIndex(x => cle(x, apres)); if(k >= 0) t.splice(k, 1);
         if(j.table_nom === "reglements") for(const tt of ["depenses", "autres_montants"]) for(const x of D[tt]) if(x.reglement_id === apres.id) x.reglement_id = null;
         if(j.table_nom === "revenus") D.revenus_pourboires = D.revenus_pourboires.filter(x => x.revenu_id !== apres.id);
+        if(j.table_nom === "versements_epargne" && apres.valeur_ajoutee){
+          const x = D.placements_mois.find(y => y.compte_id === apres.compte_id && y.mois === apres.mois);
+          if(x && x.valeur_c != null) x.valeur_c -= apres.montant_c;
+        }
       } else if(j.action === "suppression"){
         if(j.table_nom === "reglements") throw new Erreur("Pour rétablir un règlement, marque de nouveau le solde réglé.");
         const liens = avant._liens; delete avant._liens; t.push(avant);
@@ -494,6 +517,7 @@
         case "/api/pourboire/supprimer": res = supprime("pourboires", corps.ligne); recalculeRevenusCases(); break;
         case "/api/parametres": res = parametres(f, corps); break;
         case "/api/investissement": res = investissement(f, corps); break;
+        case "/api/versement": res = versement(f, corps); break;
         case "/api/budgets": res = budgets(f, corps); break;
         case "/api/configuration": res = configuration(f, corps); break;
         case "/api/ajustement": {
