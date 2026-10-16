@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-YN2o82xzTS1TQl6ynKH064/QksrnjKyN7RRMcxm099g='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-QcJdLMPd4mseg2YQVO92f+dUmOXw/KxHdtv7UOFL3jQ='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -201,9 +201,13 @@ details.cp-vieux{margin-top:12px}details.cp-vieux summary{cursor:pointer;color:v
 .ctl .l small{display:block;color:var(--ink-3);font-size:12px}
 .fab{position:fixed;right:20px;bottom:calc(22px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);font-size:30px;box-shadow:0 6px 20px rgba(0,0,0,.18);cursor:pointer;z-index:30;display:flex;align-items:center;justify-content:center}
 .fab:disabled{display:none}
-dialog{border:0;border-radius:18px;padding:0;background:var(--surface);color:var(--ink);width:min(520px,calc(100vw - 24px));max-height:calc(100vh - 40px);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+/* la fenêtre (dialog) couvre tout l'écran, transparente ; le panneau .dlg-p est la vraie fenêtre : toucher à côté du panneau
+   touche donc la fenêtre elle-même (fiable sur iPhone, contrairement au fond « ::backdrop ») */
+dialog{border:0;padding:0;margin:0;background:transparent;color:var(--ink);width:100%;height:100%;max-width:none;max-height:none;inset:0}
+dialog[open]{display:flex;align-items:center;justify-content:center;cursor:pointer}
 dialog::backdrop{background:rgba(10,12,14,.38)}
-@media (max-width:600px){dialog{margin:auto 0 0;width:100vw;max-width:100vw;border-radius:18px 18px 0 0;padding-bottom:env(safe-area-inset-bottom)}}
+.dlg-p{cursor:auto;background:var(--surface);border-radius:18px;width:min(520px,calc(100vw - 24px));max-height:calc(100% - 40px);overflow:auto;-webkit-overflow-scrolling:touch;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+@media (max-width:600px){dialog[open]{align-items:flex-end}.dlg-p{width:100%;max-width:100%;border-radius:18px 18px 0 0;padding-bottom:env(safe-area-inset-bottom)}}
 .dlg-h{display:flex;align-items:center;padding:16px 18px 6px}
 .dlg-h h2{margin:0;font-size:18px;flex:1}
 .dlg-h .x{border:0;background:var(--surface-2);width:30px;height:30px;border-radius:50%;cursor:pointer;color:var(--ink-2)}
@@ -366,7 +370,7 @@ body.pro .fab{width:54px;height:54px;font-size:28px;bottom:calc(84px + env(safe-
 .p-calc{display:grid;gap:6px;margin-top:16px;background:var(--surface-2);border-radius:14px;padding:12px 14px;font-size:14px}
 .p-calc div{display:flex;justify-content:space-between;gap:10px}.p-calc span{color:var(--ink-2)}
 .p-calc .tot{border-top:1px solid var(--line);padding-top:8px;margin-top:2px;font-size:15.5px}.p-calc .tot span{color:var(--ink);font-weight:650}
-body.pro #dlg{max-width:560px}
+body.pro #dlg .dlg-p{max-width:560px}
 .rp-up h3{margin:0 0 6px}.rp-c{border-top:1px solid var(--line);padding:10px 0}.rp-c:first-of-type{border-top:0}
 .rp-cn{font-weight:650;font-size:14px}.rp-f{margin-top:6px}.rp-fn{display:flex;align-items:center;gap:8px}.rp-fn .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
 .rp-fn select{font:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--surface);color:var(--ink)}
@@ -439,10 +443,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=29b4747600"></script>
-<script src="api2.js?v=29b4747600"></script>
-<script src="export_xlsx.js?v=29b4747600"></script>
-<script src="web2.js?v=29b4747600" data-version="web.js?v=29b4747600"></script>
+<script src="calculs.js?v=c066a8ab67"></script>
+<script src="api2.js?v=c066a8ab67"></script>
+<script src="export_xlsx.js?v=c066a8ab67"></script>
+<script src="web2.js?v=c066a8ab67" data-version="web.js?v=c066a8ab67"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1703,19 +1707,17 @@ function evalMontant(txt){
   try { const v = somme(); return i === t.length && isFinite(v) ? v : NaN; } catch(e){ return NaN; }
 }
 
-// toucher en dehors de la fenêtre = comme le ✕ (seulement si le toucher a commencé ET fini dehors : pas en sélectionnant du texte).
-// Sur iPhone, Safari n'envoie pas de « click » sur le fond d'une fenêtre : on écoute donc aussi le toucher lui-même.
+// toucher en dehors du panneau = comme le ✕ (seulement si le toucher a commencé ET fini dehors : pas en sélectionnant du texte).
+// La fenêtre couvre l'écran : un toucher hors du panneau a pour cible la fenêtre elle-même.
 function fermeAuFond(d){
   if(d._fond) return; d._fond = true; let dehors = false, doigt = false;
-  const hors = (x, y) => { const r = d.getBoundingClientRect(); return x < r.left || x > r.right || y < r.top || y > r.bottom; };
-  d.addEventListener("touchstart", ev => { const t = ev.touches[0]; doigt = !!t && ev.target === d && hors(t.clientX, t.clientY); }, {passive: true});
-  d.addEventListener("touchend", ev => { const t = ev.changedTouches[0];
-    if(doigt && t && ev.target === d && hors(t.clientX, t.clientY)){ ev.preventDefault(); d.close(); } doigt = false; });
-  d.addEventListener("pointerdown", ev => { dehors = ev.pointerType !== "touch" && ev.target === d && hors(ev.clientX, ev.clientY); });
-  d.addEventListener("click", ev => { if(dehors && ev.target === d && hors(ev.clientX, ev.clientY)) d.close(); dehors = false; });
+  d.addEventListener("touchstart", ev => { doigt = ev.target === d; }, {passive: true});
+  d.addEventListener("touchend", ev => { if(doigt && ev.target === d){ ev.preventDefault(); d.close(); } doigt = false; });
+  d.addEventListener("pointerdown", ev => { dehors = ev.target === d; });
+  d.addEventListener("click", ev => { if(dehors && ev.target === d) d.close(); dehors = false; });
 }
 function ouvre(html, onReady){
-  const d = $("#dlg"); d.innerHTML = html; if(!d.open) d.showModal(); fermeAuFond(d); onReady && onReady(d);
+  const d = $("#dlg"); d.innerHTML = `<div class="dlg-p">${html}</div>`; if(!d.open) d.showModal(); fermeAuFond(d); onReady && onReady(d);
   d.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>d.close());
 }
 
