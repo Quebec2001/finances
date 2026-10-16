@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-Wp4gFPMmj3Gz2YYsPGMUvESv8ujqIP9reI7mrkfjSWA='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-YN2o82xzTS1TQl6ynKH064/QksrnjKyN7RRMcxm099g='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -439,10 +439,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=46cdaddf63"></script>
-<script src="api2.js?v=46cdaddf63"></script>
-<script src="export_xlsx.js?v=46cdaddf63"></script>
-<script src="web2.js?v=46cdaddf63" data-version="web.js?v=46cdaddf63"></script>
+<script src="calculs.js?v=29b4747600"></script>
+<script src="api2.js?v=29b4747600"></script>
+<script src="export_xlsx.js?v=29b4747600"></script>
+<script src="web2.js?v=29b4747600" data-version="web.js?v=29b4747600"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1703,12 +1703,16 @@ function evalMontant(txt){
   try { const v = somme(); return i === t.length && isFinite(v) ? v : NaN; } catch(e){ return NaN; }
 }
 
-// toucher en dehors de la fenêtre = comme le ✕ (seulement si le toucher a commencé ET fini dehors : pas en sélectionnant du texte)
+// toucher en dehors de la fenêtre = comme le ✕ (seulement si le toucher a commencé ET fini dehors : pas en sélectionnant du texte).
+// Sur iPhone, Safari n'envoie pas de « click » sur le fond d'une fenêtre : on écoute donc aussi le toucher lui-même.
 function fermeAuFond(d){
-  if(d._fond) return; d._fond = true; let dehors = false;
-  const hors = ev => { const r = d.getBoundingClientRect(); return ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom; };
-  d.addEventListener("pointerdown", ev => { dehors = ev.target === d && hors(ev); });
-  d.addEventListener("click", ev => { if(dehors && ev.target === d && hors(ev)) d.close(); dehors = false; });
+  if(d._fond) return; d._fond = true; let dehors = false, doigt = false;
+  const hors = (x, y) => { const r = d.getBoundingClientRect(); return x < r.left || x > r.right || y < r.top || y > r.bottom; };
+  d.addEventListener("touchstart", ev => { const t = ev.touches[0]; doigt = !!t && ev.target === d && hors(t.clientX, t.clientY); }, {passive: true});
+  d.addEventListener("touchend", ev => { const t = ev.changedTouches[0];
+    if(doigt && t && ev.target === d && hors(t.clientX, t.clientY)){ ev.preventDefault(); d.close(); } doigt = false; });
+  d.addEventListener("pointerdown", ev => { dehors = ev.pointerType !== "touch" && ev.target === d && hors(ev.clientX, ev.clientY); });
+  d.addEventListener("click", ev => { if(dehors && ev.target === d && hors(ev.clientX, ev.clientY)) d.close(); dehors = false; });
 }
 function ouvre(html, onReady){
   const d = $("#dlg"); d.innerHTML = html; if(!d.open) d.showModal(); fermeAuFond(d); onReady && onReady(d);
