@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-QcJdLMPd4mseg2YQVO92f+dUmOXw/KxHdtv7UOFL3jQ='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-hXjqBwg0mAkVVCLUin9uY1RDWN5ge2dbw3e5ggK6X0U='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -186,6 +186,7 @@ details.cp-vieux{margin-top:12px}details.cp-vieux summary{cursor:pointer;color:v
 .item .t2{font-size:12.5px;color:var(--ink-3);display:flex;gap:8px;flex-wrap:wrap;margin-top:1px}
 .item .amt{text-align:right;font-weight:600;white-space:nowrap}
 .item .amt small{display:block;font-weight:400;color:var(--ink-3);font-size:12px}
+.p-chip.p-est{background:#FEF3C7;color:#92400E}@media (prefers-color-scheme: dark){.p-chip.p-est{background:#3A2E12;color:#FDE68A}}
 .chip{font-size:11.5px;padding:1px 7px;border-radius:6px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
 .chip.t-SP{background:#E0F2FE;color:#0369A1}.chip.t-50{background:#FEF3C7;color:#92400E}.chip.t-R{background:#FFE4E6;color:#BE123C}
 @media (prefers-color-scheme: dark){.chip.t-SP{background:#0C4A6E;color:#BAE6FD}.chip.t-50{background:#3A2E12;color:#FDE68A}.chip.t-R{background:#4C0519;color:#FECDD3}}
@@ -443,10 +444,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=c066a8ab67"></script>
-<script src="api2.js?v=c066a8ab67"></script>
-<script src="export_xlsx.js?v=c066a8ab67"></script>
-<script src="web2.js?v=c066a8ab67" data-version="web.js?v=c066a8ab67"></script>
+<script src="calculs.js?v=b210e7b8cc"></script>
+<script src="api2.js?v=b210e7b8cc"></script>
+<script src="export_xlsx.js?v=b210e7b8cc"></script>
+<script src="web2.js?v=b210e7b8cc" data-version="web.js?v=b210e7b8cc"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -557,7 +558,7 @@ async function lignesAPartager(m0 = S.mois, info0 = S.info){
   async function parcours(m, info, profondeur){
     if(vus.has(info.feuille)) return 0; vus.add(info.feuille);
     const der = m.ligne_dernier_reglement;
-    const apres = (m.transactions || []).filter(t => t.utilise && t.date && (der == null || t.ligne > der));
+    const apres = (m.transactions || []).filter(t => t.utilise && t.date && (der == null || t.ligne > der) && !(t.fixe && (t.estime || t.date > today())));
     let couvert = 0;
     apres.filter(t => (t.marika||0) > 0.004 && ["SP","50","M"].includes(semType(t.type))).forEach(t => {
       out.push({cle: info.cle, nomMois: info.nom, date: t.date, desc: t.description, part: t.marika, cat: t.categorie || "", sous: `${TYPES_COURTS[semType(t.type)]} · payé ${$$(t.deboursement)}`, ligne: t.ligne});
@@ -1203,7 +1204,7 @@ function rend(){
     if(S.vue === "regl") S.vue = "plus"; if(S.vue === "couple") S.vue = "split";
     barreOngletsPro();
     const br = $(".brand"); if(br) br.innerHTML = dateEntete();
-    const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro, ctl:vueCtlPro, rappro:vueRappro}[S.vue] || vueBordPro;
+    const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro, ctl:vueCtlPro, rappro:vueRappro, fixes:vueFixesPro}[S.vue] || vueBordPro;
     m.innerHTML = bandeaux() + (S.vue === "split" ? syncZone() : "") + `<div id="vue"></div>`; vp($("#vue")); majBandeauSync(); brancheBandeaux(m); return;
   }
   { const br = $(".brand"); if(br && br.querySelector(".br-j")) br.innerHTML = ""; }
@@ -1677,7 +1678,7 @@ function dlgCategorieDepenses(cat){
   ouvre(`<div class="dlg-h"><h2>${esc(cat)} – ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
   <div class="dlg-b">
     ${lignes.length?`<div class="scroll-x"><table class="t"><thead><tr><th>Date</th><th style="text-align:left">Description</th>${hist?"":`<th class="c-type" style="text-align:left">Type</th><th>Payé</th>`}<th>${hist?"Montant":"Ma part"}</th></tr></thead><tbody>
-      ${lignes.map(t=>`<tr ${mod?`data-l="${t.ligne}" class="tr-clic"`:""}><td>${dC(t.date)}</td><td class="desc" style="text-align:left">${esc(t.description)}</td>${hist?"":`<td class="c-type" style="text-align:left">${esc(TYPES_COURTS[semType(t.type)]||t.type||"")}</td><td class="num">${$$(t.deboursement)}</td>`}<td class="num">${$$(t.depense)}</td></tr>`).join("")}
+      ${lignes.map(t=>`<tr ${mod?`data-l="${t.ligne}" class="tr-clic"`:""}><td>${dC(t.date)}</td><td class="desc" style="text-align:left">${esc(t.description)}${pastilleFixe(t)}</td>${hist?"":`<td class="c-type" style="text-align:left">${esc(TYPES_COURTS[semType(t.type)]||t.type||"")}</td><td class="num">${$$(t.deboursement)}</td>`}<td class="num">${$$(t.depense)}</td></tr>`).join("")}
     </tbody></table></div>`:`<div class="small muted">Aucune dépense.</div>`}
     <div class="preview total-du"><span>Total</span><b class="num">${$$(g.total)}</b></div>
   </div>
@@ -1730,6 +1731,7 @@ function dlgTransaction(t, apres, catDefaut, dateDef){
     <div class="dlg-h"><h2>${edit?"Modifier la transaction":"Nouvelle dépense"}</h2><button type="button" class="x" data-close>✕</button></div>
     <div class="dlg-b">
       ${edit ? "" : `<button type="button" class="btn small" id="versImport" style="align-self:flex-start">📷 Importer des captures d'écran</button>`}
+      ${t && t.estime ? `<p class="hint" style="margin:0;padding:8px 10px;border-radius:10px;background:var(--surface-2)">Dépense fixe au <b>montant estimé</b> : inscris le vrai montant quand tu le connais, puis Enregistrer.</p>` : ""}
       <label class="f">Description<input name="description" required autocomplete="off" value="${esc(t?t.description:"")}" placeholder="ex. Épicerie, Uber, Netflix…"></label>
       <div class="row2">
         <label class="f">Montant déboursé<input name="montant" inputmode="decimal" required autocomplete="off" value="${esc(t?(t.deb_formule||String(t.deboursement??"").replace(".",",")):"")}" placeholder="0,00"></label>
@@ -2443,7 +2445,7 @@ function dlgGroupeRevenus(cle){
   ouvre(`<div class="dlg-h"><h2>${esc(g.titre)} – ${esc(S.info.nom)}</h2><button type="button" class="x" data-close>✕</button></div>
   <div class="dlg-b">
     ${lignes.length?`<div class="scroll-x"><table class="t"><thead><tr><th>Date</th><th style="text-align:left">Description</th><th>Montant</th></tr></thead><tbody>
-      ${lignes.map(r=>`<tr ${mod?`data-r="${r.ligne}" class="tr-clic"`:""}><td>${dC(r.date)}</td><td class="desc" style="text-align:left">${esc(r.description||"(sans description)")}</td><td class="num">${$$(r.montant)}</td></tr>`).join("")}
+      ${lignes.map(r=>`<tr ${mod?`data-r="${r.ligne}" class="tr-clic"`:""}><td>${dC(r.date)}</td><td class="desc" style="text-align:left">${esc(r.description||"(sans description)")}${pastilleFixe(r)}</td><td class="num">${$$(r.montant)}</td></tr>`).join("")}
     </tbody></table></div>`:`<div class="small muted">Aucun revenu enregistré.</div>`}
     <div class="preview total-du"><span>Total</span><b class="num">${$$(total)}</b></div>
   </div>
@@ -2718,7 +2720,7 @@ const ICO = {
 const ONGLETS_PRO = [["bord", "Accueil"], ["trans", "Dépenses"], ["split", "Partage"], ["rev", "Revenus"], ["plus", "Plus"]];
 function barreOngletsPro(){
   const n = $("#btab"); if(!n) return;
-  const actif = ["inv", "ctl", "rappro"].includes(S.vue) ? "plus" : S.vue, alerte = ctlEnErreur().length;
+  const actif = ["inv", "ctl", "rappro", "fixes"].includes(S.vue) ? "plus" : S.vue, alerte = ctlEnErreur().length;
   n.innerHTML = ONGLETS_PRO.map(([v, t]) => `<button data-v="${v}" class="${v === actif ? "on" : ""}" aria-label="${t}${v === "plus" && alerte ? " – contrôle à vérifier" : ""}">${ICO[v]}${v === "plus" && alerte ? `<i class="p-alerte" title="${alerte} contrôle${alerte > 1 ? "s" : ""} à vérifier"></i>` : ""}<span>${t}</span></button>`).join("");
 }
 function vaVers(v){ S.vue = v; rend(); window.scrollTo({top: 0}); }
@@ -2785,9 +2787,11 @@ function vuePartagePro(el){
   if(mod) brancheRepartition(el, m);
 }
 // --- Placements (depuis « Plus »)
+// pastille d'une ligne inscrite par une dépense ou un revenu fixe
+const pastilleFixe = t => t.estime ? ` <span class="p-chip p-est" style="padding:0 7px;font-size:11px">montant estimé</span>` : (t.fixe ? ` <span class="p-chip" style="padding:0 7px;font-size:11px">fixe</span>` : "");
 function ligneDepensePro(t, mod){
   const typ = t => { const s = semType(t.type); return s && s !== "P" ? ` · <span class="p-chip" style="padding:0 7px;font-size:11px">${esc(TYPES_COURTS[s])}</span>` : (t.a_rembourser ? ` · <span class="p-chip" style="padding:0 7px;font-size:11px">payé par ${PART()}</span>` : ""); };
-  return `<div class="p-row" ${mod ? `data-dl="${t.ligne}" style="cursor:pointer"` : ""}><div class="d">${jourCourt(t.date)}</div><div class="m"><div class="t">${esc(t.description)}</div><div class="s">${t.categorie ? iconeCat(t.categorie) + " " + esc(t.categorie) : ""}${typ(t)}</div></div><div class="v num">${$$(t.depense != null ? t.depense : t.deboursement)}${t.depense != null && Math.abs((t.depense || 0) - (t.deboursement || 0)) > 0.004 ? `<small>sur ${$$(t.deboursement)}</small>` : ""}</div></div>`;
+  return `<div class="p-row" ${mod ? `data-dl="${t.ligne}" style="cursor:pointer"` : ""}><div class="d">${jourCourt(t.date)}</div><div class="m"><div class="t">${esc(t.description)}</div><div class="s">${t.categorie ? iconeCat(t.categorie) + " " + esc(t.categorie) : ""}${typ(t)}${pastilleFixe(t)}</div></div><div class="v num">${$$(t.depense != null ? t.depense : t.deboursement)}${t.depense != null && Math.abs((t.depense || 0) - (t.deboursement || 0)) > 0.004 ? `<small>sur ${$$(t.deboursement)}</small>` : ""}</div></div>`;
 }
 const ordreDate = (a, b) => (b.date || "").localeCompare(a.date || "") || (b.ligne || 0) - (a.ligne || 0);      // plus récente d'abord
 function depensesProDuMois(m){ return m.transactions.filter(t => t.utilise && t.date && !horsMesDepenses(t)).sort(ordreDate); }
@@ -3337,6 +3341,88 @@ function rapAjouter(x){
   }
   const h = $("#dlg .dlg-b"); if(h) h.insertAdjacentHTML("afterbegin", `<p class="hint rp-src" style="margin:0">Depuis le relevé ${esc(rapNom(x.compte))} du ${dL(x.date)} · vérifie avant d'ajouter.</p>`);
 }
+
+// --- Dépenses et revenus fixes (essai, app de Zach) : suggestions tirées de l'historique, montant fixe ou variable,
+// inscription automatique chaque mois (à sa date, « à venir » jusqu'au jour J ; montant variable = estimé à confirmer)
+async function vueFixesPro(el){
+  el.innerHTML = `<button class="p-retour" id="pRet">‹ Plus</button><div id="pFx"><div class="card"><div class="empty">Chargement…</div></div></div>`;
+  $("#pRet", el).onclick = () => vaVers("plus");
+  let F; try { F = await api("/api/fixes"); } catch(e){ $("#pFx", el).innerHTML = `<div class="banner err">${esc(e.message)}</div>`; return; }
+  const z = $("#pFx", el); if(!z) return;
+  const dep = F.fixes.filter(x => x.genre === "depense"), rev = F.fixes.filter(x => x.genre === "revenu");
+  const mtTxt = x => `${x.variable ? "≈ " : ""}${$$(x.montant)}`;
+  const ligne = x => `<div class="p-row fx-l" data-fx="${x.id}" role="button" tabindex="0" style="cursor:pointer">
+      <div class="d"><b>${x.jour}</b></div>
+      <div class="m"><div class="t">${x.genre === "depense" && x.categorie ? iconeCat(x.categorie) + " " : ""}${esc(x.description)}</div>
+        <div class="s">${x.variable ? "Montant variable" : "Montant fixe"}${x.genre === "depense" && x.type_code !== "P" ? " · " + esc(TYPES_COURTS[x.type_code] || x.type) : ""} · ${x.actif ? "inscrit chaque mois" : `<span class="muted">pas inscrit automatiquement</span>`}</div></div>
+      <div class="v num">${mtTxt(x)}${x.genre === "depense" && Math.abs(x.ma_part - x.montant) > 0.004 ? `<small>ta part ${$$(x.ma_part)}</small>` : ""}</div></div>`;
+  const reste = F.total_revenus - F.total_depenses;
+  z.innerHTML = `
+   <div class="card p-bal"><div class="lbl">Tes fixes par mois</div>
+     <div class="p-duo"><div><span>Revenus fixes</span><b class="num">${$$(F.total_revenus)}</b></div><div><span>Dépenses fixes (ta part)</span><b class="num">${$$(F.total_depenses)}</b></div></div>
+     ${rev.length && dep.length ? `<div class="small" style="margin-top:10px;text-align:center">Après tes fixes, il te reste <b class="num ${reste < 0 ? "neg" : "pos"}">${$$(reste)}</b> par mois.</div>` : ""}</div>
+   ${F.suggestions.length ? `<div class="spacer"></div><div class="card"><div class="p-sec"><b>Suggestions</b><span>d'après tes 4 derniers mois</span></div>
+     ${F.suggestions.map((g, i) => `<div class="p-row"><div class="d"><b>${g.jour}</b></div><div class="m"><div class="t">${g.genre === "depense" && g.categorie ? iconeCat(g.categorie) + " " : ""}${esc(g.description)}</div>
+       <div class="s">${g.genre === "revenu" ? "Revenu · " : ""}${g.mois} mois sur 4 · ${g.variable ? "montant variable" : "montant fixe"}</div>
+       <div style="display:flex;gap:6px;margin-top:6px"><button class="btn small primary" data-sg="${i}">Ajouter</button><button class="btn small" data-ig="${i}">Ignorer</button></div></div>
+       <div class="v num">${g.variable ? "≈ " : ""}${$$(g.montant)}</div></div>`).join("")}</div>` : ""}
+   <div class="spacer"></div>
+   <div class="card"><div class="p-sec"><b>Dépenses fixes</b><span><button class="btn small" id="fxAjD">+ Ajouter</button></span></div>
+     ${dep.length ? dep.map(ligne).join("") : `<div class="p-vide">Aucune pour l'instant. Ajoute une suggestion ou touche « + Ajouter ».</div>`}</div>
+   <div class="spacer"></div>
+   <div class="card"><div class="p-sec"><b>Revenus fixes</b><span><button class="btn small" id="fxAjR">+ Ajouter</button></span></div>
+     ${rev.length ? rev.map(ligne).join("") : `<div class="p-vide">Aucun pour l'instant (ex. paie, bourse).</div>`}</div>
+   <p class="small muted" style="margin:10px 4px">Inscrit chaque mois : la ligne apparaît dans le mois à sa date (« à venir » d'ici là). Montant variable : elle est inscrite avec un montant estimé à confirmer.</p>`;
+  z.querySelectorAll("[data-fx]").forEach(r => r.onclick = () => dlgFixe(F.fixes.find(x => x.id == r.dataset.fx)));
+  z.querySelectorAll("[data-sg]").forEach(b => b.onclick = () => { const g = F.suggestions[+b.dataset.sg]; dlgFixe(null, g.genre, g); });
+  z.querySelectorAll("[data-ig]").forEach(b => b.onclick = async () => { try { await ecrit("/api/fixe/ignorer", {cle: F.suggestions[+b.dataset.ig].cle}, "Suggestion ignorée"); } catch(e){} });
+  $("#fxAjD", z).onclick = () => dlgFixe(null, "depense");
+  $("#fxAjR", z).onclick = () => dlgFixe(null, "revenu");
+}
+function dlgFixe(x, genre, sug){
+  const g = x ? x.genre : genre, dep = g === "depense", e = S.etat, v = x || sug || {};
+  const types = (e.types || []).filter(t => semType(t) && semType(t) !== "R");
+  ouvre(`<form id="ffx"><div class="dlg-h"><h2>${x ? (dep ? "Dépense fixe" : "Revenu fixe") : (dep ? "Nouvelle dépense fixe" : "Nouveau revenu fixe")}</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     <label class="f">Description<input name="description" required autocomplete="off" value="${esc(v.description || "")}" placeholder="${dep ? "ex. Loyer, Cellulaire, Netflix" : "ex. Paie, Bourse"}"></label>
+     <div class="seg" id="fxVar"><button type="button" data-v="0">Montant fixe</button><button type="button" data-v="1">Montant variable</button></div>
+     <div class="row2"><label class="f"><span id="fxLm">Montant</span><input name="montant" inputmode="decimal" autocomplete="off" required value="${v.montant != null ? esc(String(v.montant.toFixed(2)).replace(".", ",")) : ""}"></label>
+       <label class="f">Jour du mois<input name="jour" type="number" min="1" max="31" inputmode="numeric" required value="${v.jour || 1}"></label></div>
+     ${dep ? `<div><div class="hint" style="margin-bottom:6px">Type de dépense</div><div class="seg" id="fxTyp">${types.map(t => `<button type="button" data-t="${esc(t)}">${esc(TYPES_COURTS[semType(t)] || t)}</button>`).join("")}</div></div>
+       <label class="f">Catégorie<select name="categorie"><option value="">Automatique</option>${e.categories.map(c => `<option ${v.categorie === c && x ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></label>` : ""}
+     <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" name="actif" ${!x || x.actif ? "checked" : ""} style="width:18px;height:18px;accent-color:var(--accent)"> Inscrire automatiquement chaque mois</label>
+     <p class="hint" id="fxAide" style="margin:0"></p>
+   </div>
+   <div class="dlg-f">${x ? `<button type="button" class="btn danger" id="fxDel">Supprimer</button>` : ""}<span class="grow"></span><button class="btn primary">${x ? "Enregistrer" : "Ajouter"}</button></div></form>`, d => {
+    const f = $("#ffx", d); let variable = !!v.variable, typ = (v.type && types.find(t => TYPES_COURTS[semType(t)] === v.type || t === v.type)) || types.find(t => semType(t) === "P") || types[0];
+    const maj = () => {
+      d.querySelectorAll("#fxVar button").forEach(b => b.classList.toggle("on", (b.dataset.v === "1") === variable));
+      d.querySelectorAll("#fxTyp button").forEach(b => b.classList.toggle("on", b.dataset.t === typ));
+      $("#fxLm", d).textContent = variable ? "Montant estimé" : "Montant";
+      $("#fxAide", d).textContent = f.actif.checked
+        ? (variable ? "Inscrite chaque mois avec ce montant estimé ; touche-la dans tes dépenses pour mettre le vrai montant." : "Inscrite chaque mois à sa date, avec ce montant.")
+        : "Gardée dans ta liste de fixes (total par mois), sans être inscrite automatiquement.";
+    };
+    d.querySelectorAll("#fxVar button").forEach(b => b.onclick = () => { variable = b.dataset.v === "1"; maj(); });
+    d.querySelectorAll("#fxTyp button").forEach(b => b.onclick = () => { typ = b.dataset.t; maj(); });
+    f.actif.onchange = maj; maj();
+    const del = $("#fxDel", d); if(del) del.onclick = async () => { if(confirm("Supprimer cette ligne fixe ? (les lignes déjà inscrites restent)")){ try { await ecrit("/api/fixe/supprimer", {id: x.id}, "Supprimée"); d.close(); vaVers("fixes"); } catch(e){} } };
+    f.onsubmit = async ev => { ev.preventDefault();
+      const corps = {id: x ? x.id : null, genre: g, description: f.description.value, montant: f.montant.value, variable, jour: f.jour.value, actif: f.actif.checked, cle: sug ? sug.cle : null};
+      if(dep){ corps.type = typ; corps.categorie = f.categorie.value || (sug && sug.categorie) || ""; }
+      try { await ecrit("/api/fixe", corps, x ? "Enregistré" : "Ajouté"); await genereFixesAuto(); d.close(); vaVers("fixes"); } catch(e){}
+    };
+  });
+}
+// à l'ouverture (app de Zach) : inscrit les lignes fixes du mois qui ne le sont pas encore
+async function genereFixesAuto(){
+  if(!UIPRO() || (window.WEB && WEB.mode && WEB.mode() !== "reel")) return;     // pas pendant l'essai (lecture seule)
+  try {
+    const F = await api("/api/fixes"); if(!F.a_generer) return;
+    const n = await ecrit("/api/fixes/generer", {}, null);
+    const r = n && (n.resultat ?? n); if(r) toast(`${r} ligne${r > 1 ? "s" : ""} fixe${r > 1 ? "s" : ""} inscrite${r > 1 ? "s" : ""} pour ${MOIS_MOTS[+F.mois.slice(5) - 1]}`);
+  } catch(e){}
+}
 // --- Plus : réglages regroupés, une ligne = une action
 function vuePlusPro(el){
   const e = S.etat, m = S.mois;
@@ -3348,6 +3434,7 @@ function vuePlusPro(el){
    <div class="p-groupe"><div class="t">Mois</div><div class="p-liste">
      ${item("pRap", "rap", "Rapprochement bancaire", "Relevés Amex et Desjardins vs l'app · " + esc(S.info.nom))}</div></div>
    <div class="p-groupe"><div class="t">Organisation</div><div class="p-liste">
+     ${item("pFix", "cal", "Dépenses et revenus fixes", "Loyer, abonnements, paie · inscrits chaque mois")}
      ${item("pBud", "bud", "Budgets", nbBud ? nbBud + " catégorie" + (nbBud > 1 ? "s" : "") + " suivie" + (nbBud > 1 ? "s" : "") : "Aucun budget")}
      ${item("pCat", "cat", "Catégories", e.categories.length + " catégories")}
      ${item("pMot", "mot", "Mots-clés", e.motscles.length + " mots-clés → catégorie")}
@@ -3360,6 +3447,7 @@ function vuePlusPro(el){
   $("#pRap", el).onclick = () => vaVers("rappro");
   $("#pHist", el).onclick = () => dlgHistorique();
   $("#pExp", el).onclick = () => exporteExcel();
+  $("#pFix", el).onclick = () => vaVers("fixes");
   $("#pBud", el).onclick = () => dlgBudgets();
   $("#pCat", el).onclick = () => dlgCategories();
   $("#pMot", el).onclick = () => dlgMotsCles();
@@ -3458,7 +3546,7 @@ async function verifieAjoutRecu(){
   const vi = $("#versImport", d); if(vi) vi.remove();
 }
 window.addEventListener("hashchange", () => { if(captePartage() && S.etat) verifiePartageRecu(); if(capteLier() && S.etat) syncDemarrage(); if(capteAjout() && S.etat) verifieAjoutRecu(); });
-(window.WEB ? WEB.demarre() : Promise.resolve()).then(init).then(() => verifieAjoutRecu()).then(() => syncDemarrage()).catch(e => { $("#main").innerHTML = `<div class="banner err">Impossible de charger les données : ${esc(e.message)}</div>`; });
+(window.WEB ? WEB.demarre() : Promise.resolve()).then(init).then(() => verifieAjoutRecu()).then(() => syncDemarrage()).then(() => genereFixesAuto()).catch(e => { $("#main").innerHTML = `<div class="banner err">Impossible de charger les données : ${esc(e.message)}</div>`; });
 </script>
 </body>
 </html>

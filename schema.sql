@@ -92,3 +92,10 @@ CREATE TABLE journal (id INTEGER PRIMARY KEY, quand TEXT NOT NULL, table_nom TEX
 
 CREATE INDEX i_dep_mois ON depenses(mois);
 CREATE INDEX i_rev_mois ON revenus(mois);
+
+-- dépenses et revenus fixes (essai, app de Zach) : genre 'depense' | 'revenu' ; actif = inscrire chaque mois à sa date ;
+-- variable = montant estimé ; depuis / dernier = premier mois et dernier mois déjà inscrits (AAAA-MM).
+-- Les lignes inscrites portent fixe_id et estime (1 = montant estimé, effacé dès que la ligne est enregistrée).
+CREATE TABLE fixes (
+  id INTEGER PRIMARY KEY, genre TEXT NOT NULL, description TEXT NOT NULL, montant_c INTEGER NOT NULL, variable INTEGER NOT NULL DEFAULT 0,
+  jour INTEGER NOT NULL, categorie_id INTEGER REFERENCES categories(id), type TEXT, actif INTEGER NOT NULL DEFAULT 1, depuis TEXT, dernier TEXT);

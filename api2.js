@@ -32,7 +32,7 @@
 
   const TABLES = ["reglages","categories","mots_cles","reglements","depenses","autres_montants","pourboires","revenus","revenus_pourboires",
     "repartition","comptes_placement","placements_mois","versements_epargne","soldes_mois","ajustements_solde","releves_banque","budgets",
-    "exclusions_rappro","journal","financements","financements_recus","financements_soldes"];
+    "exclusions_rappro","journal","financements","financements_recus","financements_soldes","fixes"];
   function API(D, opts = {}){
     for(const t of TABLES) if(!Array.isArray(D[t])) D[t] = [];
     const auj = () => opts.aujourdhui ? opts.aujourdhui() : new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -117,7 +117,7 @@
           depense: part && ouvert ? null : m.maPart(d),
           categorie: m.categorie(d), cat_auto: auto, cat_manuelle: !!d.categorie_id && catNom(d.categorie_id) !== auto,
           marika: part ? 0 : m.partPartenaire(d), marqueur: !!(depMarq && depMarq.id === d.id), erreur: false,
-          a_rembourser: part && ouvert, regle: !!d.reglement_id, paye_par: d.paye_par, ordre: d.ordre};
+          a_rembourser: part && ouvert, regle: !!d.reglement_id, paye_par: d.paye_par, ordre: d.ordre, fixe: !!d.fixe_id, estime: !!d.estime};
       });
       // solde avec le partenaire, présenté comme dans la v1 : ce mois-ci + reports des mois précédents
       const ouvertes = x => !x.reglement_id && !x.historique;
@@ -148,7 +148,8 @@
       const revenus = revs.map(r => {
         const l = D.revenus_pourboires.filter(x => x.revenu_id === r.id).map(x => x.pourboire_id);
         return {ligne: r.id, utilise: true, date: r.date, montant: r.montant_c / 100, montant_txt: r.calcul ? "=" + r.calcul : null, description: r.description,
-                cases: r.cases_colonne ? {colonne: r.cases_colonne === "especes" ? "recu" : "arec", lignes: l, ajout: (r.cases_ajout_c || 0) / 100} : null};
+                cases: r.cases_colonne ? {colonne: r.cases_colonne === "especes" ? "recu" : "arec", lignes: l, ajout: (r.cases_ajout_c || 0) / 100} : null,
+                fixe: !!r.fixe_id, estime: !!r.estime};
       });
       // placements et épargne
       const pl = m.placements(mo);
@@ -248,7 +249,8 @@
       if(champs.mois < verrou()) throw new Erreur("Date dans un mois en lecture seule.");
       if(data.ligne != null){
         const d = D.depenses.find(x => x.id === +data.ligne); if(!d) throw new Erreur("Dépense introuvable");
-        const avant = Object.assign({}, d); Object.assign(d, champs); journal("depenses", d.id, "modification", avant, d); return d.id;
+        const avant = Object.assign({}, d); Object.assign(d, champs); if(d.estime) d.estime = 0;     // enregistrée = montant confirmé
+        journal("depenses", d.id, "modification", avant, d); ajusteEstimation(d.fixe_id, D.depenses); return d.id;
       }
       const d = Object.assign({id: nouvelId("depenses"), reglement_id: null, id_partage: null, historique: 0, part_hist: null,
                                ordre: ordreSuivant(), origine: "app"}, champs);
@@ -328,7 +330,7 @@
       }
       let r;
       if(data.ligne != null){ r = D.revenus.find(x => x.id === +data.ligne); if(!r) throw new Erreur("Revenu introuvable");
-        const av = Object.assign({}, r); Object.assign(r, champs); journal("revenus", r.id, "modification", av, r); }
+        const av = Object.assign({}, r); Object.assign(r, champs); if(r.estime) r.estime = 0; journal("revenus", r.id, "modification", av, r); ajusteEstimation(r.fixe_id, D.revenus); }
       else { r = Object.assign({id: nouvelId("revenus"), historique: 0, origine: "app"}, champs); D.revenus.push(r); journal("revenus", r.id, "ajout", null, r); }
       if(liens){ D.revenus_pourboires = D.revenus_pourboires.filter(x => x.revenu_id !== r.id).concat(liens.map(p => ({revenu_id: r.id, pourboire_id: p}))); }
       else D.revenus_pourboires = D.revenus_pourboires.filter(x => x.revenu_id !== r.id);
@@ -381,6 +383,115 @@
       else if(data.investi != null && data.investi !== ""){ x.investi_manuel = 1; x.investi_c = cents(calcule(data.investi).valeur); }
       journal("placements_mois", cid, "modification", av, x); return true;
     }
+
+    // ------------------------------------------------------------------ dépenses et revenus fixes (essai, app de Zach)
+    // Une ligne fixe = un montant qui revient chaque mois (loyer, cellulaire, paie…). « Inscrire chaque mois » (actif) :
+    // l'app ajoute la ligne du mois à sa date (datée d'avance → « à venir » jusqu'au jour J). Montant variable : la ligne
+    // est inscrite avec un montant estimé (« estimé ») jusqu'à ce que tu inscrives le vrai montant.
+    const cleFixe = t => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+      .replace(/\(carte [^)]*\)/g, "").replace(/[^a-z]+/g, " ").trim();
+    const finDuMois = mo => { const [a, m] = mo.split("-").map(Number); return new Date(a, m, 0).getDate(); };
+    const dateFixe = (mo, jour) => mo + "-" + String(Math.min(Math.max(1, jour || 1), finDuMois(mo))).padStart(2, "0");
+    const partDe = (typ, pct) => ({P: 1, "50": 0.5, SP: 1 - pct, M: 0}[typ] ?? 1);
+    function fixeVue(x, pct){
+      return {id: x.id, genre: x.genre, description: x.description, montant: x.montant_c / 100, variable: !!x.variable, jour: x.jour,
+              categorie: x.genre === "depense" ? (catNom(x.categorie_id) || M().categorie({description: x.description, categorie_id: null})) : null,
+              type: x.genre === "depense" ? libType(x.type || "P") : null, type_code: x.type || "P", actif: !!x.actif,
+              ma_part: x.genre === "depense" ? x.montant_c / 100 * partDe(x.type || "P", pct) : x.montant_c / 100, dernier: x.dernier || null};
+    }
+    function suggestionsFixes(mo){
+      const ign = new Set(REG().fixes_ignores || []), deja = new Set(D.fixes.map(x => x.genre + ":" + cleFixe(x.description)));
+      const derniers = []; for(let k = 1, m = mo; k <= 4; k++){ m = (() => { let [a, n] = m.split("-").map(Number); n--; if(n < 1){ n = 12; a--; } return a + "-" + String(n).padStart(2, "0"); })(); derniers.push(m); }
+      const out = [];
+      const analyse = (genre, lignes) => {
+        const g = new Map();
+        for(const l of lignes){ const c = cleFixe(l.description); if(c.length < 3) continue; if(!g.has(c)) g.set(c, []); g.get(c).push(l); }
+        for(const [c, l] of g){
+          const parMois = new Map(); for(const x of l){ if(!parMois.has(x.mois)) parMois.set(x.mois, []); parMois.get(x.mois).push(x); }
+          if(parMois.size < 3 || [...parMois.values()].some(v => v.length > 2)) continue;
+          if(deja.has(genre + ":" + c) || ign.has(genre + ":" + c)) continue;
+          const mts = [...parMois.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v.reduce((a, x) => a + x.mt, 0));
+          const moy = mts.reduce((a, x) => a + x, 0) / mts.length, ecart = Math.max(...mts) - Math.min(...mts);
+          // fixe si les 2 derniers mois ont le même montant (un loyer augmenté en juillet reste un fixe)
+          const variable = Math.abs(mts[mts.length - 1] - mts[mts.length - 2]) > Math.max(0.5, moy * 0.01);
+          if(variable && ecart > moy * 0.5) continue;        // trop irrégulier pour être un fixe (restaurant, magasinage…)
+          const der = l.slice().sort((a, b) => (a.date || "").localeCompare(b.date || "")).pop();
+          const derPaye = l.filter(x => x.paye != null).sort((a, b) => (a.date || "").localeCompare(b.date || "")).pop();
+          const jours = l.map(x => +(x.date || "").slice(8, 10)).filter(Boolean).sort((a, b) => a - b);
+          // la série compare « ma part » (seule connue pour l'historique) ; le montant proposé = montant payé de la dernière
+          // ligne détaillée (avec son type de partage), mis à l'échelle si le montant varie
+          let est = variable ? mts.slice(-3).reduce((a, x) => a + x, 0) / Math.min(3, mts.length) : mts[mts.length - 1];
+          let typ = "P";
+          if(derPaye && derPaye.mt > 0.004){ est = est * derPaye.paye / derPaye.mt; typ = derPaye.type || "P"; }
+          out.push({cle: genre + ":" + c, genre, description: der.description, montant: Math.round(est * 100) / 100, variable,
+                    jour: jours.length ? jours[Math.floor(jours.length / 2)] : 1, mois: parMois.size,
+                    categorie: genre === "depense" ? M().categorie(der) : null, type: genre === "depense" ? libType(typ) : null});
+        }
+      };
+      const m = M();
+      analyse("depense", D.depenses.filter(d => derniers.includes(d.mois) && d.paye_par !== "partenaire" && !d.fixe_id)
+        .map(d => Object.assign({}, d, {mt: m.maPart(d), paye: d.historique ? null : (d.montant_c || 0) / 100})));
+      analyse("revenu", D.revenus.filter(r => derniers.includes(r.mois) && !r.fixe_id && !r.historique && !/pourboire/i.test(r.description || "")
+        && !D.revenus_pourboires.some(x => x.revenu_id === r.id)).map(r => Object.assign({}, r, {mt: (r.montant_c || 0) / 100, paye: (r.montant_c || 0) / 100})));
+      return out.sort((a, b) => b.montant - a.montant).slice(0, 10);
+    }
+    // montant variable : l'estimation suit la moyenne des 3 derniers vrais montants (les prochains mois sont mieux estimés)
+    function ajusteEstimation(fid, table){
+      const x = fid && D.fixes.find(y => y.id === fid); if(!x || !x.variable) return;
+      const l = table.filter(y => y.fixe_id === fid && !y.estime && y.montant_c > 0).sort((a, b) => (a.date || "").localeCompare(b.date || "")).slice(-3);
+      if(l.length) x.montant_c = Math.round(l.reduce((a, y) => a + y.montant_c, 0) / l.length);
+    }
+    function aGenerer(mo){ return D.fixes.filter(x => x.actif && (!x.dernier || x.dernier < mo) && (!x.depuis || x.depuis <= mo)); }
+    function fixes(){
+      const mo = auj().slice(0, 7), pct = M().pct(mo);
+      const l = D.fixes.slice().sort((a, b) => (a.jour || 0) - (b.jour || 0) || a.id - b.id).map(x => fixeVue(x, pct));
+      const dep = l.filter(x => x.genre === "depense"), rev = l.filter(x => x.genre === "revenu");
+      return {fixes: l, suggestions: suggestionsFixes(mo), a_generer: aGenerer(mo).length, mois: mo,
+              total_depenses: dep.reduce((a, x) => a + x.ma_part, 0), total_revenus: rev.reduce((a, x) => a + x.montant, 0)};
+    }
+    function ecritFixe(data){
+      const genre = data.genre === "revenu" ? "revenu" : "depense";
+      const desc = String(data.description || "").trim(); if(!desc) throw new Erreur("La description est obligatoire.");
+      const mt = calcule(data.montant); if(!mt || !(mt.valeur > 0)) throw new Erreur(data.variable ? "Indique un montant estimé." : "Indique le montant.");
+      const jour = Math.min(31, Math.max(1, parseInt(data.jour, 10) || 1));
+      const champs = {genre, description: desc, montant_c: cents(mt.valeur), variable: data.variable ? 1 : 0, jour, actif: data.actif ? 1 : 0};
+      if(genre === "depense"){
+        const catTxt = String(data.categorie || "").trim();
+        champs.categorie_id = catTxt && norm(catTxt) !== norm(M().categorie({description: desc, categorie_id: null})) ? catId(catTxt) : null;
+        champs.type = codeType(String(data.type || "")) || "P";
+      }
+      const mo = auj().slice(0, 7);
+      if(data.id != null){
+        const x = D.fixes.find(y => y.id === +data.id); if(!x) throw new Erreur("Ligne fixe introuvable");
+        const av = Object.assign({}, x); Object.assign(x, champs);
+        if(x.actif && !av.actif) x.depuis = +jour >= +auj().slice(8, 10) ? mo : moisSuivant(mo);   // réactivée : à partir de la prochaine date
+        journal("fixes", x.id, "modification", av, x); return x.id;
+      }
+      // nouvelle ligne : inscrite dès ce mois si sa date n'est pas passée ; sinon à partir du mois prochain
+      const x = Object.assign({id: nouvelId("fixes"), depuis: jour >= +auj().slice(8, 10) ? mo : moisSuivant(mo), dernier: null}, champs);
+      if(data.cle) setReg("fixes_ignores", (REG().fixes_ignores || []).filter(k => k !== data.cle));
+      D.fixes.push(x); journal("fixes", x.id, "ajout", null, x); return x.id;
+    }
+    function genereFixes(){
+      const mo = auj().slice(0, 7); let n = 0;
+      if(mo < verrou()) return 0;
+      for(const x of aGenerer(mo)){
+        const date = dateFixe(mo, x.jour);
+        if(x.genre === "depense"){
+          const d = {id: nouvelId("depenses"), mois: mo, date, description: x.description, montant_c: x.montant_c, calcul: null, type: x.type || "P",
+                     categorie_id: x.categorie_id || null, paye_par: "moi", reglement_id: null, id_partage: null, historique: 0, part_hist: null,
+                     ordre: ordreSuivant(), origine: "app", fixe_id: x.id, estime: x.variable ? 1 : 0};
+          D.depenses.push(d); journal("depenses", d.id, "ajout", null, d);
+        } else {
+          const r = {id: nouvelId("revenus"), mois: mo, date, description: x.description, montant_c: x.montant_c, calcul: null, cases_colonne: null,
+                     cases_ajout_c: 0, historique: 0, origine: "app", fixe_id: x.id, estime: x.variable ? 1 : 0};
+          D.revenus.push(r); journal("revenus", r.id, "ajout", null, r);
+        }
+        x.dernier = mo; n++;
+      }
+      return n;
+    }
+
     // versement vers un placement (Placements › compte › Verser) : l'argent sort du compte (épargne du mois) ;
     // au besoin, la valeur du placement augmente du même montant (annuler le versement retire aussi cet ajout)
     function versement(f, data){
@@ -440,8 +551,8 @@
     // ------------------------------------------------------------------ historique des modifications et « Annuler »
     const TABLE_FR = {depenses: "Dépense", revenus: "Revenu", pourboires: "Pourboires", autres_montants: "Autre montant", reglements: "Règlement",
       mots_cles: "Mot-clé", categories: "Catégorie", placements_mois: "Placement", repartition: "Répartition", budgets: "Budgets",
-      ajustements_solde: "Ajustement de solde", comptes_placement: "Compte de placement", financements: "Financement", financements_recus: "Financement reçu", financements_soldes: "Solde dû d'un financement", releves_banque: "Solde de la banque", versements_epargne: "Épargne"};
-    const ANNULABLES = new Set(["versements_epargne", "financements", "financements_recus", "financements_soldes", "releves_banque", "depenses", "revenus", "pourboires", "autres_montants", "reglements", "mots_cles", "ajustements_solde", "placements_mois", "categories"]);
+      ajustements_solde: "Ajustement de solde", comptes_placement: "Compte de placement", financements: "Financement", financements_recus: "Financement reçu", financements_soldes: "Solde dû d'un financement", releves_banque: "Solde de la banque", versements_epargne: "Épargne", fixes: "Dépense ou revenu fixe"};
+    const ANNULABLES = new Set(["fixes", "versements_epargne", "financements", "financements_recus", "financements_soldes", "releves_banque", "depenses", "revenus", "pourboires", "autres_montants", "reglements", "mots_cles", "ajustements_solde", "placements_mois", "categories"]);
     function resume(j){
       const o = JSON.parse(j.apres || j.avant || "null") || {};
       const mt = o.montant_c != null ? " · " + (o.montant_c / 100).toFixed(2).replace(".", ",") + " $" : "";
@@ -490,6 +601,7 @@
       if(!corps){
         if(p === "/api/etat") return etat();
         if(p === "/api/journal") return historiqueModifs(+(u.searchParams.get("n") || 60));
+        if(p === "/api/fixes") return fixes();
         if(p === "/api/export"){
           const X = (typeof module !== "undefined" && module.exports) ? require("./export_xlsx.js") : racine.ExportXlsx;
           const octets = X.exporte(null, D, M(), nomMois);
@@ -518,6 +630,10 @@
         case "/api/parametres": res = parametres(f, corps); break;
         case "/api/investissement": res = investissement(f, corps); break;
         case "/api/versement": res = versement(f, corps); break;
+        case "/api/fixe": res = ecritFixe(corps); break;
+        case "/api/fixe/supprimer": res = supprime("fixes", corps.id, () => {}); break;
+        case "/api/fixe/ignorer": setReg("fixes_ignores", [...new Set([...(REG().fixes_ignores || []), String(corps.cle || "")])]); res = true; break;
+        case "/api/fixes/generer": res = genereFixes(); break;
         case "/api/budgets": res = budgets(f, corps); break;
         case "/api/configuration": res = configuration(f, corps); break;
         case "/api/ajustement": {
