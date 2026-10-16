@@ -56,8 +56,11 @@
     const TY = {P: "Personnel", "50": "50/50", SP: "Proportionnel", M: "100 % " + P, R: "Remboursement"};
     const d = x => x ? {t: "d", v: x} : "";
     const ch = M.chaine();
-    const resume = [["Mois", "Solde de début", "Revenus", "Dépenses (ma part)", "Revenu net", "Épargne placée", "Ajustement", "Solde de fin"]]
-      .concat(M.listeMois().map(m => { const x = ch[m]; return [nomMoisFn(m), x.debut, x.revenus, x.totalDepenses, x.revenuNet, x.epargne, x.ajustement || 0, x.fin]; }));
+    const resume = [["Mois", "Solde de début", "Revenus", "Dépenses (ma part)", "Revenu net", "Épargne placée", "Financement reçu", "Ajustement", "Solde de fin"]]
+      .concat(M.listeMois().map(m => { const x = ch[m]; return [nomMoisFn(m), x.debut, x.revenus, x.totalDepenses, x.revenuNet, x.epargne, x.financement || 0, x.ajustement || 0, x.fin]; }));
+    const fnom = new Map((D.financements || []).map(f => [f.id, f.nom]));
+    const fin = [["Financement", "Date", "Montant reçu", "Note"]].concat((D.financements_recus || []).slice().sort((a, b) => a.date.localeCompare(b.date)).map(x => [fnom.get(x.financement_id), d(x.date), x.montant_c / 100, x.note || ""]))
+      .concat([[], ["Financement", "Date", "Solde dû inscrit"]]).concat((D.financements_soldes || []).map(x => [fnom.get(x.financement_id), d(x.date), x.solde_du_c / 100]));
     const dep = [["Mois", "Date", "Description", "Montant payé", "Type", "Payé par", "Ma part", "Part de " + P, "Catégorie", "Réglé", "Calcul saisi"]]
       .concat(D.depenses.slice().sort((a, b) => (a.mois + (a.date || "")).localeCompare(b.mois + (b.date || "")) || a.ordre - b.ordre).map(x => [nomMoisFn(x.mois), d(x.date), x.description,
         x.historique ? "" : (x.montant_c || 0) / 100, x.historique ? "Historique" : TY[x.type] || x.type, x.paye_par === "partenaire" ? P : "Moi",
@@ -78,7 +81,7 @@
     return classeur([{nom: "Résumé", lignes: resume, largeurs: [16, 15, 13, 17, 13, 15, 12, 14]},
       {nom: "Dépenses", lignes: dep, largeurs: [16, 11, 34, 13, 14, 10, 11, 13, 16, 7, 16]}, {nom: "Revenus", lignes: rev, largeurs: [16, 11, 34, 12, 12]},
       {nom: "Pourboires", lignes: pb, largeurs: [16, 11, 10, 10, 8, 7]}, {nom: "Placements", lignes: pl, largeurs: [16, 14, 15, 16, 12, 16]},
-      {nom: "Budgets", lignes: bud, largeurs: [18, 20, 12]}, {nom: "Partage", lignes: aut, largeurs: [11, 30, 26, 7]},
+      {nom: "Budgets", lignes: bud, largeurs: [18, 20, 12]}, {nom: "Financement", lignes: fin, largeurs: [18, 11, 14, 30]}, {nom: "Partage", lignes: aut, largeurs: [11, 30, 26, 7]},
       {nom: "Répartition", lignes: rep, largeurs: [16, 13, 15, 11]}]);
   }
   const exp = {exporte, classeur, zip};

@@ -1,0 +1,81 @@
+"""Routes de l'API, partagées par le serveur local (serveur.py) et la version web (pont.py)."""
+
+
+def get(app, chemin, q):
+    """Requête de lecture. `q` : dict {clé: [valeurs]} (comme urllib.parse.parse_qs)."""
+    app.charge()
+    if chemin == "/api/etat":
+        return app.etat()
+    if chemin == "/api/mois":
+        f = q.get("f", [""])[0]
+        info = app.info_mois(f)
+        return app.modele(f) if info["canvas"] else app.historique(f)
+    if chemin == "/api/tendances":
+        return app.tendances()
+    return None
+
+
+def post(app, chemin, data):
+    """Requête d'écriture. Renvoie le résultat, ou lève KeyError si la route est inconnue."""
+    f = data.get("feuille")
+    if chemin == "/api/transaction":
+        return app.enregistre_transaction(f, data)
+    if chemin == "/api/transactions/lot":
+        return app.enregistre_transactions_lot(f, data.get("transactions") or [])
+    if chemin == "/api/releve/analyse":
+        return app.analyse_releve(f, data.get("images") or [])
+    if chemin == "/api/releve/revenus":
+        return app.analyse_releve_revenus(f, data.get("images") or [])
+    if chemin == "/api/revenus/lot":
+        return app.enregistre_revenus_lot(f, data.get("revenus") or [])
+    if chemin == "/api/rappro/lire":
+        return app.rappro_lire(f, data.get("fichier") or {})
+    if chemin == "/api/rappro/images":
+        return app.rappro_images(f, data.get("images") or [], data.get("noms") or [])
+    if chemin == "/api/rappro/analyse":
+        return app.rappro_analyse(f, data.get("fichiers") or [], data.get("options") or {})
+    if chemin == "/api/transaction/supprimer":
+        return app.supprime_transaction(f, int(data["ligne"]))
+    if chemin == "/api/reglement":
+        return app.marque_reglement(f, data.get("ligne"))
+    if chemin == "/api/budgets":
+        return app.enregistre_budgets(data)
+    if chemin == "/api/compte-epargne":
+        return app.ajoute_compte_epargne(data.get("nom"))
+    if chemin == "/api/configuration":
+        return app.configuration_depart(f, data)
+    if chemin == "/api/revenu":
+        return app.enregistre_ligne_bloc(f, "revenus", data)
+    if chemin == "/api/revenu/supprimer":
+        return app.supprime_ligne_bloc(f, "revenus", int(data["ligne"]))
+    if chemin == "/api/pourboire":
+        return app.enregistre_ligne_bloc(f, "pourboires", data)
+    if chemin == "/api/pourboire/supprimer":
+        return app.supprime_ligne_bloc(f, "pourboires", int(data["ligne"]))
+    if chemin == "/api/parametres":
+        return app.enregistre_parametres(f, data)
+    if chemin == "/api/investissement":
+        return app.enregistre_investissement(f, data)
+    if chemin == "/api/marika":
+        return app.enregistre_ajust_marika(f, data)
+    if chemin == "/api/marika/supprimer":
+        return app.supprime_ajust_marika(f, int(data["ligne"]))
+    if chemin == "/api/controle":
+        return app.force_controle(f, int(data["ligne"]), bool(data.get("forcer")), data.get("justification"))
+    if chemin == "/api/nouveau-mois":
+        return app.nouveau_mois(data)
+    if chemin == "/api/listes/mot-cle":
+        return app.ajoute_mot_cle(data.get("mot"), data.get("categorie"))
+    if chemin == "/api/listes/categorie":
+        return app.ajoute_categorie(data.get("nom"))
+    if chemin == "/api/types/cent/couleur":
+        return app.ajoute_couleur_type_cent()
+    if chemin == "/api/correction/part":
+        return app.corrige_formule_part()
+    if chemin == "/api/parts-recues/personnel":
+        return app.parts_recues_personnel()
+    if chemin == "/api/types/cent":
+        return app.remplace_type_remboursement()
+    if chemin == "/api/listes/type":
+        return app.ajoute_type(data.get("nom"))
+    raise KeyError(chemin)

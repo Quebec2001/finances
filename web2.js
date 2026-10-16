@@ -4,7 +4,7 @@
 // que pour lire l'Excel (essai en mode miroir, import) et pour lire des relevés ou des captures. Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "1a5e27e92b";
+const VERSION = "b9bd55c361";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPES_BASE = "Files.ReadWrite offline_access User.Read";
@@ -17,13 +17,13 @@ const PYODIDE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const PYODIDE_SRI = "sha384-i3R37b3tF+HWudsUf1VSEOY2YxwSNMqY8DQa9Z0O3xh+NkJ9o+yjcGyIi5huj+nB";
 const CONFIG = {premier_mois_modifiable: "Octobre 2026", alias_investissements: {"Fonds communs de placement": "CÉLI"}};
 const CHEMIN = "/data/finances.xlsx";
-// modules Python : ceux de la v1 (dossier parent) pour lire l'Excel et les relevés, et ceux de la v2 (import)
-const MODULES = [["../", "formules.py"], ["../", "xlsx.py"], ["../", "modele.py"], ["../", "releve.py"], ["../", "rapprochement.py"],
+// modules Python : ceux de la v1 (« ^ » = dossier racine de l'app, où sont aussi copiés les modules de la v1) pour lire l'Excel et les relevés, et ceux de la v2 (import)
+const MODULES = [["^", "formules.py"], ["^", "xlsx.py"], ["^", "modele.py"], ["^", "releve.py"], ["^", "rapprochement.py"],
                  ["", "magasin.py"], ["", "schema.sql"], ["", "importe.py"], ["", "lecture_v2.py"]];
 const LECTURE_SEULE = ["/api/releve/analyse", "/api/releve/revenus", "/api/rappro/lire", "/api/rappro/images", "/api/rappro/analyse"];   // POST sans écriture
 const BASE_NOM = "Finances app.json";
 const JSON_TYPE = "application/json";
-// adresse de retour de la connexion Microsoft : celle de l'app actuelle (déjà inscrite chez Microsoft), qui renvoie ici
+// adresse de retour de la connexion Microsoft : la racine de l'app (déjà inscrite chez Microsoft) ; si la v2 est dans v2/, la racine la renvoie ici
 const REDIRECT = location.origin + location.pathname.replace(/v2\/[^/]*$/, "").replace(/[^/]*$/, "");
 const ICI = location.origin + location.pathname.replace(/[^/]*$/, "");
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -237,7 +237,7 @@ function chargePython(msg){
     py = await loadPyodide({indexURL: PYODIDE});
     py.FS.mkdirTree("/app"); py.FS.mkdirTree("/data");
     for(const [dossier, n] of MODULES){
-      const r = await fetch(dossier + n + "?v=" + VERSION, {cache: "no-cache"});
+      const r = await fetch((dossier === "^" ? REDIRECT : dossier) + n + "?v=" + VERSION, {cache: "no-cache"});
       if(!r.ok) throw new Error("Module manquant : " + n);
       py.FS.writeFile("/app/" + n, await r.text());
     }
