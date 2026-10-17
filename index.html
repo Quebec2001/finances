@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-532NJ3dPMaRDwLjaLZFocCEgrr4wmZ5Y2gF6CB1LOAw='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-SiFM2QqSR8HiV7Ealk3aK2uonK5cuY4/NJns03zkdCw='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -206,6 +206,7 @@ details.cp-vieux{margin-top:12px}details.cp-vieux summary{cursor:pointer;color:v
 .ctl:last-child{border-bottom:0}
 .ctl .l{flex:1;min-width:0}
 .ctl .l small{display:block;color:var(--ink-3);font-size:12px}
+.fab[hidden]{display:none!important}
 .fab{position:fixed;right:20px;bottom:calc(22px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);font-size:30px;box-shadow:0 6px 20px rgba(0,0,0,.18);cursor:pointer;z-index:30;display:flex;align-items:center;justify-content:center}
 .fab:disabled{display:none}
 /* la fenêtre (dialog) couvre tout l'écran, transparente ; le panneau .dlg-p est la vraie fenêtre : toucher à côté du panneau
@@ -450,10 +451,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=ed21adbde1"></script>
-<script src="api2.js?v=ed21adbde1"></script>
-<script src="export_xlsx.js?v=ed21adbde1"></script>
-<script src="web2.js?v=ed21adbde1" data-version="web.js?v=ed21adbde1"></script>
+<script src="calculs.js?v=c664c3945f"></script>
+<script src="api2.js?v=c664c3945f"></script>
+<script src="export_xlsx.js?v=c664c3945f"></script>
+<script src="web2.js?v=c664c3945f" data-version="web.js?v=c664c3945f"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1212,9 +1213,11 @@ function rend(){
     barreOngletsPro();
     const br = $(".brand"); if(br) br.innerHTML = dateEntete();
     const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro, ctl:vueCtlPro, rappro:vueRappro, fixes:vueFixesPro, modules:vueModulesPro}[S.vue] || vueBordPro;
+    $("#fab").hidden = S.vue !== "trans";        // le + (nouvelle dépense) seulement dans Dépenses
     m.innerHTML = bandeaux() + (S.vue === "split" ? syncZone() : "") + `<div id="vue"></div>`; vp($("#vue")); majBandeauSync(); brancheBandeaux(m); return;
   }
   { const br = $(".brand"); if(br && br.querySelector(".br-j")) br.innerHTML = ""; }
+  $("#fab").hidden = false;
   if(["split", "plus"].includes(S.vue)) S.vue = "bord";
   if(S.vue === "couple" && !MODE_PAYE()) S.vue = "bord";
   const v = {bord:MODE_PAYE()?vueBordPaye:vueBord, trans:MODE_PAYE()?vueTransPaye:vueTrans, rev:vueRev, couple:vueCouple, inv:vueInv, regl:vueRegl, rappro:vueRappro}[S.vue] || vueBord;
