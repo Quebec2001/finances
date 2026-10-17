@@ -32,7 +32,7 @@
 
   const TABLES = ["reglages","categories","mots_cles","reglements","depenses","autres_montants","pourboires","revenus","revenus_pourboires",
     "repartition","comptes_placement","placements_mois","versements_epargne","soldes_mois","ajustements_solde","releves_banque","budgets",
-    "exclusions_rappro","journal","financements","financements_recus","financements_soldes","fixes"];
+    "exclusions_rappro","journal","financements","financements_recus","financements_soldes","fixes","prevus"];
   function API(D, opts = {}){
     for(const t of TABLES) if(!Array.isArray(D[t])) D[t] = [];
     const auj = () => opts.aujourdhui ? opts.aujourdhui() : new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -170,6 +170,7 @@
         du_net: r2(duTotal - aRembMois - aRembAvant), ligne_dernier_reglement: depMarq ? depMarq.id : null,
         par_categorie: Object.entries(ch.parCategorie).map(([categorie, montant]) => ({categorie, montant})), hors_resume: {},
         pourboires, total_pourboires: {recu: ch.pourboires.especes, a_recevoir: ch.pourboires.carte, heures: ch.pourboires.heures}, colonne_heures: true,
+        prevus: D.prevus.filter(x => x.mois === mo).sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id).map(prevuVue),
         revenus, total_revenus: totRev, total_fiorellino: revs.filter(r => reRev.test(r.description || "")).reduce((a, r) => a + r.montant_c / 100, 0),
         investissements, total_investi: pl.reduce((a, x) => a + x.investi, 0), total_jv: pl.reduce((a, x) => a + x.valeur, 0),
         budgets: bm, budgets_de: de ? nomMois(de) : null,
@@ -463,7 +464,7 @@
       const mo = auj().slice(0, 7);
       if(data.id != null){
         const x = D.fixes.find(y => y.id === +data.id); if(!x) throw new Erreur("Ligne fixe introuvable");
-        const av = Object.assign({}, x); Object.assign(x, champs);
+        const av = Object.assign({}, x); Object.assign(x, champs); majPrevus(x, !x.actif);
         if(x.actif && !av.actif) x.depuis = +jour >= +auj().slice(8, 10) ? mo : moisSuivant(mo);   // réactivée : à partir de la prochaine date
         journal("fixes", x.id, "modification", av, x); return x.id;
       }
@@ -472,24 +473,64 @@
       if(data.cle) setReg("fixes_ignores", (REG().fixes_ignores || []).filter(k => k !== data.cle));
       D.fixes.push(x); journal("fixes", x.id, "ajout", null, x); return x.id;
     }
+    // chaque mois, une prévision par ligne fixe active (« Dépenses / Revenus à venir ») : elle ne compte nulle part tant que
+    // tu ne l'as pas cochée « passée » ; cochée, elle devient une vraie dépense (ou un vrai revenu), date et montant modifiables.
     function genereFixes(){
       const mo = auj().slice(0, 7); let n = 0;
       if(mo < verrou()) return 0;
       for(const x of aGenerer(mo)){
-        const date = dateFixe(mo, x.jour);
-        if(x.genre === "depense"){
-          const d = {id: nouvelId("depenses"), mois: mo, date, description: x.description, montant_c: x.montant_c, calcul: null, type: x.type || "P",
-                     categorie_id: x.categorie_id || null, paye_par: "moi", reglement_id: null, id_partage: null, historique: 0, part_hist: null,
-                     ordre: ordreSuivant(), origine: "app", fixe_id: x.id, estime: x.variable ? 1 : 0};
-          D.depenses.push(d); journal("depenses", d.id, "ajout", null, d);
-        } else {
-          const r = {id: nouvelId("revenus"), mois: mo, date, description: x.description, montant_c: x.montant_c, calcul: null, cases_colonne: null,
-                     cases_ajout_c: 0, historique: 0, origine: "app", fixe_id: x.id, estime: x.variable ? 1 : 0};
-          D.revenus.push(r); journal("revenus", r.id, "ajout", null, r);
-        }
+        const pv = {id: nouvelId("prevus"), fixe_id: x.id, genre: x.genre, mois: mo, date: dateFixe(mo, x.jour), description: x.description,
+                    montant_c: x.montant_c, estime: x.variable ? 1 : 0, categorie_id: x.categorie_id || null, type: x.type || null};
+        D.prevus.push(pv); journal("prevus", pv.id, "ajout", null, pv);
         x.dernier = mo; n++;
       }
       return n;
+    }
+    function prevuVue(pv){
+      const pct = M().pct(pv.mois);
+      return {id: pv.id, fixe_id: pv.fixe_id, genre: pv.genre, date: pv.date, description: pv.description, montant: pv.montant_c / 100, estime: !!pv.estime,
+              categorie: pv.genre === "depense" ? (catNom(pv.categorie_id) || M().categorie({description: pv.description, categorie_id: null})) : null,
+              type: pv.genre === "depense" ? libType(pv.type || "P") : null, type_code: pv.type || "P",
+              ma_part: pv.genre === "depense" ? pv.montant_c / 100 * partDe(pv.type || "P", pct) : pv.montant_c / 100};
+    }
+    const champsPrevu = data => {
+      const c = {};
+      if(data.description != null && String(data.description).trim()) c.description = String(data.description).trim();
+      if(data.montant != null && String(data.montant).trim() !== ""){ const mt = calcule(data.montant); if(!mt || !(mt.valeur > 0)) throw new Erreur("Montant invalide."); c.montant_c = cents(mt.valeur); }
+      if(data.date){ if(!/^\d{4}-\d{2}-\d{2}$/.test(data.date)) throw new Erreur("Date invalide."); c.date = data.date; }
+      return c;
+    };
+    function modifiePrevu(data){
+      const pv = D.prevus.find(x => x.id === +data.id); if(!pv) throw new Erreur("Prévision introuvable");
+      const av = Object.assign({}, pv), c = champsPrevu(data); Object.assign(pv, c); if(c.montant_c != null && c.montant_c !== av.montant_c) pv.estime = 0;
+      journal("prevus", pv.id, "modification", av, pv); return pv.id;
+    }
+    // « C'est passé » : la prévision devient une vraie dépense / un vrai revenu (dans le mois de sa date)
+    function passePrevu(data){
+      const pv = D.prevus.find(x => x.id === +data.id); if(!pv) throw new Erreur("Prévision introuvable");
+      const c = Object.assign({date: pv.date, montant_c: pv.montant_c, description: pv.description}, champsPrevu(data));
+      const mo = c.date.slice(0, 7); if(mo < verrou()) throw new Erreur("Date dans un mois en lecture seule.");
+      let id;
+      if(pv.genre === "depense"){
+        const d = {id: nouvelId("depenses"), mois: mo, date: c.date, description: c.description, montant_c: c.montant_c, calcul: null, type: pv.type || "P",
+                   categorie_id: pv.categorie_id || null, paye_par: "moi", reglement_id: null, id_partage: null, historique: 0, part_hist: null,
+                   ordre: ordreSuivant(), origine: "app", fixe_id: pv.fixe_id};
+        D.depenses.push(d); journal("depenses", d.id, "ajout", null, d); id = d.id; ajusteEstimation(pv.fixe_id, D.depenses);
+      } else {
+        const r = {id: nouvelId("revenus"), mois: mo, date: c.date, description: c.description, montant_c: c.montant_c, calcul: null, cases_colonne: null,
+                   cases_ajout_c: 0, historique: 0, origine: "app", fixe_id: pv.fixe_id};
+        D.revenus.push(r); journal("revenus", r.id, "ajout", null, r); id = r.id; ajusteEstimation(pv.fixe_id, D.revenus);
+      }
+      supprime("prevus", pv.id);
+      return id;
+    }
+    // une ligne fixe modifiée / désactivée / supprimée : ses prévisions pas encore cochées suivent
+    function majPrevus(x, retirer){
+      for(const pv of D.prevus.filter(y => y.fixe_id === x.id)){
+        if(retirer){ D.prevus = D.prevus.filter(y => y !== pv); continue; }
+        Object.assign(pv, {description: x.description, montant_c: x.montant_c, date: dateFixe(pv.mois, x.jour),
+                           categorie_id: x.categorie_id || null, type: x.type || null, estime: x.variable ? 1 : 0});
+      }
     }
 
     // versement vers un placement (Placements › compte › Verser) : l'argent sort du compte (épargne du mois) ;
@@ -551,8 +592,8 @@
     // ------------------------------------------------------------------ historique des modifications et « Annuler »
     const TABLE_FR = {depenses: "Dépense", revenus: "Revenu", pourboires: "Pourboires", autres_montants: "Autre montant", reglements: "Règlement",
       mots_cles: "Mot-clé", categories: "Catégorie", placements_mois: "Placement", repartition: "Répartition", budgets: "Budgets",
-      ajustements_solde: "Ajustement de solde", comptes_placement: "Compte de placement", financements: "Financement", financements_recus: "Financement reçu", financements_soldes: "Solde dû d'un financement", releves_banque: "Solde de la banque", versements_epargne: "Épargne", fixes: "Dépense ou revenu fixe"};
-    const ANNULABLES = new Set(["fixes", "versements_epargne", "financements", "financements_recus", "financements_soldes", "releves_banque", "depenses", "revenus", "pourboires", "autres_montants", "reglements", "mots_cles", "ajustements_solde", "placements_mois", "categories"]);
+      ajustements_solde: "Ajustement de solde", comptes_placement: "Compte de placement", financements: "Financement", financements_recus: "Financement reçu", financements_soldes: "Solde dû d'un financement", releves_banque: "Solde de la banque", versements_epargne: "Épargne", fixes: "Dépense ou revenu fixe", prevus: "Prévision (fixe)"};
+    const ANNULABLES = new Set(["prevus", "fixes", "versements_epargne", "financements", "financements_recus", "financements_soldes", "releves_banque", "depenses", "revenus", "pourboires", "autres_montants", "reglements", "mots_cles", "ajustements_solde", "placements_mois", "categories"]);
     function resume(j){
       const o = JSON.parse(j.apres || j.avant || "null") || {};
       const mt = o.montant_c != null ? " · " + (o.montant_c / 100).toFixed(2).replace(".", ",") + " $" : "";
@@ -631,7 +672,10 @@
         case "/api/investissement": res = investissement(f, corps); break;
         case "/api/versement": res = versement(f, corps); break;
         case "/api/fixe": res = ecritFixe(corps); break;
-        case "/api/fixe/supprimer": res = supprime("fixes", corps.id, () => {}); break;
+        case "/api/fixe/supprimer": res = supprime("fixes", corps.id, x => majPrevus(x, true)); break;
+        case "/api/prevu": res = modifiePrevu(corps); break;
+        case "/api/prevu/passe": res = passePrevu(corps); break;
+        case "/api/prevu/retirer": res = supprime("prevus", corps.id); break;
         case "/api/fixe/ignorer": setReg("fixes_ignores", [...new Set([...(REG().fixes_ignores || []), String(corps.cle || "")])]); res = true; break;
         case "/api/fixes/generer": res = genereFixes(); break;
         case "/api/budgets": res = budgets(f, corps); break;

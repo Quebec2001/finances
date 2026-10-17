@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-hXjqBwg0mAkVVCLUin9uY1RDWN5ge2dbw3e5ggK6X0U='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-SsmwmVurROaTupxdygcKBiL/SDAEiDdlJylj+zDzqRs='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -186,6 +186,7 @@ details.cp-vieux{margin-top:12px}details.cp-vieux summary{cursor:pointer;color:v
 .item .t2{font-size:12.5px;color:var(--ink-3);display:flex;gap:8px;flex-wrap:wrap;margin-top:1px}
 .item .amt{text-align:right;font-weight:600;white-space:nowrap}
 .item .amt small{display:block;font-weight:400;color:var(--ink-3);font-size:12px}
+.pv-ok{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);background:var(--surface);color:transparent;font-weight:800;cursor:pointer;padding:0}.pv-ok.du{border-color:var(--accent);color:var(--accent)}.pv-ok:active{background:var(--accent);color:var(--accent-ink)}
 .p-chip.p-est{background:#FEF3C7;color:#92400E}@media (prefers-color-scheme: dark){.p-chip.p-est{background:#3A2E12;color:#FDE68A}}
 .chip{font-size:11.5px;padding:1px 7px;border-radius:6px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
 .chip.t-SP{background:#E0F2FE;color:#0369A1}.chip.t-50{background:#FEF3C7;color:#92400E}.chip.t-R{background:#FFE4E6;color:#BE123C}
@@ -444,10 +445,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=b210e7b8cc"></script>
-<script src="api2.js?v=b210e7b8cc"></script>
-<script src="export_xlsx.js?v=b210e7b8cc"></script>
-<script src="web2.js?v=b210e7b8cc" data-version="web.js?v=b210e7b8cc"></script>
+<script src="calculs.js?v=8a060de512"></script>
+<script src="api2.js?v=8a060de512"></script>
+<script src="export_xlsx.js?v=8a060de512"></script>
+<script src="web2.js?v=8a060de512" data-version="web.js?v=8a060de512"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1463,7 +1464,7 @@ function vueTrans(el){
       const bud = hist ? {} : Object.fromEntries(suiviBudgets().map(x => [x.cat, x]));
       Object.keys(bud).forEach(c => { if(!g.some(x => x.categorie === c)) g.push({categorie: c, lignes: [], total: 0}); });
       const nbKo = Object.values(bud).filter(x => x.dep > x.max + 0.005).length;
-      z.innerHTML = `<div class="grid two">
+      z.innerHTML = `${prevusHTML(m, "depense")}<div class="grid two">
         <div class="card cadre"><h3>Dépenses par catégorie${mod && !hist ? `<span class="sp"><button class="btn small" id="btnImport">Importer des captures</button></span>` : ""}</h3>
           ${g.length ? g.map(x=>`<div class="grp" data-c="${esc(x.categorie)}"><div class="grp-h" role="button" tabindex="0">
             ${MODE_PAYE() ? `<i class="pastille" style="background:${couleurCat(x.categorie)}"></i>` : `<span class="cat-ico" aria-hidden="true">${iconeCat(x.categorie)}</span>`}
@@ -1477,6 +1478,7 @@ function vueTrans(el){
       <div class="card cadre"><h3>Dépenses des 6 derniers mois</h3><div id="g6"><div class="empty">Chargement…</div></div></div>`;
       graphDepenses6(z);
       const bi = $("#btnImport", z); if(bi) bi.onclick = () => dlgImportCaptures();
+      branchePrevus(z);
       const eb = $("#edBud2", z); if(eb) eb.onclick = ev => { ev.preventDefault(); dlgBudgets(); };
       z.querySelectorAll(".grp-h").forEach(h=>h.onclick=()=>dlgCategorieDepenses(h.parentNode.dataset.c));
       if(!UIPRO()) brancheMarika(z, m);
@@ -1861,7 +1863,7 @@ function vueRev(el){
   const mod = S.info.modifiable;
   const revs = m.revenus.filter(r=>r.utilise);
   const groupes = groupesRevenus();
-  el.innerHTML = `
+  el.innerHTML = `${prevusHTML(m, "revenu")}
    <div class="grid two">
     <div class="card cadre"><h3>Revenus globaux${mod && !MODE_PAYE() ? `<span class="sp"><button class="btn small" id="btnImpRev">Importer des captures</button></span>` : ""}</h3>
       ${groupes.map(g=>`<div class="grp" data-g="${g.cle}">
@@ -1875,6 +1877,7 @@ function vueRev(el){
    <div class="card cadre" id="calPb"></div>`;
   el.querySelectorAll(".grp-h").forEach(h=>h.onclick=()=>dlgGroupeRevenus(h.parentNode.dataset.g));
   { const bi = $("#btnImpRev", el); if(bi) bi.onclick = () => dlgImportRevenus(); }
+  branchePrevus(el);
   if(MODE_PAYE()) calendrierPaye($("#calPb", el)); else calendrierPourboires($("#calPb", el));
 }
 function carteRepartitionHTML(m, mod){
@@ -2736,7 +2739,7 @@ function vueBordPro(el){
   el.innerHTML = `
    <div class="card p-hero">${ctlEnErreur().length ? `<button class="p-ctl-al" id="pCtlAl" title="Voir les contrôles"><i></i>${ctlEnErreur().length} à vérifier</button>` : ""}<div class="lbl" ${ctlEnErreur().length ? `style="padding-right:104px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"` : ""}>Solde au compte · ${esc(S.info.nom)}</div><div class="gros num">${$$(soldeAuCompte(m))}</div>
      <div class="sous"><span>Début ${$$(m.solde_debut)}${mod ? ` · <a href="#" id="edSol" style="color:var(--accent);text-decoration:none;font-weight:600">Modifier</a>` : ""}</span><span class="p-chip ${rn < 0 ? "neg" : "pos"}">${rn < 0 ? "▼" : "▲"} ${$$(Math.abs(rn))} ce mois</span></div></div>
-   ${soldeAttenduHTML()}
+   ${soldeAttenduHTML()}${aCocherHTML(m)}
    <div class="spacer"></div>${split}${split ? `<div class="spacer"></div>` : ""}
    <div class="p-stats"><div class="p-stat clic" id="pRev" role="button" tabindex="0"><div class="l">Revenus</div><div class="v num">${$$(m.total_revenus)}</div></div>
      <div class="p-stat clic" id="pDep" role="button" tabindex="0"><div class="l">Dépenses</div><div class="v num">${$$(m.total_depenses)}</div></div>
@@ -2747,6 +2750,7 @@ function vueBordPro(el){
   const ca = $("#pCtlAl", el); if(ca) ca.onclick = () => vaVers("ctl");
   brancheSoldes(el);
   const ps = $("#pSplit", el); if(ps){ ps.onclick = () => vaVers("split"); ps.onkeydown = ev => { if(ev.key === "Enter") vaVers("split"); }; }
+  { const ac = $("#pACocher", el); if(ac) ac.onclick = () => vaVers(ac.dataset.v); }
   [["#pRev", "rev"], ["#pDep", "trans"]].forEach(([id, v]) => { const b = $(id, el); if(b){ b.onclick = () => vaVers(v); b.onkeydown = ev => { if(ev.key === "Enter") vaVers(v); }; } });
   const es = $("#edSol", el); if(es) es.onclick = ev => { ev.preventDefault(); dlgSoldes(m); };
 }
@@ -3342,6 +3346,49 @@ function rapAjouter(x){
   const h = $("#dlg .dlg-b"); if(h) h.insertAdjacentHTML("afterbegin", `<p class="hint rp-src" style="margin:0">Depuis le relevé ${esc(rapNom(x.compte))} du ${dL(x.date)} · vérifie avant d'ajouter.</p>`);
 }
 
+
+// --- Prévisions des lignes fixes (« Dépenses / Revenus à venir ») : ne comptent nulle part tant qu'elles ne sont pas cochées
+const prevusDe = (m, genre) => UIPRO() ? (m.prevus || []).filter(p => p.genre === genre) : [];
+function prevusHTML(m, genre){
+  const l = prevusDe(m, genre); if(!l.length) return "";
+  const dep = genre === "depense", auj = today();
+  return `<div class="card" id="pv-${genre}"><div class="p-sec"><b>${dep ? "Dépenses à venir" : "Revenus à venir"}</b><span>coche quand c'est passé</span></div>
+    ${l.map(p => `<div class="p-row pv-l" data-pv="${p.id}" role="button" tabindex="0" style="cursor:pointer;grid-template-columns:34px 44px 1fr auto">
+      <button class="pv-ok ${p.date <= auj ? "du" : ""}" data-pvok="${p.id}" aria-label="C'est passé" title="C'est passé">✓</button>
+      <div class="d">${jourCourt(p.date)}</div>
+      <div class="m"><div class="t">${dep && p.categorie ? iconeCat(p.categorie) + " " : ""}${esc(p.description)}</div>
+        <div class="s">${p.date <= auj ? `<span class="pos" style="font-weight:600">date arrivée</span> · ` : ""}${p.estime ? "montant estimé" : "montant fixe"}${dep && p.type_code !== "P" ? " · " + esc(TYPES_COURTS[p.type_code] || p.type) : ""}</div></div>
+      <div class="v num">${p.estime ? "≈ " : ""}${$$(p.montant)}</div></div>`).join("")}</div><div class="spacer"></div>`;
+}
+function aCocherHTML(m){
+  const auj = today(), l = (UIPRO() ? (m.prevus || []) : []).filter(p => p.date <= auj); if(!l.length) return "";
+  const v = l.some(p => p.genre === "depense") ? "trans" : "rev";
+  return `<button class="p-conc neutre" id="pACocher" data-v="${v}">${l.length} ligne${l.length > 1 ? "s" : ""} fixe${l.length > 1 ? "s" : ""} à cocher (${l.map(p => esc(p.description)).slice(0, 3).join(", ")}${l.length > 3 ? "…" : ""}) ›</button>`;
+}
+function branchePrevus(z){
+  const l = S.mois.prevus || [];
+  z.querySelectorAll("[data-pv]").forEach(r => r.onclick = ev => { if(ev.target.closest("[data-pvok]")) return; dlgPrevu(l.find(p => p.id == r.dataset.pv)); });
+  z.querySelectorAll("[data-pvok]").forEach(b => b.onclick = async ev => { ev.stopPropagation();
+    const p = l.find(x => x.id == b.dataset.pvok);
+    if(p.estime) return dlgPrevu(p, true);                    // montant estimé : on demande le vrai montant
+    try { await ecrit("/api/prevu/passe", {id: p.id}, `${p.description} : ${p.genre === "depense" ? "ajoutée aux dépenses" : "ajouté aux revenus"}`); } catch(e){} });
+}
+function dlgPrevu(p, confirmer){
+  const dep = p.genre === "depense";
+  ouvre(`<form id="fpv"><div class="dlg-h"><h2>${esc(p.description)}</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     ${p.estime ? `<p class="hint" style="margin:0">Montant estimé : inscris le vrai montant${confirmer ? "" : " si tu le connais"}.</p>` : ""}
+     <div class="row2"><label class="f">${p.estime ? "Montant réel" : "Montant"}<input name="montant" inputmode="decimal" autocomplete="off" required value="${p.estime && confirmer ? "" : esc(String(p.montant.toFixed(2)).replace(".", ","))}" placeholder="${p.estime ? "≈ " + esc(String(p.montant.toFixed(2)).replace(".", ",")) : ""}"></label>
+       <label class="f">Date<input name="date" type="date" required value="${p.date}"></label></div>
+     <p class="hint" style="margin:0">${dep ? `Pas encore dans tes dépenses : « C'est passé » l'ajoute${p.type_code !== "P" ? ` (${esc(TYPES_COURTS[p.type_code] || p.type)})` : ""}.` : "Pas encore dans tes revenus : « C'est reçu » l'ajoute."}</p>
+   </div>
+   <div class="dlg-f"><button type="button" class="btn" id="pvRet">Pas ce mois-ci</button><span class="grow"></span>${confirmer ? "" : `<button type="button" class="btn" id="pvEnr">Enregistrer</button>`}<button class="btn primary">${dep ? "C'est passé" : "C'est reçu"}</button></div></form>`, d => {
+    const f = $("#fpv", d), corps = () => ({id: p.id, montant: f.montant.value, date: f.date.value});
+    f.onsubmit = async ev => { ev.preventDefault(); try { await ecrit("/api/prevu/passe", corps(), dep ? "Ajoutée aux dépenses" : "Ajouté aux revenus"); d.close(); } catch(e){} };
+    const en = $("#pvEnr", d); if(en) en.onclick = async () => { if(!f.reportValidity()) return; try { await ecrit("/api/prevu", corps(), "Prévision modifiée"); d.close(); } catch(e){} };
+    $("#pvRet", d).onclick = async () => { if(confirm(`Retirer « ${p.description} » des prévisions de ce mois ? (la ligne fixe reste pour les prochains mois)`)){ try { await ecrit("/api/prevu/retirer", {id: p.id}, "Retirée pour ce mois"); d.close(); } catch(e){} } };
+  });
+}
 // --- Dépenses et revenus fixes (essai, app de Zach) : suggestions tirées de l'historique, montant fixe ou variable,
 // inscription automatique chaque mois (à sa date, « à venir » jusqu'au jour J ; montant variable = estimé à confirmer)
 async function vueFixesPro(el){
@@ -3372,7 +3419,7 @@ async function vueFixesPro(el){
    <div class="spacer"></div>
    <div class="card"><div class="p-sec"><b>Revenus fixes</b><span><button class="btn small" id="fxAjR">+ Ajouter</button></span></div>
      ${rev.length ? rev.map(ligne).join("") : `<div class="p-vide">Aucun pour l'instant (ex. paie, bourse).</div>`}</div>
-   <p class="small muted" style="margin:10px 4px">Inscrit chaque mois : la ligne apparaît dans le mois à sa date (« à venir » d'ici là). Montant variable : elle est inscrite avec un montant estimé à confirmer.</p>`;
+   <p class="small muted" style="margin:10px 4px">Inscrit chaque mois : la ligne apparaît dans « Dépenses à venir » (ou « Revenus à venir ») sans compter dans tes soldes ; coche-la quand c'est passé (date et montant modifiables). Montant variable : tu inscris le vrai montant en cochant.</p>`;
   z.querySelectorAll("[data-fx]").forEach(r => r.onclick = () => dlgFixe(F.fixes.find(x => x.id == r.dataset.fx)));
   z.querySelectorAll("[data-sg]").forEach(b => b.onclick = () => { const g = F.suggestions[+b.dataset.sg]; dlgFixe(null, g.genre, g); });
   z.querySelectorAll("[data-ig]").forEach(b => b.onclick = async () => { try { await ecrit("/api/fixe/ignorer", {cle: F.suggestions[+b.dataset.ig].cle}, "Suggestion ignorée"); } catch(e){} });
@@ -3400,7 +3447,7 @@ function dlgFixe(x, genre, sug){
       d.querySelectorAll("#fxTyp button").forEach(b => b.classList.toggle("on", b.dataset.t === typ));
       $("#fxLm", d).textContent = variable ? "Montant estimé" : "Montant";
       $("#fxAide", d).textContent = f.actif.checked
-        ? (variable ? "Inscrite chaque mois avec ce montant estimé ; touche-la dans tes dépenses pour mettre le vrai montant." : "Inscrite chaque mois à sa date, avec ce montant.")
+        ? (variable ? "Chaque mois, elle apparaît « à venir » avec ce montant estimé ; tu inscris le vrai montant en la cochant." : "Chaque mois, elle apparaît « à venir » ; coche-la quand c'est passé.")
         : "Gardée dans ta liste de fixes (total par mois), sans être inscrite automatiquement.";
     };
     d.querySelectorAll("#fxVar button").forEach(b => b.onclick = () => { variable = b.dataset.v === "1"; maj(); });
@@ -3420,7 +3467,7 @@ async function genereFixesAuto(){
   try {
     const F = await api("/api/fixes"); if(!F.a_generer) return;
     const n = await ecrit("/api/fixes/generer", {}, null);
-    const r = n && (n.resultat ?? n); if(r) toast(`${r} ligne${r > 1 ? "s" : ""} fixe${r > 1 ? "s" : ""} inscrite${r > 1 ? "s" : ""} pour ${MOIS_MOTS[+F.mois.slice(5) - 1]}`);
+    const r = n && (n.resultat ?? n); if(r) toast(`${r} prévision${r > 1 ? "s" : ""} ajoutée${r > 1 ? "s" : ""} pour ${MOIS_MOTS[+F.mois.slice(5) - 1]}`);
   } catch(e){}
 }
 // --- Plus : réglages regroupés, une ligne = une action
