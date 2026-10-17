@@ -170,6 +170,7 @@
         du_net: r2(duTotal - aRembMois - aRembAvant), ligne_dernier_reglement: depMarq ? depMarq.id : null,
         par_categorie: Object.entries(ch.parCategorie).map(([categorie, montant]) => ({categorie, montant})), hors_resume: {},
         pourboires, total_pourboires: {recu: ch.pourboires.especes, a_recevoir: ch.pourboires.carte, heures: ch.pourboires.heures}, colonne_heures: true,
+        fixes_actifs: {depense: D.fixes.filter(x => x.actif && x.genre === "depense").length, revenu: D.fixes.filter(x => x.actif && x.genre === "revenu").length},
         prevus: D.prevus.filter(x => x.mois === mo).sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id).map(prevuVue),
         revenus, total_revenus: totRev, total_fiorellino: revs.filter(r => reRev.test(r.description || "")).reduce((a, r) => a + r.montant_c / 100, 0),
         investissements, total_investi: pl.reduce((a, x) => a + x.investi, 0), total_jv: pl.reduce((a, x) => a + x.valeur, 0),
@@ -442,13 +443,21 @@
       const l = table.filter(y => y.fixe_id === fid && !y.estime && y.montant_c > 0).sort((a, b) => (a.date || "").localeCompare(b.date || "")).slice(-3);
       if(l.length) x.montant_c = Math.round(l.reduce((a, y) => a + y.montant_c, 0) / l.length);
     }
-    function aGenerer(mo){ return D.fixes.filter(x => x.actif && (!x.dernier || x.dernier < mo) && (!x.depuis || x.depuis <= mo)); }
+    // (une ligne ajoutée avant cette règle avec « à partir du mois prochain » est reprise ce mois-ci si elle n'est pas déjà entrée)
+    function aGenerer(mo){ return D.fixes.filter(x => x.actif && (!x.dernier || x.dernier < mo)
+      && (!x.depuis || x.depuis <= mo || (x.depuis === moisSuivant(mo) && !dejaCeMois(x)))); }
     function fixes(){
       const mo = auj().slice(0, 7), pct = M().pct(mo);
       const l = D.fixes.slice().sort((a, b) => (a.jour || 0) - (b.jour || 0) || a.id - b.id).map(x => fixeVue(x, pct));
       const dep = l.filter(x => x.genre === "depense"), rev = l.filter(x => x.genre === "revenu");
       return {fixes: l, suggestions: suggestionsFixes(mo), a_generer: aGenerer(mo).length, mois: mo,
               total_depenses: dep.reduce((a, x) => a + x.ma_part, 0), total_revenus: rev.reduce((a, x) => a + x.montant, 0)};
+    }
+    // une ligne fixe déjà entrée ce mois-ci (même description) : sa première prévision sera pour le mois prochain
+    function dejaCeMois(x){
+      const mo = auj().slice(0, 7), c = cleFixe(x.description);
+      const l = x.genre === "depense" ? D.depenses.filter(d => d.mois === mo && d.paye_par !== "partenaire") : D.revenus.filter(r => r.mois === mo);
+      return l.some(y => cleFixe(y.description) === c);
     }
     function ecritFixe(data){
       const genre = data.genre === "revenu" ? "revenu" : "depense";
@@ -465,11 +474,12 @@
       if(data.id != null){
         const x = D.fixes.find(y => y.id === +data.id); if(!x) throw new Erreur("Ligne fixe introuvable");
         const av = Object.assign({}, x); Object.assign(x, champs); majPrevus(x, !x.actif);
-        if(x.actif && !av.actif) x.depuis = +jour >= +auj().slice(8, 10) ? mo : moisSuivant(mo);   // réactivée : à partir de la prochaine date
+        if(x.actif && !av.actif){ x.depuis = dejaCeMois(x) ? moisSuivant(mo) : mo; if(x.dernier === mo && !dejaCeMois(x)) x.dernier = null; }   // réactivée
         journal("fixes", x.id, "modification", av, x); return x.id;
       }
       // nouvelle ligne : inscrite dès ce mois si sa date n'est pas passée ; sinon à partir du mois prochain
-      const x = Object.assign({id: nouvelId("fixes"), depuis: jour >= +auj().slice(8, 10) ? mo : moisSuivant(mo), dernier: null}, champs);
+      // dès ce mois-ci (même si le jour est passé : c'est une prévision à cocher), sauf si la ligne est déjà entrée ce mois-ci
+      const x = Object.assign({id: nouvelId("fixes"), dernier: null}, champs); x.depuis = dejaCeMois(x) ? moisSuivant(mo) : mo;
       if(data.cle) setReg("fixes_ignores", (REG().fixes_ignores || []).filter(k => k !== data.cle));
       D.fixes.push(x); journal("fixes", x.id, "ajout", null, x); return x.id;
     }

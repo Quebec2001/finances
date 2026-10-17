@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-SsmwmVurROaTupxdygcKBiL/SDAEiDdlJylj+zDzqRs='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-aCVU1CKTjRwgrRR1jff/atsgKgAecAjR8PXWxahanao='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -445,10 +445,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=8a060de512"></script>
-<script src="api2.js?v=8a060de512"></script>
-<script src="export_xlsx.js?v=8a060de512"></script>
-<script src="web2.js?v=8a060de512" data-version="web.js?v=8a060de512"></script>
+<script src="calculs.js?v=f7f0ea3c84"></script>
+<script src="api2.js?v=f7f0ea3c84"></script>
+<script src="export_xlsx.js?v=f7f0ea3c84"></script>
+<script src="web2.js?v=f7f0ea3c84" data-version="web.js?v=f7f0ea3c84"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -3350,8 +3350,11 @@ function rapAjouter(x){
 // --- Prévisions des lignes fixes (« Dépenses / Revenus à venir ») : ne comptent nulle part tant qu'elles ne sont pas cochées
 const prevusDe = (m, genre) => UIPRO() ? (m.prevus || []).filter(p => p.genre === genre) : [];
 function prevusHTML(m, genre){
-  const l = prevusDe(m, genre); if(!l.length) return "";
-  const dep = genre === "depense", auj = today();
+  const l = prevusDe(m, genre), dep = genre === "depense", auj = today();
+  if(!l.length){                          // des lignes fixes existent : on garde la case, vide, pour savoir où regarder
+    if(!UIPRO() || !((m.fixes_actifs || {})[genre]) || S.info.cle !== auj.slice(0, 7)) return "";
+    return `<div class="card" id="pv-${genre}"><div class="p-sec"><b>${dep ? "Dépenses à venir" : "Revenus à venir"}</b><span>Plus › fixes</span></div><div class="p-vide">Rien d'autre à venir ce mois-ci.</div></div><div class="spacer"></div>`;
+  }
   return `<div class="card" id="pv-${genre}"><div class="p-sec"><b>${dep ? "Dépenses à venir" : "Revenus à venir"}</b><span>coche quand c'est passé</span></div>
     ${l.map(p => `<div class="p-row pv-l" data-pv="${p.id}" role="button" tabindex="0" style="cursor:pointer;grid-template-columns:34px 44px 1fr auto">
       <button class="pv-ok ${p.date <= auj ? "du" : ""}" data-pvok="${p.id}" aria-label="C'est passé" title="C'est passé">✓</button>
