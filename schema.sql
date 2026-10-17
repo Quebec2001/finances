@@ -103,3 +103,7 @@ CREATE TABLE fixes (
 CREATE TABLE prevus (
   id INTEGER PRIMARY KEY, fixe_id INTEGER REFERENCES fixes(id), genre TEXT NOT NULL, mois TEXT NOT NULL, date TEXT NOT NULL,
   description TEXT NOT NULL, montant_c INTEGER NOT NULL, estime INTEGER NOT NULL DEFAULT 0, categorie_id INTEGER, type TEXT);
+-- boîte de réception (essai, app de Zach) : éléments reçus par Apple Pay ou « Partager vers Finances », à confirmer
+CREATE TABLE boite (
+  id INTEGER PRIMARY KEY, recu TEXT NOT NULL, source TEXT NOT NULL, genre TEXT NOT NULL, description TEXT, montant_c INTEGER,
+  date TEXT NOT NULL, type TEXT, categorie TEXT, texte TEXT);

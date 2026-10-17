@@ -32,7 +32,7 @@
 
   const TABLES = ["reglages","categories","mots_cles","reglements","depenses","autres_montants","pourboires","revenus","revenus_pourboires",
     "repartition","comptes_placement","placements_mois","versements_epargne","soldes_mois","ajustements_solde","releves_banque","budgets",
-    "exclusions_rappro","journal","financements","financements_recus","financements_soldes","fixes","prevus"];
+    "exclusions_rappro","journal","financements","financements_recus","financements_soldes","fixes","prevus","boite"];
   function API(D, opts = {}){
     for(const t of TABLES) if(!Array.isArray(D[t])) D[t] = [];
     const auj = () => opts.aujourdhui ? opts.aujourdhui() : new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -74,7 +74,7 @@
       const reRev = new RegExp(reg.mots_revenu_principal || "^$", "i"), freq = {};
       for(const r of D.revenus) if(!r.historique && r.description && !reRev.test(r.description)) freq[r.description] = (freq[r.description] || 0) + 1;
       const bud = {}; for(const b of D.budgets) if(b.mois === "") bud[catNom(b.categorie_id)] = b.montant_c / 100;
-      return {mois: infos(), categories: D.categories.filter(c => c.active).sort((a, b) => a.ordre - b.ordre).map(c => c.nom),
+      return {boite: D.boite.slice().sort((a, b) => (b.recu || "").localeCompare(a.recu || "")).map(boiteVue), mois: infos(), categories: D.categories.filter(c => c.active).sort((a, b) => a.ordre - b.ordre).map(c => c.nom),
         types: TYPES().map(x => x[1]), type_cent_a_faire: false, correction_part_a_faire: false,
         reglages: Object.assign({prenom: "Zach", partenaire: "Marika", pourboires: true, revenu_principal: "Revenu Fiorellino",
           descriptions_revenu_principal: [], mots_revenu_principal: "", configuration_a_faire: false}, reg),
@@ -543,6 +543,37 @@
       }
     }
 
+
+    // ------------------------------------------------------------------ boîte de réception (essai, app de Zach)
+    // Apple Pay et « Partager vers Finances » y déposent ce qu'ils ont lu, sans fenêtre à remplir. Rien ne compte tant que
+    // l'élément n'est pas confirmé (il devient alors une dépense ou un revenu, avec le type et la catégorie choisis).
+    const boiteVue = b => ({id: b.id, recu: b.recu, source: b.source, genre: b.genre, description: b.description, montant: b.montant_c == null ? null : b.montant_c / 100,
+                            date: b.date, type: b.type || null, categorie: b.categorie || null, texte: b.texte || ""});
+    function boiteAjout(data){
+      const ids = [];
+      for(const x of (data.items || []).slice(0, 20)){
+        const desc = String(x.description || "").trim().slice(0, 120), texte = String(x.texte || "").slice(0, 4000);
+        const mt = x.montant == null || x.montant === "" ? null : calcule(String(x.montant));
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(x.date || "") ? x.date : auj();
+        if(!desc && !mt && !texte) continue;
+        const b = {id: nouvelId("boite"), recu: new Date().toISOString(), source: ["applepay", "partage", "texto"].includes(x.source) ? x.source : "partage",
+                   genre: x.genre === "revenu" ? "revenu" : "depense", description: desc, montant_c: mt && mt.valeur ? cents(Math.abs(mt.valeur)) : null,
+                   date, type: x.type ? String(x.type).slice(0, 40) : null, categorie: x.categorie ? String(x.categorie).slice(0, 60) : null, texte};
+        D.boite.push(b); journal("boite", b.id, "ajout", null, b); ids.push(b.id);
+      }
+      return ids;
+    }
+    function boiteConfirme(data){
+      const b = D.boite.find(x => x.id === +data.id); if(!b) throw new Erreur("Élément introuvable");
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(data.date || "") ? data.date : b.date, feuille = nomMois(date.slice(0, 7));
+      const corps = {feuille, date, description: data.description != null ? data.description : b.description, montant: data.montant != null ? data.montant : (b.montant_c / 100).toFixed(2)};
+      let id;
+      if((data.genre || b.genre) === "revenu") id = ecritRevenu(feuille, Object.assign(corps, {ligne: null}));
+      else id = ecritDepense(feuille, Object.assign(corps, {type: data.type || b.type || "", categorie: data.categorie != null ? data.categorie : (b.categorie || "")}));
+      supprime("boite", b.id);
+      return id;
+    }
+
     // versement vers un placement (Placements › compte › Verser) : l'argent sort du compte (épargne du mois) ;
     // au besoin, la valeur du placement augmente du même montant (annuler le versement retire aussi cet ajout)
     function versement(f, data){
@@ -602,8 +633,8 @@
     // ------------------------------------------------------------------ historique des modifications et « Annuler »
     const TABLE_FR = {depenses: "Dépense", revenus: "Revenu", pourboires: "Pourboires", autres_montants: "Autre montant", reglements: "Règlement",
       mots_cles: "Mot-clé", categories: "Catégorie", placements_mois: "Placement", repartition: "Répartition", budgets: "Budgets",
-      ajustements_solde: "Ajustement de solde", comptes_placement: "Compte de placement", financements: "Financement", financements_recus: "Financement reçu", financements_soldes: "Solde dû d'un financement", releves_banque: "Solde de la banque", versements_epargne: "Épargne", fixes: "Dépense ou revenu fixe", prevus: "Prévision (fixe)"};
-    const ANNULABLES = new Set(["prevus", "fixes", "versements_epargne", "financements", "financements_recus", "financements_soldes", "releves_banque", "depenses", "revenus", "pourboires", "autres_montants", "reglements", "mots_cles", "ajustements_solde", "placements_mois", "categories"]);
+      ajustements_solde: "Ajustement de solde", comptes_placement: "Compte de placement", financements: "Financement", financements_recus: "Financement reçu", financements_soldes: "Solde dû d'un financement", releves_banque: "Solde de la banque", versements_epargne: "Épargne", fixes: "Dépense ou revenu fixe", prevus: "Prévision (fixe)", boite: "Boîte de réception"};
+    const ANNULABLES = new Set(["boite", "prevus", "fixes", "versements_epargne", "financements", "financements_recus", "financements_soldes", "releves_banque", "depenses", "revenus", "pourboires", "autres_montants", "reglements", "mots_cles", "ajustements_solde", "placements_mois", "categories"]);
     function resume(j){
       const o = JSON.parse(j.apres || j.avant || "null") || {};
       const mt = o.montant_c != null ? " · " + (o.montant_c / 100).toFixed(2).replace(".", ",") + " $" : "";
@@ -688,6 +719,9 @@
         case "/api/prevu/retirer": res = supprime("prevus", corps.id); break;
         case "/api/fixe/ignorer": setReg("fixes_ignores", [...new Set([...(REG().fixes_ignores || []), String(corps.cle || "")])]); res = true; break;
         case "/api/fixes/generer": res = genereFixes(); break;
+        case "/api/boite/ajout": res = boiteAjout(corps); break;
+        case "/api/boite/confirmer": res = boiteConfirme(corps); break;
+        case "/api/boite/supprimer": res = supprime("boite", corps.id); break;
         case "/api/modules": { const m = Object.assign({}, REG().modules || {});       // Réglages › Fonctionnalités (essai, app de Zach)
           for(const [k, v] of Object.entries(corps.modules || {})) if(/^[a-z_]{2,30}$/.test(k)) m[k] = !!v;
           setReg("modules", m); res = m; break; }

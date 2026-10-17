@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-SiFM2QqSR8HiV7Ealk3aK2uonK5cuY4/NJns03zkdCw='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-EaG8RezZViwgd68OkDP+GOX+7lSvhvvji9ZOFIrVSXk='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -186,6 +186,7 @@ details.cp-vieux{margin-top:12px}details.cp-vieux summary{cursor:pointer;color:v
 .item .t2{font-size:12.5px;color:var(--ink-3);display:flex;gap:8px;flex-wrap:wrap;margin-top:1px}
 .item .amt{text-align:right;font-weight:600;white-space:nowrap}
 .item .amt small{display:block;font-weight:400;color:var(--ink-3);font-size:12px}
+.bx{display:grid;gap:10px}.bx-h{display:flex;justify-content:space-between;align-items:center}.bx-txt{white-space:pre-wrap;font-size:11.5px;max-height:160px;overflow:auto;margin:6px 0 0}
 .mod-l{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line);cursor:pointer}.mod-l:first-of-type{border-top:0}
 .mod-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.mod-t small{color:var(--ink-3);font-size:12.5px;line-height:1.35}
 .mod-sw{appearance:none;-webkit-appearance:none;flex:none;width:46px;height:28px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;transition:background .2s;margin:0}
@@ -451,10 +452,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=c664c3945f"></script>
-<script src="api2.js?v=c664c3945f"></script>
-<script src="export_xlsx.js?v=c664c3945f"></script>
-<script src="web2.js?v=c664c3945f" data-version="web.js?v=c664c3945f"></script>
+<script src="calculs.js?v=e8412354b2"></script>
+<script src="api2.js?v=e8412354b2"></script>
+<script src="export_xlsx.js?v=e8412354b2"></script>
+<script src="web2.js?v=e8412354b2" data-version="web.js?v=e8412354b2"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1212,7 +1213,7 @@ function rend(){
     if(S.vue === "split" && !MOD("partage")) S.vue = "bord";
     barreOngletsPro();
     const br = $(".brand"); if(br) br.innerHTML = dateEntete();
-    const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro, ctl:vueCtlPro, rappro:vueRappro, fixes:vueFixesPro, modules:vueModulesPro}[S.vue] || vueBordPro;
+    const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro, ctl:vueCtlPro, rappro:vueRappro, fixes:vueFixesPro, modules:vueModulesPro, boite:vueBoitePro}[S.vue] || vueBordPro;
     $("#fab").hidden = S.vue !== "trans";        // le + (nouvelle dépense) seulement dans Dépenses
     m.innerHTML = bandeaux() + (S.vue === "split" ? syncZone() : "") + `<div id="vue"></div>`; vp($("#vue")); majBandeauSync(); brancheBandeaux(m); return;
   }
@@ -2734,7 +2735,7 @@ const ICO = {
 const ONGLETS_PRO = [["bord", "Accueil"], ["trans", "Dépenses"], ["split", "Partage"], ["rev", "Revenus"], ["plus", "Plus"]];
 function barreOngletsPro(){
   const n = $("#btab"); if(!n) return;
-  const actif = ["inv", "ctl", "rappro", "fixes", "modules"].includes(S.vue) ? "plus" : S.vue, alerte = ctlEnErreur().length;
+  const actif = ["inv", "ctl", "rappro", "fixes", "modules", "boite"].includes(S.vue) ? "plus" : S.vue, alerte = ctlEnErreur().length;
   n.innerHTML = ONGLETS_PRO.filter(([v]) => v !== "split" || MOD("partage")).map(([v, t]) => `<button data-v="${v}" class="${v === actif ? "on" : ""}" aria-label="${t}${v === "plus" && alerte ? " – contrôle à vérifier" : ""}">${ICO[v]}${v === "plus" && alerte ? `<i class="p-alerte" title="${alerte} contrôle${alerte > 1 ? "s" : ""} à vérifier"></i>` : ""}<span>${t}</span></button>`).join("");
 }
 function vaVers(v){ S.vue = v; rend(); window.scrollTo({top: 0}); }
@@ -2750,7 +2751,7 @@ function vueBordPro(el){
   el.innerHTML = `
    <div class="card p-hero">${ctlEnErreur().length ? `<button class="p-ctl-al" id="pCtlAl" title="Voir les contrôles"><i></i>${ctlEnErreur().length} à vérifier</button>` : ""}<div class="lbl" ${ctlEnErreur().length ? `style="padding-right:104px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"` : ""}>Solde au compte · ${esc(S.info.nom)}</div><div class="gros num">${$$(soldeAuCompte(m))}</div>
      <div class="sous"><span>Début ${$$(m.solde_debut)}${mod ? ` · <a href="#" id="edSol" style="color:var(--accent);text-decoration:none;font-weight:600">Modifier</a>` : ""}</span><span class="p-chip ${rn < 0 ? "neg" : "pos"}">${rn < 0 ? "▼" : "▲"} ${$$(Math.abs(rn))} ce mois</span></div></div>
-   ${soldeAttenduHTML()}${aCocherHTML(m)}
+   ${soldeAttenduHTML()}${boiteHTML()}${aCocherHTML(m)}
    <div class="spacer"></div>${split}${split ? `<div class="spacer"></div>` : ""}
    <div class="p-stats"><div class="p-stat clic" id="pRev" role="button" tabindex="0"><div class="l">Revenus</div><div class="v num">${$$(m.total_revenus)}</div></div>
      <div class="p-stat clic" id="pDep" role="button" tabindex="0"><div class="l">Dépenses</div><div class="v num">${$$(m.total_depenses)}</div></div>
@@ -2762,6 +2763,7 @@ function vueBordPro(el){
   brancheSoldes(el);
   const ps = $("#pSplit", el); if(ps){ ps.onclick = () => vaVers("split"); ps.onkeydown = ev => { if(ev.key === "Enter") vaVers("split"); }; }
   { const ac = $("#pACocher", el); if(ac) ac.onclick = () => vaVers(ac.dataset.v); }
+  { const bx = $("#pBoite", el); if(bx) bx.onclick = () => vaVers("boite"); }
   [["#pRev", "rev"], ["#pDep", "trans"]].forEach(([id, v]) => { const b = $(id, el); if(b){ b.onclick = () => vaVers(v); b.onkeydown = ev => { if(ev.key === "Enter") vaVers(v); }; } });
   const es = $("#edSol", el); if(es) es.onclick = ev => { ev.preventDefault(); dlgSoldes(m); };
 }
@@ -3358,6 +3360,113 @@ function rapAjouter(x){
 }
 
 
+
+// ---------------------------------------------------------------- boîte de réception (essai, app de Zach)
+// Apple Pay et « Partager vers Finances » y déposent ce qu'ils ont lu : pas de fenêtre à remplir sur le moment.
+async function versBoite(items){
+  items = items.filter(x => x.description || x.montant != null);
+  if(!items.length) return false;
+  if(window.WEB && WEB.mode && WEB.mode() !== "reel") return false;
+  try { await ecrit("/api/boite/ajout", {items: items.map(x => Object.assign({}, x, {montant: x.montant == null ? null : String(x.montant)}))}, null); }
+  catch(e){ return false; }
+  const x = items[0];
+  toast(items.length > 1 ? `${items.length} éléments ajoutés à ta boîte de réception` : `Ajouté à ta boîte de réception · ${x.description || "?"}${x.montant != null ? " " + $$(x.montant) : ""}`);
+  return true;
+}
+// type de partage suggéré : celui de la dernière dépense chez ce marchand (ce mois-ci ou le mois précédent)
+async function typeSuggere(desc){
+  const mot = (desc || "").toLowerCase().split(/\s+/)[0] || ""; if(mot.length < 3) return null;
+  const k = S.etat.mois.findIndex(x => x.cle === today().slice(0, 7)), sources = [];
+  for(const j of [k, k - 1]) if(j >= 0 && S.etat.mois[j] && S.etat.mois[j].canvas){ try { sources.push(S.etat.mois[j].feuille === S.feuille ? S.mois : await api("/api/mois?f=" + encodeURIComponent(S.etat.mois[j].feuille))); } catch(e){} }
+  for(const mm of sources){ const t = (mm.transactions || []).filter(t => t.utilise && semType(t.type) && (t.description || "").toLowerCase().startsWith(mot)).pop(); if(t) return t.type; }
+  return null;
+}
+// lecture d'un reçu partagé (texte lu par iOS) : marchand, montant total, date, dépense ou revenu ; capture bancaire = plusieurs lignes
+const RX_MT = /(?:^|[^\d])(-?\$?\s?\d{1,3}(?:[   ]\d{3})*(?:[.,]\d{2})|-?\$?\s?\d+[.,]\d{2})\s?\$?(?![\d])/g;
+const MOIS_TXT = {jan: 1, janv: 1, janvier: 1, january: 1, fev: 2, févr: 2, fevr: 2, février: 2, fevrier: 2, feb: 2, february: 2, mar: 3, mars: 3, march: 3,
+  avr: 4, avril: 4, apr: 4, april: 4, mai: 5, may: 5, juin: 6, june: 6, jun: 6, juil: 7, juillet: 7, jul: 7, july: 7, aout: 8, août: 8, aug: 8, august: 8,
+  sep: 9, sept: 9, septembre: 9, september: 9, oct: 10, octobre: 10, october: 10, nov: 11, novembre: 11, november: 11, dec: 12, déc: 12, décembre: 12, decembre: 12, december: 12};
+function montantsDe(l){ const out = []; let m; RX_MT.lastIndex = 0; while((m = RX_MT.exec(l))){ const v = montantAP(m[1].replace(/[\s  ]/g, "")); if(v != null && Math.abs(v) < 100000) out.push(v); } return out; }
+function dateDe(t){
+  let m = t.match(/(20\d\d)[-/.](\d{1,2})[-/.](\d{1,2})/); if(m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  m = t.match(/(\d{1,2})[/.](\d{1,2})[/.](20\d\d)/); if(m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  m = t.toLowerCase().match(/(\d{1,2})(?:er)?\s+([a-zéû]{3,9})\.?\s+(20\d\d)/); if(m && MOIS_TXT[m[2]]) return `${m[3]}-${String(MOIS_TXT[m[2]]).padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  m = t.toLowerCase().match(/([a-zéû]{3,9})\.?\s+(\d{1,2}),?\s+(20\d\d)/); if(m && MOIS_TXT[m[1]]) return `${m[3]}-${String(MOIS_TXT[m[1]]).padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+  return null;
+}
+function analyseTexteRecu(texte){
+  const lignes = String(texte || "").split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const rxRev = /\b(d[ée]p[ôo]t|virement re[çc]u|re[çc]u de|paie|salaire|deposit|you received|interac.*re[çc]u)\b/i;
+  const genre = rxRev.test(texte) && !/\b(achat|purchase|commande|order)\b/i.test(texte) ? "revenu" : "depense";
+  const date = dateDe(texte) || today();
+  // marchand : une description déjà connue (mois en cours / précédent) qui apparaît dans le texte, sinon la première ligne parlante
+  const connus = [...new Set((S.mois && S.mois.transactions || []).map(t => t.description).filter(Boolean))].sort((a, b) => b.length - a.length);
+  const bas = texte.toLowerCase();
+  let desc = connus.find(d => { const w = d.toLowerCase().split(/\s+[–-]\s+|\s+\(/)[0]; return w.length >= 3 && bas.includes(w); });
+  if(desc) desc = desc.split(/\s+\(/)[0];
+  if(!desc){ const l = lignes.find(l => /[a-zà-ÿ]{3}/i.test(l) && !/^(re[çc]u|receipt|facture|invoice|merci|thank|date|total|commande|order|bonjour|hello|de :|from:|à :|to:|objet|subject)/i.test(l) && !montantsDe(l).length);
+    desc = marchandAP((l || "").slice(0, 40)); }
+  // capture d'une liste bancaire : plusieurs lignes avec un montant, sans « total » → un élément par ligne
+  const avecMt = lignes.filter(l => montantsDe(l).length);
+  if(avecMt.length >= 3 && !/\btotal\b/i.test(texte)) return avecMt.slice(0, 20).map(l => {
+    const v = montantsDe(l)[0], d = marchandAP(l.replace(/-?\$?\s?\d{1,3}(?:[ \u00a0\u202f]\d{3})*[.,]\d{2}\s?\$?/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, 40)) || desc;
+    return {source: "partage", genre: v > 0 && rxRev.test(l) ? "revenu" : "depense", description: d, montant: Math.abs(v), date: dateDe(l) || date};
+  });
+  let mt = null;
+  const iTot = lignes.findIndex(l => /\b(total|montant (pay|factur)|à payer|amount (paid|charged)|grand total|charged)\b/i.test(l) && !/sous-total|subtotal/i.test(l));
+  if(iTot >= 0){ const v = montantsDe(lignes[iTot]).concat(montantsDe(lignes[iTot + 1] || "")); if(v.length) mt = Math.abs(v[v.length - 1]); }
+  if(mt == null){ const tous = lignes.flatMap(montantsDe).map(Math.abs); if(tous.length) mt = Math.max(...tous); }
+  return [{source: "partage", genre, description: desc || "", montant: mt, date, texte: String(texte).slice(0, 4000)}];
+}
+async function recuPartage(o){
+  const items = analyseTexteRecu(o.texte || o.m || "");
+  for(const x of items) if(x.genre === "depense") x.type = await typeSuggere(x.description);
+  if(UIPRO() && MOD("boite") && await versBoite(items)) return;
+  // sans boîte : la fenêtre d'ajout préremplie (premier élément)
+  const x = items[0]; if(!x || (!x.description && x.montant == null)) return toast("Rien de lisible dans ce qui a été partagé.", true);
+  if(x.genre === "revenu"){ dlgRevenu(null, null, "autres"); const f = $("#fr"); if(f){ if(x.montant != null) f.montant.value = x.montant.toFixed(2).replace(".", ","); f.date.value = x.date; } return; }
+  dlgTransaction(null, null, null, x.date);
+  const f = $("#ft"); if(!f) return;
+  f.description.value = x.description; if(x.montant != null) f.montant.value = x.montant.toFixed(2).replace(".", ",");
+  f.description.dispatchEvent(new Event("input"));
+}
+function boiteHTML(){
+  const l = UIPRO() && MOD("boite") ? (S.etat.boite || []) : []; if(!l.length) return "";
+  return `<button class="p-conc neutre" id="pBoite">${l.length} élément${l.length > 1 ? "s" : ""} à confirmer dans ta boîte de réception ›</button>`;
+}
+function vueBoitePro(el){
+  const l = S.etat.boite || [], e = S.etat;
+  const types = (e.types || []).filter(t => semType(t) && semType(t) !== "R" && (MOD("partage") || semType(t) === "P"));
+  const src = {applepay: "Apple Pay", partage: "Partagé", texto: "Texto"};
+  const deja = b => b.montant != null && (S.mois.transactions || []).find(t => t.utilise && t.date === b.date && Math.abs((t.deboursement || 0) - b.montant) < 0.005);
+  el.innerHTML = `<button class="p-retour" id="pRet">‹ Plus</button>
+   <div class="card"><div class="p-sec"><b>Boîte de réception</b><span>${l.length ? l.length + " à confirmer" : ""}</span></div>
+     <p class="small muted" style="margin:0">Ce que tu as payé avec Apple Pay ou partagé vers Finances arrive ici. Rien ne compte avant que tu confirmes.</p></div>
+   ${l.length ? l.map(b => `<div class="spacer"></div><form class="card bx" data-bx="${b.id}">
+     <div class="bx-h"><span class="p-chip" style="padding:0 8px;font-size:11px">${esc(src[b.source] || b.source)}</span><span class="small muted">reçu ${dateLongue(new Date(new Date(b.recu) - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10))}</span></div>
+     <div class="seg bx-g"><button type="button" data-g="depense" class="${b.genre !== "revenu" ? "on" : ""}">Dépense</button><button type="button" data-g="revenu" class="${b.genre === "revenu" ? "on" : ""}">Revenu</button></div>
+     <label class="f">Description<input name="description" value="${esc(b.description || "")}" autocomplete="off" required></label>
+     <div class="row2"><label class="f">Montant<input name="montant" inputmode="decimal" autocomplete="off" required value="${b.montant != null ? esc(b.montant.toFixed(2).replace(".", ",")) : ""}"></label>
+       <label class="f">Date<input name="date" type="date" required value="${b.date}"></label></div>
+     <div class="bx-dep" ${b.genre === "revenu" ? "hidden" : ""}>
+       ${types.length > 1 ? `<div class="seg bx-t">${types.map(t => `<button type="button" data-t="${esc(t)}" class="${semType(t) === semType(b.type || "Personnel") || (!b.type && semType(t) === "P") ? "on" : ""}">${esc(TYPES_COURTS[semType(t)] || t)}</button>`).join("")}</div>` : ""}
+       <label class="f">Catégorie<select name="categorie"><option value="">Automatique</option>${e.categories.map(c => `<option ${b.categorie === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></label></div>
+     ${deja(b) ? `<p class="small neg" style="margin:0">Peut-être déjà inscrite : ${esc(deja(b).description)} (${$$(deja(b).deboursement)})</p>` : ""}
+     ${b.texte ? `<details class="small muted"><summary>Texte lu</summary><pre class="bx-txt">${esc(b.texte)}</pre></details>` : ""}
+     <div class="dlg-f" style="padding:0"><button type="button" class="btn danger" data-del>Supprimer</button><span class="grow"></span><button class="btn primary">Confirmer</button></div>
+   </form>`).join("") : `<div class="spacer"></div><div class="card"><div class="p-vide">Rien à confirmer. Paie avec Apple Pay ou partage un reçu vers Finances.</div></div>`}`;
+  $("#pRet", el).onclick = () => vaVers("plus");
+  el.querySelectorAll("form.bx").forEach(f => {
+    const b = l.find(x => x.id == f.dataset.bx); let genre = b.genre, typ = (types.find(t => f.querySelector(`.bx-t button.on[data-t="${CSS.escape(t)}"]`)) || types.find(t => semType(t) === "P") || "");
+    if(!f.querySelector(".bx-t button.on")){ const bp = [...f.querySelectorAll(".bx-t button")].find(x => x.dataset.t === typ); if(bp) bp.classList.add("on"); }
+    f.querySelectorAll(".bx-g button").forEach(x => x.onclick = () => { genre = x.dataset.g; f.querySelectorAll(".bx-g button").forEach(y => y.classList.toggle("on", y === x)); f.querySelector(".bx-dep").hidden = genre === "revenu"; });
+    f.querySelectorAll(".bx-t button").forEach(x => x.onclick = () => { typ = x.dataset.t; f.querySelectorAll(".bx-t button").forEach(y => y.classList.toggle("on", y === x)); });
+    f.querySelector("[data-del]").onclick = async () => { try { await ecrit("/api/boite/supprimer", {id: b.id}, "Supprimé de la boîte"); vaVers("boite"); } catch(e){} };
+    f.onsubmit = async ev => { ev.preventDefault();
+      try { await ecrit("/api/boite/confirmer", {id: b.id, genre, description: f.description.value, montant: f.montant.value, date: f.date.value, type: typ, categorie: f.categorie.value},
+                        genre === "revenu" ? "Ajouté aux revenus" : "Ajoutée aux dépenses"); vaVers("boite"); } catch(e){} };
+  });
+}
 // --- Prévisions des lignes fixes (« Dépenses / Revenus à venir ») : ne comptent nulle part tant qu'elles ne sont pas cochées
 const prevusDe = (m, genre) => UIPRO() && MOD("fixes") ? (m.prevus || []).filter(p => p.genre === genre) : [];
 function prevusHTML(m, genre){
@@ -3496,7 +3605,8 @@ const MODULES = [
     ["captures_dep", "Import de dépenses par captures", "Lis tes captures Desjardins, Amex ou RBC sur ton téléphone."],
     ["captures_rev", "Import de revenus par captures", "Les entrées d'argent du compte proposées comme revenus."],
     ["mots_cles", "Mots-clés appris", "Quand tu corriges une catégorie, l'app s'en souvient pour la prochaine fois."],
-    ["applepay", "Apple Pay", "Ajout rapide d'une dépense par ton raccourci iPhone."]]],
+    ["applepay", "Apple Pay", "Ajout rapide d'une dépense par ton raccourci iPhone."],
+    ["boite", "Boîte de réception", "Apple Pay et « Partager vers Finances » déposent l'élément dans une boîte : tu confirmes le type quand tu as le temps, sans fenêtre à remplir sur le moment."]]],
   ["Contrôle", [
     ["banque", "Contrôle avec la banque", "Inscrire le solde de ta banque et être averti d'un écart. Recommandé."],
     ["rappro", "Rapprochement bancaire", "Comparer un relevé à l'app, ligne par ligne."]]],
@@ -3531,7 +3641,7 @@ function vuePlusPro(el){
   const nbBud = Object.keys(BUDGETS()).length;
   const item = (id, ic, t1, t2, val = "") => `<button class="p-item" id="${id}"><span class="ic">${ICO[ic]}</span><span class="tx"><div class="t1">${t1}</div>${t2 ? `<div class="t2">${t2}</div>` : ""}</span>${val ? `<span class="val num">${val}</span>` : ""}<span class="chev">›</span></button>`;
   el.innerHTML = `
-   <div class="p-groupe"><div class="t">Mon app</div><div class="p-liste">${item("pMod", "cat", "Fonctionnalités", "Choisis les fonctions affichées dans ton app")}</div></div>
+   <div class="p-groupe"><div class="t">Mon app</div><div class="p-liste">${MOD("boite") ? item("pBox", "cal", "Boîte de réception", "Apple Pay et reçus partagés, à confirmer", (S.etat.boite || []).length ? String((S.etat.boite || []).length) : "") : ""}${item("pMod", "cat", "Fonctionnalités", "Choisis les fonctions affichées dans ton app")}</div></div>
    ${MOD("placements") || MOD("financement") ? `<div class="p-groupe"><div class="t">Patrimoine</div><div class="p-liste">${item("pInvB", "inv", MOD("placements") && MOD("financement") ? "Placements et financement" : MOD("placements") ? "Placements" : "Financement", MOD("placements") ? "CÉLI, CÉLIAPP" + (MOD("financement") ? ", prêts" : "") : "Prêts", MOD("placements") ? $$(tj) : "")}</div></div>` : ""}
    ${MOD("rappro") ? `<div class="p-groupe"><div class="t">Mois</div><div class="p-liste">
      ${item("pRap", "rap", "Rapprochement bancaire", "Relevés Amex et Desjardins vs l'app · " + esc(S.info.nom))}</div></div>` : ""}
@@ -3547,6 +3657,7 @@ function vuePlusPro(el){
      ${window.WEB ? item("pWeb", "nuage", "Compte, fichier et sécurité", "Fichier OneDrive, sauvegardes, verrouillage Face ID, déconnexion") : item("pFich", "nuage", "Fichier", esc(e.fichier || ""))}</div></div>`;
   const on = (id, f) => { const b = $(id, el); if(b) b.onclick = f; };
   on("#pMod", () => vaVers("modules"));
+  on("#pBox", () => vaVers("boite"));
   on("#pInvB", () => vaVers("inv"));
   on("#pRap", () => vaVers("rappro"));
   $("#pHist", el).onclick = () => dlgHistorique();
@@ -3604,7 +3715,7 @@ captePartage();
 function capteAjout(){
   const h = location.hash; if(!/^#ajout\b/.test(h)) return false;
   const q = new URLSearchParams(h.replace(/^#ajout&?/, "").replace(/^\?/, ""));
-  const o = {m: q.get("m") || "", a: q.get("a") || "", c: q.get("c") || "", t: Date.now()};
+  const o = {m: q.get("m") || "", a: q.get("a") || "", c: q.get("c") || "", texte: (q.get("texte") || "").slice(0, 6000), src: q.get("src") || "", t: Date.now()};
   try { localStorage.setItem("ajout_recu", JSON.stringify(o)); } catch(e){}
   history.replaceState(null, "", location.pathname + location.search);
   return true;
@@ -3625,8 +3736,10 @@ function marchandAP(x){
 async function verifieAjoutRecu(){
   let o = null; try { o = JSON.parse(localStorage.getItem("ajout_recu") || "null"); localStorage.removeItem("ajout_recu"); } catch(e){}
   if(!o || MODE_PAYE()) return;
-  if(!MOD("applepay")) return toast("Apple Pay est désactivé dans Plus › Fonctionnalités.", true);
   if(Date.now() - (o.t || 0) > 30 * 60 * 1000) return;                     // lien trop vieux : ignoré
+  if(o.texte || o.src === "partage") return recuPartage(o);
+  if(!MOD("applepay")) return toast("Apple Pay est désactivé dans Plus › Fonctionnalités.", true);
+  if(UIPRO() && MOD("boite") && await versBoite([{source: "applepay", description: marchandAP(o.m), montant: montantAP(o.a), date: today(), type: await typeSuggere(marchandAP(o.m))}])) return;
   const desc = marchandAP(o.m), mt = montantAP(o.a);
   if(!desc && mt == null) return toast("Paiement Apple Pay reçu, mais sans marchand ni montant.", true);
   // la dépense va dans le mois d'aujourd'hui
