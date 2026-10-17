@@ -722,6 +722,7 @@
         case "/api/boite/ajout": res = boiteAjout(corps); break;
         case "/api/boite/confirmer": res = boiteConfirme(corps); break;
         case "/api/boite/supprimer": res = supprime("boite", corps.id); break;
+        case "/api/boite/vider": res = D.boite.slice().map(b => supprime("boite", b.id)).length; break;
         case "/api/modules": { const m = Object.assign({}, REG().modules || {});       // Réglages › Fonctionnalités (essai, app de Zach)
           for(const [k, v] of Object.entries(corps.modules || {})) if(/^[a-z_]{2,30}$/.test(k)) m[k] = !!v;
           setReg("modules", m); res = m; break; }

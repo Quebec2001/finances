@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-paAGEn/LfOk/Zfuec9iz6wPy8+yp+QCMHvl1mqANIsk='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-ZtXEVjNjtCHFb1zoyIEpJa2BEkO1+luF3+vz2ccXtsU='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -186,7 +186,7 @@ details.cp-vieux{margin-top:12px}details.cp-vieux summary{cursor:pointer;color:v
 .item .t2{font-size:12.5px;color:var(--ink-3);display:flex;gap:8px;flex-wrap:wrap;margin-top:1px}
 .item .amt{text-align:right;font-weight:600;white-space:nowrap}
 .item .amt small{display:block;font-weight:400;color:var(--ink-3);font-size:12px}
-.bx{display:grid;gap:10px}.bx-h{display:flex;justify-content:space-between;align-items:center}.bx-txt{white-space:pre-wrap;font-size:11.5px;max-height:160px;overflow:auto;margin:6px 0 0}
+.bx{display:grid;gap:10px}.bx-h{display:flex;justify-content:space-between;align-items:center}.bx-txt{white-space:pre-wrap;font-size:11.5px;max-height:none;overflow:visible;margin:6px 0 0;user-select:text;-webkit-user-select:text}
 .mod-l{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line);cursor:pointer}.mod-l:first-of-type{border-top:0}
 .mod-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.mod-t small{color:var(--ink-3);font-size:12.5px;line-height:1.35}
 .mod-sw{appearance:none;-webkit-appearance:none;flex:none;width:46px;height:28px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;transition:background .2s;margin:0}
@@ -452,10 +452,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=42565eca1e"></script>
-<script src="api2.js?v=42565eca1e"></script>
-<script src="export_xlsx.js?v=42565eca1e"></script>
-<script src="web2.js?v=42565eca1e" data-version="web.js?v=42565eca1e"></script>
+<script src="calculs.js?v=b62d89bc6c"></script>
+<script src="api2.js?v=b62d89bc6c"></script>
+<script src="export_xlsx.js?v=b62d89bc6c"></script>
+<script src="web2.js?v=b62d89bc6c" data-version="web.js?v=b62d89bc6c"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -3415,7 +3415,9 @@ function listeBancaire(lignes, texte){
   // 1) chaque ligne devient : marchand (m), montant (a), date (d) ; le reste est ignoré (onglets, « En attente », « > »…)
   const seq = [];
   for(let l of lignes){
-    l = l.replace(/\s*[>›»]\s*$/, "").replace(/\s*en attente\s*$/i, "").trim(); if(!l || RX_BRUIT.test(l) || /^en attente$/i.test(l)) continue;
+    // icônes lues comme du texte (« := Vue », « 郎 Filres », « ( ») et heure de la barre d'état retirées
+    l = l.replace(/\s*[>›»(]\s*$/, "").replace(/\s*en attente\s*$/i, "").replace(/^[^\p{L}\p{N}+\-$*•]+/u, "").replace(/^[^\x00-\u024F]+\s*/, "").trim();
+    if(!l || RX_BRUIT.test(l) || /^en attente$/i.test(l) || /^\d{1,2}:\d{2}$/.test(l) || /^(fil?t?res|vue|autoris)/i.test(l)) continue;
     const d = dateJourMois(l); if(d){ seq.push({k: "d", d}); continue; }
     const v = montantsDe(l), plus = /\+\s*\$?\s*\d/.test(l);
     const reste = l.replace(/[+-]?\s?\$?\s?\d{1,3}(?:[   ]\d{3})*[.,]\d{2}\s?\$?/g, " ").replace(/\s{2,}/g, " ").trim();
@@ -3442,8 +3444,9 @@ function listeBancaire(lignes, texte){
     // 2b) lecture par colonnes : tous les marchands, puis tous les montants, puis les dates → associés dans l'ordre
     const ms = []; for(let i = 0; i < seq.length; i++){ const x = seq[i];
       if(x.k === "m"){ if(ms.length && seq[i - 1] && seq[i - 1].k === "m" && suite(ms[ms.length - 1], x.t) && /\d|\*/.test(x.t)) ms[ms.length - 1].desc += " " + x.t; else ms.push({desc: x.t}); } }
-    const as = seq.filter(x => x.k === "a"), ds = seq.filter(x => x.k === "d");
-    ms.forEach((m, i) => { if(as[i]) recs.push({desc: m.desc, v: as[i].v, plus: as[i].plus, date: ds.length === ms.length ? ds[i].d : null}); });
+    // les en-têtes mal reconnus sont en haut : on associe à partir de la fin (dernier marchand ↔ dernier montant)
+    const as = seq.filter(x => x.k === "a"), ds = seq.filter(x => x.k === "d"), n = Math.min(ms.length, as.length), m0 = ms.length - n, a0 = as.length - n;
+    for(let i = 0; i < n; i++){ const di = ds.length - n + i; recs.push({desc: ms[m0 + i].desc, v: as[a0 + i].v, plus: as[a0 + i].plus, date: di >= 0 ? ds[di].d : null}); }
   }
   const bons = recs.filter(r => r.v != null && Math.abs(r.v) >= 0.005 && !/^(paiement|payment|paiement re[çc]u|merci pour votre paiement|faire un paiement)\b/i.test(r.desc));
   if(bons.length < 2) return null;
@@ -3491,7 +3494,7 @@ function vueBoitePro(el){
   const src = {applepay: "Apple Pay", partage: "Partagé", texto: "Texto"};
   const deja = b => b.montant != null && (S.mois.transactions || []).find(t => t.utilise && t.date === b.date && Math.abs((t.deboursement || 0) - b.montant) < 0.005);
   el.innerHTML = `<button class="p-retour" id="pRet">‹ Plus</button>
-   <div class="card"><div class="p-sec"><b>Boîte de réception</b><span>${l.length ? l.length + " à confirmer" : ""}</span></div>
+   <div class="card"><div class="p-sec"><b>Boîte de réception</b><span>${l.length > 1 ? `<button class="btn small" id="bxVider">Tout supprimer</button>` : l.length ? "1 à confirmer" : ""}</span></div>
      <p class="small muted" style="margin:0">Ce que tu as payé avec Apple Pay ou partagé vers Finances arrive ici. Rien ne compte avant que tu confirmes.</p></div>
    ${l.length ? l.map(b => `<div class="spacer"></div><form class="card bx" data-bx="${b.id}">
      <div class="bx-h"><span class="p-chip" style="padding:0 8px;font-size:11px">${esc(src[b.source] || b.source)}</span><span class="small muted">reçu ${dateLongue(new Date(new Date(b.recu) - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10))}</span></div>
@@ -3507,6 +3510,8 @@ function vueBoitePro(el){
      <div class="dlg-f" style="padding:0"><button type="button" class="btn danger" data-del>Supprimer</button><span class="grow"></span><button class="btn primary">Confirmer</button></div>
    </form>`).join("") : `<div class="spacer"></div><div class="card"><div class="p-vide">Rien à confirmer. Paie avec Apple Pay ou partage un reçu vers Finances.</div></div>`}`;
   $("#pRet", el).onclick = () => vaVers("plus");
+  { const v = $("#bxVider", el); if(v) v.onclick = async () => { if(!confirm(`Supprimer les ${l.length} éléments de la boîte ? (Annulable dans l'historique)`)) return;
+      try { await ecrit("/api/boite/vider", {}, "Boîte vidée"); vaVers("boite"); } catch(e){} }; }
   el.querySelectorAll("form.bx").forEach(f => {
     const b = l.find(x => x.id == f.dataset.bx); let genre = b.genre, typ = (types.find(t => f.querySelector(`.bx-t button.on[data-t="${CSS.escape(t)}"]`)) || types.find(t => semType(t) === "P") || "");
     if(!f.querySelector(".bx-t button.on")){ const bp = [...f.querySelectorAll(".bx-t button")].find(x => x.dataset.t === typ); if(bp) bp.classList.add("on"); }
