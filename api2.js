@@ -244,7 +244,7 @@
       const catTxt = String(data.categorie || "").trim();
       const m = M(), auto = m.categorie({description: desc, categorie_id: null});
       if(catTxt && !catId(catTxt)) throw new Erreur("Catégorie inconnue : " + catTxt);
-      if(catTxt && norm(catTxt) !== norm(auto) && REG().pourboires) apprendMotCle(desc, catTxt);
+      if(catTxt && norm(catTxt) !== norm(auto) && REG().pourboires && (REG().modules || {}).mots_cles !== false) apprendMotCle(desc, catTxt);
       const auto2 = M().categorie({description: desc, categorie_id: null});
       const champs = {mois: moisDeDate(date, i) < verrou() ? i.cle : moisDeDate(date, i), date, description: desc, montant_c: cents(mt.valeur), calcul: mt.calcul,
                       type: typ, categorie_id: catTxt && norm(catTxt) !== norm(auto2) ? catId(catTxt) : null, paye_par: paye};
@@ -487,7 +487,7 @@
     // tu ne l'as pas cochée « passée » ; cochée, elle devient une vraie dépense (ou un vrai revenu), date et montant modifiables.
     function genereFixes(){
       const mo = auj().slice(0, 7); let n = 0;
-      if(mo < verrou()) return 0;
+      if(mo < verrou() || (REG().modules || {}).fixes === false) return 0;
       for(const x of aGenerer(mo)){
         const pv = {id: nouvelId("prevus"), fixe_id: x.id, genre: x.genre, mois: mo, date: dateFixe(mo, x.jour), description: x.description,
                     montant_c: x.montant_c, estime: x.variable ? 1 : 0, categorie_id: x.categorie_id || null, type: x.type || null};
@@ -688,6 +688,9 @@
         case "/api/prevu/retirer": res = supprime("prevus", corps.id); break;
         case "/api/fixe/ignorer": setReg("fixes_ignores", [...new Set([...(REG().fixes_ignores || []), String(corps.cle || "")])]); res = true; break;
         case "/api/fixes/generer": res = genereFixes(); break;
+        case "/api/modules": { const m = Object.assign({}, REG().modules || {});       // Réglages › Fonctionnalités (essai, app de Zach)
+          for(const [k, v] of Object.entries(corps.modules || {})) if(/^[a-z_]{2,30}$/.test(k)) m[k] = !!v;
+          setReg("modules", m); res = m; break; }
         case "/api/budgets": res = budgets(f, corps); break;
         case "/api/configuration": res = configuration(f, corps); break;
         case "/api/ajustement": {
