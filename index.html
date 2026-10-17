@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-EaG8RezZViwgd68OkDP+GOX+7lSvhvvji9ZOFIrVSXk='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-paAGEn/LfOk/Zfuec9iz6wPy8+yp+QCMHvl1mqANIsk='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -452,10 +452,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=e8412354b2"></script>
-<script src="api2.js?v=e8412354b2"></script>
-<script src="export_xlsx.js?v=e8412354b2"></script>
-<script src="web2.js?v=e8412354b2" data-version="web.js?v=e8412354b2"></script>
+<script src="calculs.js?v=42565eca1e"></script>
+<script src="api2.js?v=42565eca1e"></script>
+<script src="export_xlsx.js?v=42565eca1e"></script>
+<script src="web2.js?v=42565eca1e" data-version="web.js?v=42565eca1e"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -3386,13 +3386,68 @@ const RX_MT = /(?:^|[^\d])(-?\$?\s?\d{1,3}(?:[   ]\d{3})*(?:[.,]\d{2})|-?\$?\
 const MOIS_TXT = {jan: 1, janv: 1, janvier: 1, january: 1, fev: 2, févr: 2, fevr: 2, février: 2, fevrier: 2, feb: 2, february: 2, mar: 3, mars: 3, march: 3,
   avr: 4, avril: 4, apr: 4, april: 4, mai: 5, may: 5, juin: 6, june: 6, jun: 6, juil: 7, juillet: 7, jul: 7, july: 7, aout: 8, août: 8, aug: 8, august: 8,
   sep: 9, sept: 9, septembre: 9, september: 9, oct: 10, octobre: 10, october: 10, nov: 11, novembre: 11, november: 11, dec: 12, déc: 12, décembre: 12, decembre: 12, december: 12};
-function montantsDe(l){ const out = []; let m; RX_MT.lastIndex = 0; while((m = RX_MT.exec(l))){ const v = montantAP(m[1].replace(/[\s  ]/g, "")); if(v != null && Math.abs(v) < 100000) out.push(v); } return out; }
+function montantsDe(l){ const out = []; let m; RX_MT.lastIndex = 0; while((m = RX_MT.exec(l))){ const brut = m[1].replace(/[\s\u00a0\u202f]/g, ""); let v = montantAP(brut); if(v == null && !/[1-9]/.test(brut)) v = 0; if(v != null && Math.abs(v) < 100000) out.push(v); } return out; }
 function dateDe(t){
   let m = t.match(/(20\d\d)[-/.](\d{1,2})[-/.](\d{1,2})/); if(m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
   m = t.match(/(\d{1,2})[/.](\d{1,2})[/.](20\d\d)/); if(m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
   m = t.toLowerCase().match(/(\d{1,2})(?:er)?\s+([a-zéû]{3,9})\.?\s+(20\d\d)/); if(m && MOIS_TXT[m[2]]) return `${m[3]}-${String(MOIS_TXT[m[2]]).padStart(2, "0")}-${m[1].padStart(2, "0")}`;
   m = t.toLowerCase().match(/([a-zéû]{3,9})\.?\s+(\d{1,2}),?\s+(20\d\d)/); if(m && MOIS_TXT[m[1]]) return `${m[3]}-${String(MOIS_TXT[m[1]]).padStart(2, "0")}-${m[2].padStart(2, "0")}`;
   return null;
+}
+
+// liste de transactions lue par iOS : lignes « marchand », « 39,67 $ », « 16 OCT », « > » dans l'ordre de lecture
+// (ligne par ligne, ou une colonne après l'autre) → un élément par transaction ; paiement de carte et 0,00 $ ignorés
+const RX_JOUR_MOIS = /^(\d{1,2})\s*(?:er)?\s+([a-zéû]{3,9})\.?$/i;
+const RX_BRUIT = /^(>|›|»|faire un paiement|aper[çc]u|adh[ée]sion|offres amex|compte|american express.*|•+\s*\d+|transactions?( par mois)?|relev[ée]s|informations|vue|filtres|autoris[ée]es? non factur[ée]es|factur[ée]es|en attente|aujourd'hui|hier|solde.*|cr[ée]dit disponible.*|\*+[\s*]*\d{4}|i)$/i;
+function dateJourMois(t){
+  const m = t.toLowerCase().match(RX_JOUR_MOIS); if(!m) return null;
+  const mo = MOIS_TXT[m[2].replace(/\.$/, "")]; if(!mo) return null;
+  const auj = today(); let an = +auj.slice(0, 4); if(mo > +auj.slice(5, 7)) an--;
+  return `${an}-${String(mo).padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+}
+// nettoie un nom de marchand de relevé : « AMAZON.CA*5P0LG8NR0 866-216-1072 » → « Amazon.ca », « PAYPAL *UBER EATS 8665791039 » → « Uber Eats »
+function marchandReleve(t){
+  t = String(t || "").replace(/^paypal\s*\*\s*/i, "").replace(/\*[A-Z0-9]{4,}\b/gi, " ").replace(/\b\d{3}[- ]\d{3}[- ]\d{3,4}\b|\b\d{3}-\d{3}-\.*|…/g, " ")
+        .replace(/\b[A-Z0-9]*\d[A-Z0-9]*\d[A-Z0-9]*\b/g, " ").replace(/\s{2,}/g, " ").replace(/[\s*#-]+$/, "").trim();
+  return marchandAP(t.slice(0, 40));
+}
+function listeBancaire(lignes, texte){
+  // 1) chaque ligne devient : marchand (m), montant (a), date (d) ; le reste est ignoré (onglets, « En attente », « > »…)
+  const seq = [];
+  for(let l of lignes){
+    l = l.replace(/\s*[>›»]\s*$/, "").replace(/\s*en attente\s*$/i, "").trim(); if(!l || RX_BRUIT.test(l) || /^en attente$/i.test(l)) continue;
+    const d = dateJourMois(l); if(d){ seq.push({k: "d", d}); continue; }
+    const v = montantsDe(l), plus = /\+\s*\$?\s*\d/.test(l);
+    const reste = l.replace(/[+-]?\s?\$?\s?\d{1,3}(?:[   ]\d{3})*[.,]\d{2}\s?\$?/g, " ").replace(/\s{2,}/g, " ").trim();
+    const lettres = /[a-zà-ÿ]{2}/i.test(reste);
+    if(v.length && !lettres){ seq.push({k: "a", v: v[0], plus}); continue; }
+    if(lettres){ seq.push({k: "m", t: reste}); if(v.length) seq.push({k: "a", v: v[0], plus}); continue; }
+  }
+  const nA = seq.filter(x => x.k === "a").length; if(nA < 2) return null;
+  const apresM = seq.filter((x, i) => x.k === "a" && i > 0 && seq[i - 1].k === "m").length;
+  const suite = (cur, t) => /\d|\*/.test(t) || (t.split(/\s+/).length <= 2 && t === t.toUpperCase() && cur.desc === cur.desc.toUpperCase());
+  const enTete = seq.findIndex(x => x.k === "d") >= 0 && seq.findIndex(x => x.k === "d") < seq.findIndex(x => x.k === "m");
+  const recs = [];
+  if(apresM >= nA / 2){
+    // 2a) lecture ligne par ligne : marchand (sur 1 ou 2 lignes), montant, date (avant : en-tête de groupe ; après : propre à la ligne)
+    let cur = null, dateGroupe = null;
+    for(let i = 0; i < seq.length; i++){
+      const x = seq[i];
+      if(x.k === "m"){ if(cur && cur.v == null && seq[i - 1] && seq[i - 1].k === "m" && suite(cur, x.t)) cur.desc += " " + x.t;
+                       else { cur = {desc: x.t, v: null, plus: false, date: enTete ? dateGroupe : null}; recs.push(cur); } }
+      else if(x.k === "a"){ if(cur && cur.v == null){ cur.v = x.v; cur.plus = x.plus; } }
+      else if(x.k === "d"){ if(enTete) dateGroupe = x.d; else if(cur && !cur.date) cur.date = x.d; }
+    }
+  } else {
+    // 2b) lecture par colonnes : tous les marchands, puis tous les montants, puis les dates → associés dans l'ordre
+    const ms = []; for(let i = 0; i < seq.length; i++){ const x = seq[i];
+      if(x.k === "m"){ if(ms.length && seq[i - 1] && seq[i - 1].k === "m" && suite(ms[ms.length - 1], x.t) && /\d|\*/.test(x.t)) ms[ms.length - 1].desc += " " + x.t; else ms.push({desc: x.t}); } }
+    const as = seq.filter(x => x.k === "a"), ds = seq.filter(x => x.k === "d");
+    ms.forEach((m, i) => { if(as[i]) recs.push({desc: m.desc, v: as[i].v, plus: as[i].plus, date: ds.length === ms.length ? ds[i].d : null}); });
+  }
+  const bons = recs.filter(r => r.v != null && Math.abs(r.v) >= 0.005 && !/^(paiement|payment|paiement re[çc]u|merci pour votre paiement|faire un paiement)\b/i.test(r.desc));
+  if(bons.length < 2) return null;
+  return bons.slice(0, 20).map(r => ({source: "partage", genre: r.plus ? "revenu" : "depense", description: marchandReleve(r.desc) || marchandAP(r.desc), montant: Math.abs(r.v), date: r.date || today(), texte: String(texte).slice(0, 1500)}));
 }
 function analyseTexteRecu(texte){
   const lignes = String(texte || "").split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -3406,12 +3461,8 @@ function analyseTexteRecu(texte){
   if(desc) desc = desc.split(/\s+\(/)[0];
   if(!desc){ const l = lignes.find(l => /[a-zà-ÿ]{3}/i.test(l) && !/^(re[çc]u|receipt|facture|invoice|merci|thank|date|total|commande|order|bonjour|hello|de :|from:|à :|to:|objet|subject)/i.test(l) && !montantsDe(l).length);
     desc = marchandAP((l || "").slice(0, 40)); }
-  // capture d'une liste bancaire : plusieurs lignes avec un montant, sans « total » → un élément par ligne
-  const avecMt = lignes.filter(l => montantsDe(l).length);
-  if(avecMt.length >= 3 && !/\btotal\b/i.test(texte)) return avecMt.slice(0, 20).map(l => {
-    const v = montantsDe(l)[0], d = marchandAP(l.replace(/-?\$?\s?\d{1,3}(?:[ \u00a0\u202f]\d{3})*[.,]\d{2}\s?\$?/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, 40)) || desc;
-    return {source: "partage", genre: v > 0 && rxRev.test(l) ? "revenu" : "depense", description: d, montant: Math.abs(v), date: dateDe(l) || date};
-  });
+  // capture d'une liste bancaire (ex. app Desjardins) : marchand, montant et date souvent sur des lignes séparées
+  if(!/\b(sous-)?total\b/i.test(texte)){ const l = listeBancaire(lignes, texte); if(l) return l; }
   let mt = null;
   const iTot = lignes.findIndex(l => /\b(total|montant (pay|factur)|à payer|amount (paid|charged)|grand total|charged)\b/i.test(l) && !/sous-total|subtotal/i.test(l));
   if(iTot >= 0){ const v = montantsDe(lignes[iTot]).concat(montantsDe(lignes[iTot + 1] || "")); if(v.length) mt = Math.abs(v[v.length - 1]); }
