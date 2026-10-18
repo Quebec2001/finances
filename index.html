@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-ZtXEVjNjtCHFb1zoyIEpJa2BEkO1+luF3+vz2ccXtsU='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-VNrIQCgFP1G+CX9J04HNJFzLlc/xBpD9hkTC++h/HaY='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -452,10 +452,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=4f6b90215f"></script>
-<script src="api2.js?v=4f6b90215f"></script>
-<script src="export_xlsx.js?v=4f6b90215f"></script>
-<script src="web2.js?v=4f6b90215f" data-version="web.js?v=4f6b90215f"></script>
+<script src="calculs.js?v=bf4642d578"></script>
+<script src="api2.js?v=bf4642d578"></script>
+<script src="export_xlsx.js?v=bf4642d578"></script>
+<script src="web2.js?v=bf4642d578" data-version="web.js?v=bf4642d578"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -3363,14 +3363,15 @@ function rapAjouter(x){
 
 // ---------------------------------------------------------------- boîte de réception (essai, app de Zach)
 // Apple Pay et « Partager vers Finances » y déposent ce qu'ils ont lu : pas de fenêtre à remplir sur le moment.
-async function versBoite(items){
-  items = items.filter(x => x.description || x.montant != null);
+async function versBoite(items, nDeja){
+  items = items.filter(x => x.description || x.montant != null).map(x => { const y = Object.assign({}, x); delete y.parts; return y; });
   if(!items.length) return false;
   if(window.WEB && WEB.mode && WEB.mode() !== "reel") return false;
   try { await ecrit("/api/boite/ajout", {items: items.map(x => Object.assign({}, x, {montant: x.montant == null ? null : String(x.montant)}))}, null); }
   catch(e){ return false; }
   const x = items[0];
-  toast(items.length > 1 ? `${items.length} éléments ajoutés à ta boîte de réception` : `Ajouté à ta boîte de réception · ${x.description || "?"}${x.montant != null ? " " + $$(x.montant) : ""}`);
+  toast((items.length > 1 ? `${items.length} éléments ajoutés à ta boîte de réception` : `Ajouté à ta boîte de réception · ${x.description || "?"}${x.montant != null ? " " + $$(x.montant) : ""}`)
+        + (nDeja ? ` · ${nDeja} déjà inscrit${nDeja > 1 ? "s" : ""}, ignoré${nDeja > 1 ? "s" : ""}` : ""));
   return true;
 }
 // type de partage suggéré : celui de la dernière dépense chez ce marchand (ce mois-ci ou le mois précédent)
@@ -3405,11 +3406,26 @@ function dateJourMois(t){
   const auj = today(); let an = +auj.slice(0, 4); if(mo > +auj.slice(5, 7)) an--;
   return `${an}-${String(mo).padStart(2, "0")}-${m[1].padStart(2, "0")}`;
 }
-// nettoie un nom de marchand de relevé : « AMAZON.CA*5P0LG8NR0 866-216-1072 » → « Amazon.ca », « PAYPAL *UBER EATS 8665791039 » → « Uber Eats »
+// nettoie un nom de marchand de relevé : « AMAZON.CA*5P0LG8NR0 866-216-1072 » → « Amazon », « PAYPAL *UBER EATS 8665791039 » → « Uber Eats »,
+// « NBX*FONDATION EXEMPLE 50/50 MONTREAL » → « Fondation Exemple », « LS BAR EXEMPLE MONTRÉAL » → « Bar Exemple », « RESTO 002 MONTREAL » → « Resto »
+// marchands connus : nom unique + type et catégorie proposés (Zach : Amazon souvent 50/50 en Logement ; Uber Eats = Restaurant)
+const REGLES_MARCHAND = [
+  {rx: /\b(amazon|amzn)/i, nom: "Amazon", type: "50/50", cat: "logement"},
+  {rx: /\buber\s*\*?\s*eats\b/i, nom: "Uber Eats", cat: "restaurant"},
+  {rx: /\buber\b/i, nom: "Uber"},
+  {rx: /\bapple\.com|\bitunes/i, nom: "Apple"}];
+const regleMarchand = t => REGLES_MARCHAND.find(r => r.rx.test(t || "")) || null;
+// lieux et suffixes en fin de nom (« MONTREAL », « QC », « CDN ») ; préfixes de terminaux de paiement (« LS », « SQ * », « NBX* »)
+const RX_LIEU = /\s+((?:montr[ée]al|mtl|laval|longueuil|qu[ée]bec|qc|canada|cdn)\.?|CA|ON)$/i;
+const finLieu = t => { const m = t.match(RX_LIEU); return m && (!/^(ca|on)$/i.test(m[1]) || /^(CA|ON)$/.test(m[1])); };
 function marchandReleve(t){
-  t = String(t || "").replace(/^paypal\s*\*\s*/i, "").replace(/\*[A-Z0-9]{4,}\b/gi, " ").replace(/\b\d{3}[- ]\d{3}[- ]\d{3,4}\b|\b\d{3}-\d{3}-\.*|…/g, " ")
-        .replace(/\b[A-Z0-9]*\d[A-Z0-9]*\d[A-Z0-9]*\b/g, " ").replace(/\s{2,}/g, " ").replace(/[\s*#-]+$/, "").trim();
-  return marchandAP(t.slice(0, 40));
+  t = String(t || ""); const r = regleMarchand(t); if(r) return r.nom;
+  t = t.replace(/^(paypal|sq|tst|nbx|sp|dd|pp|zettle|ckc|py)\s*\*\s*/i, "").replace(/^ls\s+(?=\S+\s+\S)/i, "")
+       .replace(/\*(?=[A-Z0-9]*\d)[A-Z0-9]{4,}\b/gi, " ").replace(/\b\d{3}[- ]\d{3}[- ]\d{3,4}\b|\b\d{3}-\d{3}-\.*|…|\.{3}/g, " ")
+       .split(/\s+/).filter(w => !/\d/.test(w) || (/\p{L}{2}/u.test(w) && (w.match(/\d/g).length < 2 || /^[A-Z]?[a-z]+\d+$/.test(w)))).join(" ")
+       .replace(/[\s*#/-]+$/, "").replace(/\s{2,}/g, " ").trim();
+  for(let i = 0; i < 3 && finLieu(t) && t.split(" ").length > 1; i++) t = t.replace(RX_LIEU, "").trim();
+  return marchandAP(t.replace(/[\s*#/-]+$/, "").slice(0, 40));
 }
 function listeBancaire(lignes, texte){
   // 1) chaque ligne devient : marchand (m), montant (a), date (d) ; le reste est ignoré (onglets, « En attente », « > »…)
@@ -3428,7 +3444,13 @@ function listeBancaire(lignes, texte){
   const nA = seq.filter(x => x.k === "a").length; if(nA < 2) return null;
   const apresM = seq.filter((x, i) => x.k === "a" && i > 0 && seq[i - 1].k === "m").length;
   const suite = (cur, t) => /\d|\*/.test(t) || (t.split(/\s+/).length <= 2 && t === t.toUpperCase() && cur.desc === cur.desc.toUpperCase());
-  const enTete = seq.findIndex(x => x.k === "d") >= 0 && seq.findIndex(x => x.k === "d") < seq.findIndex(x => x.k === "m");
+  // où est la date de chaque transaction ?
+  //  - dans la ligne (Desjardins : marchand, date, montant) → elle va avec ce marchand ;
+  //  - en-tête de groupe (Amex : « 14 oct. » puis les achats de ce jour) : la liste ne finit pas par une date ;
+  //  - après la ligne (marchand, montant, date) : la liste finit par une date.
+  const ds = seq.map((x, i) => i).filter(i => seq[i].k === "d"), dern = seq[seq.length - 1];
+  const dansLigne = ds.length && ds.filter(i => seq[i - 1] && seq[i - 1].k === "m" && seq[i + 1] && seq[i + 1].k === "a").length >= ds.length / 2;
+  const enTete = !dansLigne && ds.length > 0 && (ds[0] < seq.findIndex(x => x.k === "m") || dern.k !== "d");
   const recs = [];
   if(apresM >= nA / 2){
     // 2a) lecture ligne par ligne : marchand (sur 1 ou 2 lignes), montant, date (avant : en-tête de groupe ; après : propre à la ligne)
@@ -3448,9 +3470,21 @@ function listeBancaire(lignes, texte){
     const as = seq.filter(x => x.k === "a"), ds = seq.filter(x => x.k === "d"), n = Math.min(ms.length, as.length), m0 = ms.length - n, a0 = as.length - n;
     for(let i = 0; i < n; i++){ const di = ds.length - n + i; recs.push({desc: ms[m0 + i].desc, v: as[a0 + i].v, plus: as[a0 + i].plus, date: di >= 0 ? ds[di].d : null}); }
   }
-  const bons = recs.filter(r => r.v != null && Math.abs(r.v) >= 0.005 && !/^(paiement|payment|paiement re[çc]u|merci pour votre paiement|faire un paiement)\b/i.test(r.desc));
+  // paiement de la carte (« Paiement », « Paiement - merci », « +157,41 $ ») et 0,00 $ ignorés
+  const bons = recs.filter(r => r.v != null && Math.abs(r.v) >= 0.005 && !/^(paiement|payment|paiement re[çc]u|merci pour votre paiement|faire un paiement|thank you|pmt)\b/i.test(r.desc));
   if(bons.length < 2) return null;
-  return bons.slice(0, 20).map(r => ({source: "partage", genre: r.plus ? "revenu" : "depense", description: marchandReleve(r.desc) || marchandAP(r.desc), montant: Math.abs(r.v), date: r.date || today(), texte: String(texte).slice(0, 1500)}));
+  const items = bons.map(r => ({source: "partage", genre: r.plus ? "revenu" : "depense", description: marchandReleve(r.desc) || marchandAP(r.desc), montant: Math.abs(r.v), date: r.date || today(), texte: String(texte).slice(0, 1500)}));
+  return regroupe(items).slice(0, 20);
+}
+// même marchand, même date (et même sens) : une seule ligne, montants additionnés (Uber Eats 4,25 $ + 15,28 $ le 14 oct. → 19,53 $)
+function regroupe(items){
+  const out = [];
+  for(const x of items){
+    const k = out.find(y => y.genre === x.genre && y.date === x.date && y.description.toLowerCase() === x.description.toLowerCase());
+    if(k){ k.montant = Math.round((k.montant + x.montant) * 100) / 100; k.parts = (k.parts || [k.montant - x.montant]).concat(x.montant); }
+    else out.push(Object.assign({}, x));
+  }
+  return out;
 }
 function analyseTexteRecu(texte){
   const lignes = String(texte || "").split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -3472,10 +3506,57 @@ function analyseTexteRecu(texte){
   if(mt == null){ const tous = lignes.flatMap(montantsDe).map(Math.abs); if(tous.length) mt = Math.max(...tous); }
   return [{source: "partage", genre, description: desc || "", montant: mt, date, texte: String(texte).slice(0, 4000)}];
 }
+// type et catégorie proposés : règle du marchand (Amazon → 50/50, Logement), sinon le type de la dernière dépense chez ce marchand
+const sansAcc = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+async function proposeTypeCat(x){
+  const r = regleMarchand(x.description), e = S.etat || {};
+  if(r && r.type){ const t = (e.types || []).find(t => sansAcc(t).includes(sansAcc(r.type))); if(t) x.type = t; }
+  if(r && r.cat){ const c = (e.categories || []).find(c => sansAcc(c).startsWith(r.cat)); if(c) x.categorie = c; }
+  if(!x.type) x.type = await typeSuggere(x.description);
+}
+// déjà inscrit ? même montant et même date, ou même montant à 3 jours près chez un marchand au nom semblable
+// (une capture contient souvent des achats déjà entrés à la main). Un achat regroupé (Uber Eats 4,25 + 15,28) compte comme
+// déjà inscrit si le total l'est, ou si chacune de ses parties l'est. Chaque ligne inscrite ne sert qu'une fois.
+const joursEntre = (a, b) => Math.abs((new Date(a + "T12:00") - new Date(b + "T12:00")) / 864e5);
+const nomProche = (a, b) => { const f = t => sansAcc(t).replace(/[^a-z0-9 ]/g, " ").trim().split(/\s+/)[0].slice(0, 4); return f(a).length >= 3 && f(a) === f(b); };
+async function lignesInscrites(items){
+  const cles = new Set(); for(const x of items) for(const d of [-3, 0, 3]){ const t = new Date(x.date + "T12:00"); t.setDate(t.getDate() + d); cles.add(t.toISOString().slice(0, 7)); }
+  const dep = [], rev = [];
+  for(const cle of cles){ const mo = (S.etat.mois || []).find(m => m.cle === cle && m.canvas); if(!mo) continue;
+    let mm = null; try { mm = mo.feuille === S.feuille && S.mois ? S.mois : await api("/api/mois?f=" + encodeURIComponent(mo.feuille)); } catch(e){}
+    if(!mm) continue;
+    for(const t of mm.transactions || []) if(t.utilise !== false && t.date && t.deboursement) dep.push({date: t.date, montant: +t.deboursement, description: t.description || ""});
+    for(const r of mm.revenus || []) if(r.date && r.montant) rev.push({date: r.date, montant: +r.montant, description: r.description || ""}); }
+  return {dep, rev};
+}
+function trouveInscrite(liste, montant, date, desc){
+  const i = liste.findIndex(t => Math.abs(t.montant - montant) < 0.005 && (t.date === date || (joursEntre(t.date, date) <= 3 && nomProche(t.description, desc))));
+  return i < 0 ? null : liste.splice(i, 1)[0];
+}
+async function retireDejaInscrits(items){
+  let ins; try { ins = await lignesInscrites(items); } catch(e){ return {nouveaux: items, deja: []}; }
+  const boite = (S.etat.boite || []).map(b => ({genre: b.genre, date: b.date, montant: b.montant}));
+  const nouveaux = [], deja = [];
+  for(const x of items){
+    if(x.montant == null){ nouveaux.push(x); continue; }
+    const bi = boite.findIndex(b => b.genre === x.genre && b.date === x.date && b.montant != null && Math.abs(b.montant - x.montant) < 0.005);
+    if(bi >= 0){ boite.splice(bi, 1); deja.push(x); continue; }                          // même capture partagée deux fois
+    const liste = x.genre === "revenu" ? ins.rev : ins.dep;
+    if(trouveInscrite(liste, x.montant, x.date, x.description)){ deja.push(x); continue; }
+    if(x.parts && x.parts.length > 1){ const copie = liste.slice(), ok = x.parts.every(v => trouveInscrite(copie, v, x.date, x.description));
+      if(ok){ liste.splice(0, liste.length, ...copie); deja.push(x); continue; } }
+    nouveaux.push(x);
+  }
+  return {nouveaux, deja};
+}
 async function recuPartage(o){
-  const items = analyseTexteRecu(o.texte || o.m || "");
-  for(const x of items) if(x.genre === "depense") x.type = await typeSuggere(x.description);
-  if(UIPRO() && MOD("boite") && await versBoite(items)) return;
+  let items = analyseTexteRecu(o.texte || o.m || "");
+  for(const x of items) if(x.genre === "depense") await proposeTypeCat(x);
+  if(UIPRO() && MOD("boite")){
+    const {nouveaux, deja} = await retireDejaInscrits(items);
+    if(!nouveaux.length && deja.length) return toast(deja.length > 1 ? `Rien de nouveau : les ${deja.length} achats sont déjà inscrits` : `Déjà inscrit : ${deja[0].description} ${$$(deja[0].montant)}`);
+    if(await versBoite(nouveaux, deja.length)) return;
+  }
   // sans boîte : la fenêtre d'ajout préremplie (premier élément)
   const x = items[0]; if(!x || (!x.description && x.montant == null)) return toast("Rien de lisible dans ce qui a été partagé.", true);
   if(x.genre === "revenu"){ dlgRevenu(null, null, "autres"); const f = $("#fr"); if(f){ if(x.montant != null) f.montant.value = x.montant.toFixed(2).replace(".", ","); f.date.value = x.date; } return; }
@@ -3492,7 +3573,7 @@ function vueBoitePro(el){
   const l = S.etat.boite || [], e = S.etat;
   const types = (e.types || []).filter(t => semType(t) && semType(t) !== "R" && (MOD("partage") || semType(t) === "P"));
   const src = {applepay: "Apple Pay", partage: "Partagé", texto: "Texto"};
-  const deja = b => b.montant != null && (S.mois.transactions || []).find(t => t.utilise && t.date === b.date && Math.abs((t.deboursement || 0) - b.montant) < 0.005);
+  const deja = b => b.montant != null && (S.mois.transactions || []).find(t => t.utilise && Math.abs((t.deboursement || 0) - b.montant) < 0.005 && (t.date === b.date || (t.date && joursEntre(t.date, b.date) <= 3 && nomProche(t.description || "", b.description || ""))));
   el.innerHTML = `<button class="p-retour" id="pRet">‹ Plus</button>
    <div class="card"><div class="p-sec"><b>Boîte de réception</b><span>${l.length > 1 ? `<button class="btn small" id="bxVider">Tout supprimer</button>` : l.length ? "1 à confirmer" : ""}</span></div>
      <p class="small muted" style="margin:0">Ce que tu as payé avec Apple Pay ou partagé vers Finances arrive ici. Rien ne compte avant que tu confirmes.</p></div>
@@ -3770,7 +3851,12 @@ captePartage();
 // La partie après « # » n'est envoyée à aucun serveur. On la garde le temps de la connexion Microsoft.
 function capteAjout(){
   const h = location.hash; if(!/^#ajout\b/.test(h)) return false;
-  const q = new URLSearchParams(h.replace(/^#ajout&?/, "").replace(/^\?/, ""));
+  // pas de URLSearchParams : il change « + » en espace, et le « + » d'un montant (« +61,41 $ » = paiement ou crédit) serait perdu.
+  // Le raccourci encode les espaces en %20 ; seul un ancien lien Apple Pay (« m=COSTCO+WHOLESALE ») peut encore avoir des « + » pour des espaces.
+  const brut = {}; h.replace(/^#ajout&?/, "").replace(/^\?/, "").split("&").forEach(kv => { const i = kv.indexOf("="); if(i < 0) return;
+    const k = kv.slice(0, i), v = kv.slice(i + 1); let d; try { d = decodeURIComponent(v); } catch(e){ d = v; }
+    if(k === "m" && !/%20/i.test(v)) d = d.replace(/\+/g, " "); if(!(k in brut)) brut[k] = d; });
+  const q = {get: k => brut[k] == null ? null : brut[k]};
   const o = {m: q.get("m") || "", a: q.get("a") || "", c: q.get("c") || "", texte: (q.get("texte") || "").slice(0, 6000), src: q.get("src") || "", t: Date.now()};
   try { localStorage.setItem("ajout_recu", JSON.stringify(o)); } catch(e){}
   history.replaceState(null, "", location.pathname + location.search);
@@ -3786,7 +3872,9 @@ function montantAP(x){
 function marchandAP(x){
   let t = String(x || "").replace(/\s*[#*]\s*\d+.*$/, "").replace(/\s{2,}/g, " ").trim();
   // tout en majuscules : « COSTCO WHOLESALE » → « Costco Wholesale », mais les sigles courts restent (SAQ, IGA, A&W)
-  if(t && t === t.toUpperCase()) t = t.split(" ").map(w => w.replace(/[^\p{L}]/gu, "").length <= 3 ? w : w.charAt(0) + w.slice(1).toLowerCase()).join(" ");
+  // (les petits mots courants, eux, sont convertis : « BAR », « THE », « DE »…)
+  const MOTS = /^(bar|pub|the|and|les|des|du|de|la|le|et|au|aux|cafe|café|inc|sur|chez|pho|bbq)$/i;
+  if(t && t === t.toUpperCase()) t = t.split(" ").map(w => w.replace(/[^\p{L}]/gu, "").length <= 3 && !MOTS.test(w) ? w : w.toLowerCase().replace(/\p{L}/u, c => c.toUpperCase())).join(" ");
   return t;
 }
 async function verifieAjoutRecu(){
@@ -3795,7 +3883,8 @@ async function verifieAjoutRecu(){
   if(Date.now() - (o.t || 0) > 30 * 60 * 1000) return;                     // lien trop vieux : ignoré
   if(o.texte || o.src === "partage") return recuPartage(o);
   if(!MOD("applepay")) return toast("Apple Pay est désactivé dans Plus › Fonctionnalités.", true);
-  if(UIPRO() && MOD("boite") && await versBoite([{source: "applepay", description: marchandAP(o.m), montant: montantAP(o.a), date: today(), type: await typeSuggere(marchandAP(o.m))}])) return;
+  if(UIPRO() && MOD("boite")){ const r = regleMarchand(o.m), x = {source: "applepay", description: r ? r.nom : marchandAP(o.m), montant: montantAP(o.a), date: today()};
+    await proposeTypeCat(x); if(await versBoite([x])) return; }
   const desc = marchandAP(o.m), mt = montantAP(o.a);
   if(!desc && mt == null) return toast("Paiement Apple Pay reçu, mais sans marchand ni montant.", true);
   // la dépense va dans le mois d'aujourd'hui
