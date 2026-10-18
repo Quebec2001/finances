@@ -4,7 +4,7 @@
 // que pour lire l'Excel (essai en mode miroir, import) et pour lire des relevés ou des captures. Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "b62d89bc6c";
+const VERSION = "4f6b90215f";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPES_BASE = "Files.ReadWrite offline_access User.Read";
@@ -289,23 +289,62 @@ async function api(chemin, corps){
   }
   if(LECTURE_SEULE.includes(chemin)) return A.api(chemin, corps);
   if(mode !== "reel") throw new Error("Mode essai : la v2 lit ton Excel sans rien modifier. Fais tes changements dans l'app actuelle.");
-  const tache = file.then(() => ecriture(chemin, corps));     // écritures : une à la fois
-  file = tache.catch(() => {});
-  return tache;
+  return ecritLocal(chemin, corps);
 }
-async function ecriture(chemin, corps){
-  if(await baseAChange()) await chargeBase();                 // modifiée ailleurs (autre appareil) : on part de la dernière version
-  await sauvegardeDuJour();
+// Écritures instantanées : la modification est appliquée tout de suite sur l'appareil (l'écran se met à jour sans attendre),
+// puis envoyée à OneDrive en arrière-plan. Les modifications pas encore envoyées sont gardées sur l'appareil (w2_attente) :
+// si l'app est fermée avant l'envoi, elles sont rejouées à la prochaine ouverture. Chacune a un identifiant gardé dans la
+// base (ops_recents) pour ne jamais être appliquée deux fois. Conflit avec un autre appareil : on recharge la base et on
+// rejoue les modifications en attente par-dessus.
+let attente = (() => { try { return JSON.parse(LS.get("w2_attente") || "[]"); } catch(e){ return []; } })();
+let envoiEnCours = null, envoiPlanifie = null, echecs = 0;
+const garderAttente = () => LS.set("w2_attente", attente.length ? JSON.stringify(attente) : null);
+function marqueOp(id){ if(!Array.isArray(D.ops_recents)) D.ops_recents = []; D.ops_recents.push(id); if(D.ops_recents.length > 200) D.ops_recents = D.ops_recents.slice(-200); }
+async function ecritLocal(chemin, corps){
+  const avant = JSON.stringify(D);
   let j;
   try { j = await A.api(chemin, corps); }
-  catch(e){ await chargeBase(); throw e; }                    // rien n'est envoyé : on revient à la version enregistrée
-  try { await envoieBase(); }
-  catch(e){
-    if(e.conflit){ await chargeBase(); j = await A.api(chemin, corps); await envoieBase(); }
-    else { try { await chargeBase(); } catch(x){} throw new Error("Non enregistré : " + e.message); }
-  }
+  catch(e){ D = JSON.parse(avant); nouvelleApi(); throw e; }            // refusé (ex. montant invalide) : rien ne change
+  const op = {id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), chemin, corps};
+  marqueOp(op.id); attente.push(op); garderAttente();
+  planifieEnvoi(150);
   return j;
 }
+function planifieEnvoi(ms){ clearTimeout(envoiPlanifie); envoiPlanifie = setTimeout(() => envoie().catch(() => {}), ms); }
+async function rejoue(){
+  for(const op of attente){
+    if((D.ops_recents || []).includes(op.id)) continue;              // déjà dans la base (envoyée avant une fermeture)
+    try { await A.api(op.chemin, op.corps); marqueOp(op.id); } catch(e){ console.warn("Modification non rejouée", op.chemin, e); }
+  }
+}
+async function envoie(){
+  if(envoiEnCours) return envoiEnCours.then(() => attente.length ? envoie() : null, () => null);
+  if(!attente.length || mode !== "reel") return;
+  envoiEnCours = (async () => {
+    const lot = attente.slice();
+    await sauvegardeDuJour();
+    for(let k = 0; ; k++){
+      try { await envoieBase(); break; }
+      catch(e){
+        if(e.conflit && k < 3){ await chargeBase(); await rejoue(); if(typeof rafraichit === "function") rafraichit().catch(() => {}); continue; }
+        throw e;
+      }
+    }
+    attente = attente.filter(op => !lot.includes(op)); garderAttente(); echecs = 0;
+  })();
+  try { await envoiEnCours; }
+  catch(e){
+    echecs++;
+    if(echecs === 1 && typeof toast === "function") toast("Pas de connexion à OneDrive : tes changements sont gardés et seront envoyés dès que possible.", true);
+    planifieEnvoi(Math.min(60000, 5000 * echecs));
+    throw e;
+  } finally { envoiEnCours = null; }
+  if(attente.length) return envoie();
+}
+window.addEventListener("online", () => planifieEnvoi(500));
+document.addEventListener("visibilitychange", () => { if(attente.length) planifieEnvoi(document.visibilityState === "hidden" ? 0 : 500); });
+const enAttente = () => attente.length;
+async function attendEnvoi(){ for(let k = 0; k < 100 && (attente.length || envoiEnCours); k++){ try { await envoie(); } catch(e){ return false; } } return !attente.length; }
 
 // ------------------------------------------------------------------ démarrage
 async function demarre(){
@@ -332,6 +371,7 @@ async function demarre(){
     base = await trouveBase();
     if(base){
       mode = "reel"; etape("Ouverture de tes finances…"); await chargeBase();
+      if(attente.length){ await rejoue(); planifieEnvoi(300); }         // changements faits avant une fermeture, pas encore envoyés
       try { await chargeLien(); } catch(e){}
     } else {
       mode = "miroir"; await essaiMiroir();
@@ -342,7 +382,7 @@ async function demarre(){
   document.addEventListener("visibilitychange", async () => {
     if(document.visibilityState !== "visible" || Date.now() - derniereVerif < 20000) return;
     try {
-      if(mode === "reel" && await baseAChange()){ await chargeBase(); if(typeof rafraichit === "function") await rafraichit(); toast("Données mises à jour depuis OneDrive"); }
+      if(mode === "reel" && !attente.length && !envoiEnCours && await baseAChange()){ await chargeBase(); if(typeof rafraichit === "function") await rafraichit(); toast("Données mises à jour depuis OneDrive"); }
       if(mode === "miroir" && await excelAChange()){ await essaiMiroir(true); if(typeof rafraichit === "function") await rafraichit(); toast("Excel relu"); }
     } catch(e){}
   });
