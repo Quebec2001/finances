@@ -4,7 +4,7 @@
 // que pour lire l'Excel (essai en mode miroir, import) et pour lire des relevés ou des captures. Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "3956b0bea8";
+const VERSION = "2cef903c3d";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPES_BASE = "Files.ReadWrite offline_access User.Read";
@@ -617,7 +617,15 @@ async function delie(){
 }
 const partage = {lien: () => mode === "reel" ? lien() : null, chargeLien, assureScope, apres, creePartage, rejoint, lit: litPartage, ecrit: ecritPartage, delie,
   pause: () => LS.get("w_sync_off") === "1", metPause: b => LS.set("w_sync_off", b ? "1" : null), compte: () => compte};
-window.WEB = {demarre, api, carteReglages, brancheReglages, partage, version: VERSION, v2: true,
+// « tirer pour actualiser » : envoie ce qui attend, puis relit la base si elle a changé ailleurs (vrai = données mises à jour)
+async function actualise(){
+  if(mode === "miroir"){ if(await excelAChange()){ await essaiMiroir(true); return true; } return false; }
+  if(mode !== "reel") return false;
+  if(attente.length){ try { await envoie(); } catch(e){} }
+  if(!attente.length && !envoiEnCours && await baseAChange()){ await chargeBase(); return true; }
+  return false;
+}
+window.WEB = {demarre, api, actualise, carteReglages, brancheReglages, partage, version: VERSION, v2: true,
   mode: () => mode, concordance, bascule, aSupprimer};
 // Mise à jour automatique : l'iPhone garde parfois l'ancienne page (icône de l'écran d'accueil). Au lancement et au
 // retour dans l'app, on compare la version publiée sur GitHub à celle-ci ; si elle a changé, on recharge (jamais

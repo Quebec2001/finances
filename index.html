@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-AAYDTaP8AQKi1HnQ5LFT1t60w/wMYmwnjMQvNXwhRRQ='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-tjhSkkl9u4SsXFXijuGNANYHg8IcaXWm5oABqYmlfuk='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -234,6 +234,16 @@ label.f input:focus,label.f select:focus{outline:2px solid color-mix(in srgb,var
 .preview{background:var(--surface-2);border-radius:10px;padding:9px 12px;font-size:13.5px;color:var(--ink-2)}
 .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;z-index:100;max-width:calc(100vw - 32px);box-shadow:0 8px 24px rgba(0,0,0,.2);opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
+.nv-ver{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));z-index:200;border:0;background:var(--ink);color:var(--bg);font:inherit;font-size:13px;font-weight:600;padding:9px 16px;border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.2);cursor:pointer;white-space:nowrap}
+.nv-ver:focus{outline:none}
+.glisse{position:relative;background:var(--surface,#fff);box-shadow:var(--revel,0) 0 0 0 var(--neg);z-index:1}
+.glisse::after{content:"Supprimer";position:absolute;top:50%;right:calc(-1 * var(--revel,0px) + 14px);transform:translateY(-50%);color:#fff;font-weight:700;font-size:14px;opacity:.75}
+.glisse.assez::after{opacity:1}
+.tirer{position:fixed;top:0;left:50%;transform:translate(-50%,-60px);z-index:90;background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;opacity:0;transition:opacity .15s;pointer-events:none;margin-top:env(safe-area-inset-top)}
+.sug-d{display:flex;gap:6px;overflow-x:auto;margin-top:-4px;padding-bottom:2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.sug-d::-webkit-scrollbar{display:none}
+.chip-d{flex:0 0 auto;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.chip-d:focus{outline:none}
 .toast.act{display:flex;align-items:center;gap:14px;pointer-events:auto;padding:8px 8px 8px 16px;width:max-content;white-space:nowrap}
 body.fab-on #vue{padding-bottom:84px}
 .toast-b{background:none;border:0;color:inherit;text-decoration:underline;text-underline-offset:3px;font:inherit;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -456,10 +466,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=3956b0bea8"></script>
-<script src="api2.js?v=3956b0bea8"></script>
-<script src="export_xlsx.js?v=3956b0bea8"></script>
-<script src="web2.js?v=3956b0bea8" data-version="web.js?v=3956b0bea8"></script>
+<script src="calculs.js?v=2cef903c3d"></script>
+<script src="api2.js?v=2cef903c3d"></script>
+<script src="export_xlsx.js?v=2cef903c3d"></script>
+<script src="web2.js?v=2cef903c3d" data-version="web.js?v=2cef903c3d"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -526,7 +536,7 @@ async function ecrit(chemin, corps, msg){
     const avant = msg && !SANS_ANNULER.test(chemin) ? await dernierJournal() : null;
     const r = await api(chemin, Object.assign({feuille:S.feuille}, corps));
     let ops = [];
-    if(avant != null){ try { ops = (await api("/api/journal?n=12")).filter(j => j.id > avant); } catch(e){} }
+    if(avant != null){ try { ops = (await api("/api/journal?n=150")).filter(j => j.id > avant); } catch(e){} }
     if(msg) toast(msg, false, ops.length && ops.every(j => j.annulable) ? {label: "Annuler", fn: () => annuleOps(ops)} : null);
     S.tend=null; await rafraichit(); planifieSync(); return r; }
   catch(e){ toast(e.message, true); noteErreur("écriture " + chemin, e.message, e.stack); throw e; }
@@ -545,8 +555,8 @@ function noteErreur(type, msg, pile){
     pile = String(pile || "").split("\n").filter(x => /(\bat\b|@|:\d+:\d+)/.test(x)).slice(0, 4)
       .map(x => x.replace(/https?:\/\/[^\s)]*\//g, "").replace(/«[^»]*»/g, "«…»").replace(/\?v=[^:\s)]*/g, "").trim()).join("\n").slice(0, 400);
     const k = type + "|" + msg + "|" + pile.split("\n")[0], ex = l.find(x => x.k === k);
-    if(ex){ ex.n++; ex.der = maintenant; ex.vue = (window.S && S.vue) || ex.vue; }
-    else l.push({k, type, msg, pile, vue: (window.S && S.vue) || "", n: 1, prem: maintenant, der: maintenant, v: (window.WEB && WEB.version) || "local"});
+    if(ex){ ex.n++; ex.der = maintenant; ex.vue = (typeof S !== "undefined" && S.vue) || ex.vue; }
+    else l.push({k, type, msg, pile, vue: (typeof S !== "undefined" && S.vue) || "", n: 1, prem: maintenant, der: maintenant, v: (window.WEB && WEB.version) || "local"});
     localStorage.setItem(ERR_CLE, JSON.stringify(l.slice(-30)));
   } catch(e){}
 }
@@ -1825,6 +1835,21 @@ function ouvre(html, onReady){
   d.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>d.close());
 }
 
+// descriptions récentes (ce mois-ci et le précédent), les plus fréquentes d'abord ; sans les parts reçues de l'autre ni les reports
+let RECENTS_PREC = null, RECENTS_F = null;
+async function chargeRecentes(){
+  if(RECENTS_PREC && RECENTS_F === S.feuille) return; RECENTS_PREC = []; RECENTS_F = S.feuille;
+  const k = S.etat.mois.findIndex(x => x.feuille === S.feuille), pr = S.etat.mois[k - 1];
+  if(pr && pr.canvas){ try { RECENTS_PREC = (await api("/api/mois?f=" + encodeURIComponent(pr.feuille))).transactions || []; } catch(e){} }
+}
+function descriptionsRecentes(){
+  const n = {}, der = {};
+  for(const t of (S.mois.transactions || []).concat(RECENTS_PREC || [])){
+    const d0 = (t.description || "").trim(); if(!t.utilise || !d0 || /\(carte |^(portion|solde report)/i.test(d0)) continue;
+    const k = sansAcc(d0); n[k] = (n[k] || 0) + 1; if(!der[k] || (t.date || "") > der[k].date) der[k] = {date: t.date || "", d: d0};
+  }
+  return Object.keys(n).sort((a, b) => n[b] - n[a] || der[b].date.localeCompare(der[a].date)).slice(0, 40).map(k => der[k].d);
+}
 function dlgTransaction(t, apres, catDefaut, dateDef){
   const m = S.mois, e = S.etat;
   const edit = !!t;
@@ -1836,6 +1861,7 @@ function dlgTransaction(t, apres, catDefaut, dateDef){
       ${edit || !MOD("captures_dep") ? "" : `<button type="button" class="btn small" id="versImport" style="align-self:flex-start">📷 Importer des captures d'écran</button>`}
       ${t && t.estime ? `<p class="hint" style="margin:0;padding:8px 10px;border-radius:10px;background:var(--surface-2)">Dépense fixe au <b>montant estimé</b> : inscris le vrai montant quand tu le connais, puis Enregistrer.</p>` : ""}
       <label class="f">Description<input name="description" required autocomplete="off" value="${esc(t?t.description:"")}" placeholder="ex. Épicerie, Uber, Netflix…"></label>
+      ${edit ? "" : `<div class="sug-d" id="sugD" hidden></div>`}
       <div class="row2">
         <label class="f">Montant déboursé<input name="montant" inputmode="decimal" required autocomplete="off" value="${esc(t?(t.deb_formule||String(t.deboursement??"").replace(".",",")):"")}" placeholder="0,00"></label>
         <label class="f">Date<input name="date" type="date" required value="${dDef}"></label>
@@ -1844,7 +1870,7 @@ function dlgTransaction(t, apres, catDefaut, dateDef){
       <label class="f">Catégorie<select name="categorie"><option value="">Automatique</option>${e.categories.map(c=>`<option>${esc(c)}</option>`).join("")}</select></label>
       <div class="preview" id="pv"></div>
     </div>
-    <div class="dlg-f">${edit?`<button type="button" class="btn danger" id="del">Supprimer</button>`:""}<span class="grow"></span>${edit?"":`<button type="button" class="btn" data-close>Annuler</button>`}<button class="btn primary" id="ok">${edit?"Enregistrer":"Ajouter"}</button></div>
+    <div class="dlg-f">${edit?`<button type="button" class="btn danger" id="del">Supprimer</button>`:""}<span class="grow"></span>${edit?"":`<button type="button" class="btn" id="okNv" title="Ajouter, puis une autre dépense">Ajouter + autre</button>`}<button class="btn primary" id="ok">${edit?"Enregistrer":"Ajouter"}</button></div>
   </form>`, d => {
     const vi = $("#versImport", d); if(vi) vi.onclick = () => dlgImportCaptures();
     const f = $("#ft", d);
@@ -1885,17 +1911,26 @@ function dlgTransaction(t, apres, catDefaut, dateDef){
       $("#pv", d).innerHTML = h; $("#pv", d).style.display = h ? "" : "none";
     };
     majSeg(); maj();
-    f.description.oninput = () => { appliqueRegle(); maj(); }; f.montant.oninput = maj;
+    // descriptions récentes proposées dès la première lettre (ou tout de suite, champ vide) : un toucher remplit la description
+    const sugD = $("#sugD", d);
+    const majSug = () => { if(!sugD) return;
+      const q = sansAcc(f.description.value.trim()), l = descriptionsRecentes().filter(x => { const s0 = sansAcc(x); return !q || (s0 !== q && (s0.startsWith(q) || s0.includes(" " + q))); }).slice(0, 6);
+      sugD.innerHTML = l.map(x => `<button type="button" class="chip-d">${esc(x)}</button>`).join(""); sugD.hidden = !l.length; };
+    if(sugD){ sugD.onclick = ev => { const b = ev.target.closest(".chip-d"); if(!b) return; f.description.value = b.textContent; appliqueRegle(); maj(); majSug(); sugD.hidden = true; f.montant.focus(); };
+      chargeRecentes().then(() => { if(f.isConnected && !f.description.value) majSug(); }); majSug(); }
+    f.description.oninput = () => { appliqueRegle(); maj(); majSug(); }; f.montant.oninput = maj;
     if(!edit) setTimeout(()=>f.description.focus(), 50);
-    f.onsubmit = async ev => {
-      ev.preventDefault();
+    const enregistre = async continuer => {
       const v = evalMontant(f.montant.value);
       if(v===null || isNaN(v)) return toast("Montant invalide", true);
       try {
         await ecrit("/api/transaction", {ligne: t?t.ligne:null, date:f.date.value, description:f.description.value, type, montant:f.montant.value, categorie:f.categorie.value}, edit?"Transaction modifiée":"Dépense ajoutée");
+        if(continuer) return dlgTransaction(null, apres, catDefaut, f.date.value);     // « Ajouter + autre » : même date, fenêtre vide
         apres ? apres() : d.close();
       } catch(e){}
     };
+    f.onsubmit = ev => { ev.preventDefault(); enregistre(false); };
+    const nv = $("#okNv", d); if(nv) nv.onclick = () => { if(f.reportValidity()) enregistre(true); };
     if(edit){
       $("#del", d).onclick = async () => { if(confirm("Supprimer cette transaction ?")){ try{ await ecrit("/api/transaction/supprimer", {ligne:t.ligne}, "Transaction supprimée"); apres ? apres() : d.close(); }catch(e){} } };
       const rg = $("#reg", d); if(rg) rg.onclick = async () => { if(confirm("Placer le marqueur « Solde réglé » sur cette transaction ?")){ try{ await ecrit("/api/reglement", {ligne:t.ligne}, "Solde réglé marqué"); apres ? apres() : d.close(); }catch(e){} } };
@@ -2835,9 +2870,70 @@ const ICO = {
 const ONGLETS_PRO = [["bord", "Accueil"], ["trans", "Dépenses"], ["split", "Partage"], ["rev", "Revenus"], ["plus", "Plus"]];
 function barreOngletsPro(){
   const n = $("#btab"); if(!n) return;
-  const actif = ["inv", "ctl", "rappro", "fixes", "modules", "boite"].includes(S.vue) ? "plus" : S.vue, alerte = ctlEnErreur().length;
+  const actif = ["inv", "ctl", "rappro", "fixes", "modules", "boite", "regles"].includes(S.vue) ? "plus" : S.vue, alerte = ctlEnErreur().length;
   n.innerHTML = ONGLETS_PRO.filter(([v]) => v !== "split" || MOD("partage")).map(([v, t]) => `<button data-v="${v}" class="${v === actif ? "on" : ""}" aria-label="${t}${v === "plus" && alerte ? " – contrôle à vérifier" : ""}">${ICO[v]}${v === "plus" && alerte ? `<i class="p-alerte" title="${alerte} contrôle${alerte > 1 ? "s" : ""} à vérifier"></i>` : ""}<span>${t}</span></button>`).join("");
 }
+// ---------------------------------------------------------------- gestes tactiles (iPhone)
+//  - glisser une dépense vers la gauche : supprimée (avec « Annuler ») ;
+//  - glisser l'écran à gauche ou à droite : onglet suivant / précédent ;
+//  - tirer vers le bas en haut de l'écran (app sur l'écran d'accueil) : actualiser (OneDrive et synchronisation).
+const appEcranAccueil = () => !!(navigator.standalone || (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || localStorage.getItem("test_tirer"));
+function ongletsVisibles(){
+  const pro = UIPRO(), l = pro ? [...$("#btab").querySelectorAll("button[data-v]")] : [...$("#tabs").children].filter(b => !b.hidden && b.dataset.v);
+  return l.map(b => b.dataset.v);
+}
+let ignoreClicJusque = 0;
+document.addEventListener("click", e => { if(Date.now() < ignoreClicJusque){ e.stopPropagation(); e.preventDefault(); } }, true);
+(function gestes(){
+  let g = null, ind = null;
+  const SANS = "input,select,textarea,.seg,.p-scroll,.sug-d,canvas,svg,table,.cal,.cal-grid,.jours,[data-nogeste]";
+  const indicateur = (txt, h) => { if(!ind){ ind = document.createElement("div"); ind.className = "tirer"; document.body.appendChild(ind); }
+    ind.textContent = txt; ind.style.transform = `translate(-50%, ${Math.min(h, 90) - 50}px)`; ind.style.opacity = Math.min(1, h / 60); };
+  const cacheInd = () => { if(ind){ ind.style.opacity = 0; ind.style.transform = "translate(-50%, -60px)"; } };
+  document.addEventListener("touchstart", e => {
+    g = null; const d = $("#dlg"); if(e.touches.length !== 1 || (d && d.open) || typeof S === "undefined" || !S.etat) return;
+    const t = e.touches[0], vue = $("#vue"); if(!vue || !vue.contains(e.target)) return;
+    g = {x: t.clientX, y: t.clientY, t: Date.now(), el: e.target, mode: null, haut: window.scrollY <= 0, bord: t.clientX < 24 || t.clientX > innerWidth - 24,
+         row: S.vue === "trans" && S.info.modifiable ? e.target.closest("#vue [data-l], #vue [data-dl]") : null};
+    if(g.row && g.row.tagName === "TR") g.row = null;
+  }, {passive: true});
+  document.addEventListener("touchmove", e => {
+    if(!g) return; const t = e.touches[0], dx = t.clientX - g.x, dy = t.clientY - g.y;
+    if(!g.mode){
+      if(Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      if(Math.abs(dx) > Math.abs(dy) * 1.5) g.mode = g.row && dx < 0 ? "ligne" : (g.bord || g.el.closest(SANS) ? "rien" : "onglet");
+      else g.mode = dy > 0 && g.haut && appEcranAccueil() ? "tirer" : "rien";
+    }
+    g.dx = dx; g.dy = dy;
+    if(g.mode === "ligne"){ const v = Math.min(0, dx); g.row.classList.add("glisse"); g.row.style.transform = `translateX(${v}px)`; g.row.style.setProperty("--revel", (-v) + "px");
+      g.row.classList.toggle("assez", v < -100); }
+    else if(g.mode === "tirer") indicateur(dy > 80 ? "↑ Relâche pour actualiser" : "↓ Tire pour actualiser", dy);
+  }, {passive: true});
+  const fin = async () => {
+    const x = g; g = null; if(!x || !x.mode) return;
+    if(x.mode === "ligne") ignoreClicJusque = Date.now() + 350;      // pas d'ouverture de la dépense après l'avoir glissée
+    if(x.mode === "ligne"){
+      const r = x.row, ligne = +(r.dataset.l || r.dataset.dl);
+      if(x.dx < -100){ r.style.transition = "transform .18s ease-out"; r.style.transform = "translateX(-110%)";
+        setTimeout(async () => { try { await ecrit("/api/transaction/supprimer", {ligne}, "Transaction supprimée"); } catch(e){ r.style.transform = ""; r.classList.remove("glisse", "assez"); } }, 170); }
+      else { r.style.transition = "transform .18s ease-out"; r.style.transform = ""; setTimeout(() => { r.classList.remove("glisse", "assez"); r.style.transition = ""; }, 200); }
+    } else if(x.mode === "onglet"){
+      if(Math.abs(x.dx) < 80 || Date.now() - x.t > 700) return;
+      const l = ongletsVisibles(), i = l.indexOf(S.vue === "couple" ? "couple" : S.vue); if(i < 0) return;
+      const v = l[i + (x.dx < 0 ? 1 : -1)]; if(!v) return;
+      if(UIPRO()) vaVers(v); else { const b = [...$("#tabs").children].find(b => b.dataset.v === v); if(b) b.click(); }
+    } else if(x.mode === "tirer"){
+      if(x.dy <= 80){ cacheInd(); return; }
+      indicateur("Actualisation…", 90);
+      try { const change = window.WEB && WEB.actualise ? await WEB.actualise() : false; await rafraichit();
+        if(SYNC.actif()) await syncReconcilie({manuel: true}); else toast(change ? "Données mises à jour" : "Tout est à jour"); }
+      catch(e){ toast("Actualisation impossible : " + e.message, true); }
+      finally { cacheInd(); }
+    }
+  };
+  document.addEventListener("touchend", fin, {passive: true});
+  document.addEventListener("touchcancel", () => { if(g && g.mode === "ligne"){ g.row.style.transform = ""; g.row.classList.remove("glisse", "assez"); } g = null; cacheInd(); }, {passive: true});
+})();
 // même écran redessiné (après Enregistrer, Confirmer…) : on reste au même endroit ; autre écran : en haut
 function vaVers(v){
   const meme = S.vue === v, y = window.scrollY; S.vue = v; rend();
@@ -3681,10 +3777,14 @@ function vueBoitePro(el){
   const l = S.etat.boite || [], e = S.etat;
   const types = (e.types || []).filter(t => semType(t) && semType(t) !== "R" && (MOD("partage") || semType(t) === "P"));
   const src = {applepay: "Apple Pay", partage: "Partagé", texto: "Texto"};
+  // « Tout confirmer » : seulement ce qui est complet (montant, description et, pour une dépense, type ET catégorie)
+  const prets = l.filter(b => b.montant != null && b.description && (b.genre === "revenu" || (b.type && b.categorie)));
   const deja = b => b.montant != null && (S.mois.transactions || []).find(t => t.utilise && Math.abs((t.deboursement || 0) - b.montant) < 0.005 && (t.date === b.date || (t.date && joursEntre(t.date, b.date) <= 3 && nomProche(t.description || "", b.description || ""))));
   el.innerHTML = `<button class="p-retour" id="pRet">‹ Plus</button>
    <div class="card"><div class="p-sec"><b>Boîte de réception</b><span>${l.length > 1 ? `<button class="btn small" id="bxVider">Tout supprimer</button>` : l.length ? "1 à confirmer" : ""}</span></div>
-     <p class="small muted" style="margin:0">Ce que tu as payé avec Apple Pay ou partagé vers Finances arrive ici. Rien ne compte avant que tu confirmes.</p></div>
+     <p class="small muted" style="margin:0">Ce que tu as payé avec Apple Pay ou partagé vers Finances arrive ici. Rien ne compte avant que tu confirmes.</p>
+     ${prets.length ? `<button class="btn primary" id="bxLot" style="width:100%;margin-top:10px">Tout confirmer · ${prets.length} déjà classé${prets.length > 1 ? "s" : ""}</button>
+       <p class="small muted" style="margin:6px 0 0;text-align:center">Les éléments avec type et catégorie choisis (par une règle ou par toi)</p>` : ""}</div>
    ${l.length ? l.map(b => `<div class="spacer"></div><form class="card bx" data-bx="${b.id}">
      <div class="bx-h"><span class="p-chip" style="padding:0 8px;font-size:11px">${esc(src[b.source] || b.source)}</span><span class="small muted">reçu ${dateLongue(new Date(new Date(b.recu) - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10))}</span></div>
      <div class="seg bx-g"><button type="button" data-g="depense" class="${b.genre !== "revenu" ? "on" : ""}">Dépense</button><button type="button" data-g="revenu" class="${b.genre === "revenu" ? "on" : ""}">Revenu</button></div>
@@ -3704,6 +3804,8 @@ function vueBoitePro(el){
     const c = document.createElement("div"); c.id = "bxSug"; sug = sug.slice(0, 2);
     c.innerHTML = `<div class="spacer"></div><div class="card"><div class="p-sec"><b>Règle suggérée</b><span>Plus › Règles</span></div>${sug.map(suggestionHTML).join("")}</div>`;
     el.querySelector(".card").after(c); brancheSuggestions(c, sug, () => vaVers("boite")); }).catch(() => {});
+  { const lot = $("#bxLot", el); if(lot) lot.onclick = async () => {
+      try { await ecrit("/api/boite/confirmer_lot", {ids: prets.map(b => b.id)}, `${prets.length} élément${prets.length > 1 ? "s" : ""} confirmé${prets.length > 1 ? "s" : ""}`); vaVers("boite"); } catch(e){} }; }
   { const v = $("#bxVider", el); if(v) v.onclick = async () => { if(!confirm(`Supprimer les ${l.length} éléments de la boîte ? (Annulable dans l'historique)`)) return;
       try { await ecrit("/api/boite/vider", {}, "Boîte vidée"); vaVers("boite"); } catch(e){} }; }
   el.querySelectorAll("form.bx").forEach(f => {
@@ -4126,6 +4228,18 @@ async function verifieAjoutRecu(){
   const vi = $("#versImport", d); if(vi) vi.remove();
 }
 window.addEventListener("hashchange", () => { if(captePartage() && S.etat) verifiePartageRecu(); if(capteLier() && S.etat) syncDemarrage(); if(capteAjout() && S.etat) verifieAjoutRecu(); });
+// code de l'app gardé sur l'appareil (sw.js, version en ligne seulement) ; une nouvelle version publiée → « Recharger »
+if("serviceWorker" in navigator && window.WEB && (!navigator.webdriver || localStorage.getItem("sw_test"))){
+  navigator.serviceWorker.register("sw.js").catch(e => noteErreur("service worker", e.message));
+  navigator.serviceWorker.addEventListener("message", e => { if(e.data && e.data.type === "nouvelle-version") banniereVersion(); });
+  const demandeVersion = () => { const c = navigator.serviceWorker.controller; if(c) c.postMessage({type: "version?"}); };
+  navigator.serviceWorker.ready.then(() => { demandeVersion(); setTimeout(demandeVersion, 3000); setTimeout(demandeVersion, 8000); }).catch(() => {});
+  document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") setTimeout(demandeVersion, 1500); });
+}
+function banniereVersion(){
+  if($("#nvVer")) return; const b = document.createElement("button"); b.id = "nvVer"; b.className = "nv-ver"; b.type = "button";
+  b.textContent = "Nouvelle version de l'app · Recharger"; b.onclick = () => location.reload(); document.body.appendChild(b);
+}
 (window.WEB ? WEB.demarre() : Promise.resolve()).then(init).then(() => verifieAjoutRecu()).then(() => syncDemarrage()).then(() => genereFixesAuto()).catch(e => { $("#main").innerHTML = `<div class="banner err">Impossible de charger les données : ${esc(e.message)}</div>`; });
 </script>
 </body>

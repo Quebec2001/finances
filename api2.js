@@ -756,6 +756,7 @@
         case "/api/boite/ajout": res = boiteAjout(corps); break;
         case "/api/boite/confirmer": res = boiteConfirme(corps); break;
         case "/api/boite/supprimer": res = supprime("boite", corps.id); break;
+        case "/api/boite/confirmer_lot": res = (corps.ids || []).slice(0, 50).map(id => boiteConfirme({id})); break;   // « Tout confirmer » (éléments déjà classés)
         case "/api/regle": res = regleEcrit(corps); break;                       // règles de marchands (essai, app de Zach)
         case "/api/regle/supprimer": res = supprime("regles", corps.id); break;
         case "/api/regle/ignorer": { const motif = String(corps.motif || "").trim().slice(0, 60); if(!motif) throw new Erreur("Marchand manquant");
