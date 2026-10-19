@@ -4,7 +4,7 @@
 // que pour lire l'Excel (essai en mode miroir, import) et pour lire des relevés ou des captures. Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "08a2161dcc";
+const VERSION = "59d2d94b5c";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPES_BASE = "Files.ReadWrite offline_access User.Read";

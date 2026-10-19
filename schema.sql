@@ -107,3 +107,7 @@ CREATE TABLE prevus (
 CREATE TABLE boite (
   id INTEGER PRIMARY KEY, recu TEXT NOT NULL, source TEXT NOT NULL, genre TEXT NOT NULL, description TEXT, montant_c INTEGER,
   date TEXT NOT NULL, type TEXT, categorie TEXT, texte TEXT);
+-- règles de marchands (essai, app de Zach) : « si la description contient <motif> » → nom, type, catégorie ; statut « ignoree » = suggestion refusée
+CREATE TABLE regles (
+  id INTEGER PRIMARY KEY, motif TEXT NOT NULL, nom TEXT, type TEXT, categorie TEXT, actif INTEGER NOT NULL DEFAULT 1,
+  statut TEXT NOT NULL DEFAULT 'active', origine TEXT, cree TEXT);

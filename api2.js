@@ -32,7 +32,7 @@
 
   const TABLES = ["reglages","categories","mots_cles","reglements","depenses","autres_montants","pourboires","revenus","revenus_pourboires",
     "repartition","comptes_placement","placements_mois","versements_epargne","soldes_mois","ajustements_solde","releves_banque","budgets",
-    "exclusions_rappro","journal","financements","financements_recus","financements_soldes","fixes","prevus","boite"];
+    "exclusions_rappro","journal","financements","financements_recus","financements_soldes","fixes","prevus","boite","regles"];
   function API(D, opts = {}){
     for(const t of TABLES) if(!Array.isArray(D[t])) D[t] = [];
     const auj = () => opts.aujourdhui ? opts.aujourdhui() : new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -74,7 +74,9 @@
       const reRev = new RegExp(reg.mots_revenu_principal || "^$", "i"), freq = {};
       for(const r of D.revenus) if(!r.historique && r.description && !reRev.test(r.description)) freq[r.description] = (freq[r.description] || 0) + 1;
       const bud = {}; for(const b of D.budgets) if(b.mois === "") bud[catNom(b.categorie_id)] = b.montant_c / 100;
-      return {boite: D.boite.slice().sort((a, b) => (b.recu || "").localeCompare(a.recu || "")).map(boiteVue), mois: infos(), categories: D.categories.filter(c => c.active).sort((a, b) => a.ordre - b.ordre).map(c => c.nom),
+      return {regles: D.regles.slice().sort((a, b) => b.motif.length - a.motif.length).map(r => ({id: r.id, motif: r.motif, nom: r.nom || "", type: r.type || "", categorie: r.categorie || "",
+                actif: r.actif !== 0, statut: r.statut || "active", origine: r.origine || "moi"})),
+        boite: D.boite.slice().sort((a, b) => (b.recu || "").localeCompare(a.recu || "")).map(boiteVue), mois: infos(), categories: D.categories.filter(c => c.active).sort((a, b) => a.ordre - b.ordre).map(c => c.nom),
         types: TYPES().map(x => x[1]), type_cent_a_faire: false, correction_part_a_faire: false,
         reglages: Object.assign({prenom: "Zach", partenaire: "Marika", pourboires: true, revenu_principal: "Revenu Fiorellino",
           descriptions_revenu_principal: [], mots_revenu_principal: "", configuration_a_faire: false}, reg),
@@ -577,6 +579,24 @@
       }
       return ids;
     }
+    // règle de marchand : « si la description contient <motif> » → nom affiché, type de partage, catégorie (chacun facultatif)
+    function regleEcrit(data){
+      const motif = String(data.motif || "").trim().slice(0, 60);
+      if(motif.replace(/[^\p{L}\p{N}]/gu, "").length < 2) throw new Erreur("Indique le marchand (au moins 2 lettres).");
+      const type = data.type ? String(data.type).slice(0, 40) : "", categorie = data.categorie ? String(data.categorie).slice(0, 60) : "", nom = String(data.nom || "").trim().slice(0, 60);
+      if(type && !TYPES().some(x => x[1] === type)) throw new Erreur("Type inconnu : " + type);
+      if(categorie && !D.categories.some(c => c.nom === categorie)) throw new Erreur("Catégorie inconnue : " + categorie);
+      if(!type && !categorie && !nom) throw new Erreur("Choisis au moins un type, une catégorie ou un nom.");
+      const autre = D.regles.find(r => r.statut !== "ignoree" && r.motif.toLowerCase() === motif.toLowerCase() && r.id !== +data.id);
+      if(autre) throw new Erreur(`Une règle existe déjà pour « ${autre.motif} ».`);
+      // une suggestion ignorée pour ce marchand n'a plus lieu d'être
+      for(const r of D.regles.filter(r => r.statut === "ignoree" && r.motif.toLowerCase() === motif.toLowerCase())) supprime("regles", r.id);
+      const v = {motif, nom, type, categorie, actif: data.actif === false ? 0 : 1, statut: "active"};
+      if(data.id){ const r = D.regles.find(x => x.id === +data.id); if(!r) throw new Erreur("Règle introuvable");
+        const avant = Object.assign({}, r); Object.assign(r, v); journal("regles", r.id, "modification", avant, r); return r.id; }
+      const r = Object.assign({id: nouvelId("regles"), origine: data.origine === "suggestion" ? "suggestion" : "moi", cree: auj()}, v);
+      D.regles.push(r); journal("regles", r.id, "ajout", null, r); return r.id;
+    }
     function boiteConfirme(data){
       const b = D.boite.find(x => x.id === +data.id); if(!b) throw new Erreur("Élément introuvable");
       const date = /^\d{4}-\d{2}-\d{2}$/.test(data.date || "") ? data.date : b.date, feuille = nomMois(date.slice(0, 7));
@@ -647,8 +667,8 @@
     // ------------------------------------------------------------------ historique des modifications et « Annuler »
     const TABLE_FR = {depenses: "Dépense", revenus: "Revenu", pourboires: "Pourboires", autres_montants: "Autre montant", reglements: "Règlement",
       mots_cles: "Mot-clé", categories: "Catégorie", placements_mois: "Placement", repartition: "Répartition", budgets: "Budgets",
-      ajustements_solde: "Ajustement de solde", comptes_placement: "Compte de placement", financements: "Financement", financements_recus: "Financement reçu", financements_soldes: "Solde dû d'un financement", releves_banque: "Solde de la banque", versements_epargne: "Épargne", fixes: "Dépense ou revenu fixe", prevus: "Prévision (fixe)", boite: "Boîte de réception"};
-    const ANNULABLES = new Set(["boite", "prevus", "fixes", "versements_epargne", "financements", "financements_recus", "financements_soldes", "releves_banque", "depenses", "revenus", "pourboires", "autres_montants", "reglements", "mots_cles", "ajustements_solde", "placements_mois", "categories"]);
+      ajustements_solde: "Ajustement de solde", comptes_placement: "Compte de placement", financements: "Financement", financements_recus: "Financement reçu", financements_soldes: "Solde dû d'un financement", releves_banque: "Solde de la banque", versements_epargne: "Épargne", fixes: "Dépense ou revenu fixe", prevus: "Prévision (fixe)", boite: "Boîte de réception", regles: "Règle de marchand"};
+    const ANNULABLES = new Set(["regles", "boite", "prevus", "fixes", "versements_epargne", "financements", "financements_recus", "financements_soldes", "releves_banque", "depenses", "revenus", "pourboires", "autres_montants", "reglements", "mots_cles", "ajustements_solde", "placements_mois", "categories"]);
     function resume(j){
       const o = JSON.parse(j.apres || j.avant || "null") || {};
       const mt = o.montant_c != null ? " · " + (o.montant_c / 100).toFixed(2).replace(".", ",") + " $" : "";
@@ -736,6 +756,12 @@
         case "/api/boite/ajout": res = boiteAjout(corps); break;
         case "/api/boite/confirmer": res = boiteConfirme(corps); break;
         case "/api/boite/supprimer": res = supprime("boite", corps.id); break;
+        case "/api/regle": res = regleEcrit(corps); break;                       // règles de marchands (essai, app de Zach)
+        case "/api/regle/supprimer": res = supprime("regles", corps.id); break;
+        case "/api/regle/ignorer": { const motif = String(corps.motif || "").trim().slice(0, 60); if(!motif) throw new Erreur("Marchand manquant");
+          if(!D.regles.some(r => r.statut === "ignoree" && r.motif.toLowerCase() === motif.toLowerCase())){
+            const r = {id: nouvelId("regles"), motif, nom: "", type: "", categorie: "", actif: 0, statut: "ignoree", origine: "suggestion", cree: auj()};
+            D.regles.push(r); journal("regles", r.id, "ajout", null, r); res = r.id; } else res = null; break; }
         case "/api/boite/vider": res = D.boite.slice().map(b => supprime("boite", b.id)).length; break;
         case "/api/modules": { const m = Object.assign({}, REG().modules || {});       // Réglages › Fonctionnalités (essai, app de Zach)
           for(const [k, v] of Object.entries(corps.modules || {})) if(/^[a-z_]{2,30}$/.test(k)) m[k] = !!v;

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-T1ke2+xRtzAZ3LfJHtTUEdl53NqJubGRIyjmoyaEyWk='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-SPUYXnNRI51Cfk6NCJ0qKfZfwO38EzL05Ty80i6NY9M='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -452,10 +452,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=08a2161dcc"></script>
-<script src="api2.js?v=08a2161dcc"></script>
-<script src="export_xlsx.js?v=08a2161dcc"></script>
-<script src="web2.js?v=08a2161dcc" data-version="web.js?v=08a2161dcc"></script>
+<script src="calculs.js?v=59d2d94b5c"></script>
+<script src="api2.js?v=59d2d94b5c"></script>
+<script src="export_xlsx.js?v=59d2d94b5c"></script>
+<script src="web2.js?v=59d2d94b5c" data-version="web.js?v=59d2d94b5c"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -1226,7 +1226,7 @@ function rend(){
     if(S.vue === "split" && !MOD("partage")) S.vue = "bord";
     barreOngletsPro();
     const br = $(".brand"); if(br) br.innerHTML = dateEntete();
-    const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro, ctl:vueCtlPro, rappro:vueRappro, fixes:vueFixesPro, modules:vueModulesPro, boite:vueBoitePro}[S.vue] || vueBordPro;
+    const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro, ctl:vueCtlPro, rappro:vueRappro, fixes:vueFixesPro, modules:vueModulesPro, boite:vueBoitePro, regles:vueReglesPro}[S.vue] || vueBordPro;
     $("#fab").hidden = S.vue !== "trans";        // le + (nouvelle dépense) seulement dans Dépenses
     m.innerHTML = bandeaux() + (S.vue === "split" ? syncZone() : "") + `<div id="vue"></div>`; vp($("#vue")); majBandeauSync(); brancheBandeaux(m); return;
   }
@@ -1777,7 +1777,18 @@ function dlgTransaction(t, apres, catDefaut, dateDef){
     if(!t && catDefaut && S.etat.categories.includes(catDefaut)) f.categorie.value = catDefaut;
     const seg = $("#seg", d);
     const majSeg = () => seg.querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.t===type));
-    seg.onclick = ev => { const b = ev.target.closest("button"); if(b){ type=b.dataset.t; majSeg(); maj(); } };
+    let typeTouche = false, catTouchee = false, regleVue = null;
+    seg.onclick = ev => { const b = ev.target.closest("button"); if(b){ type=b.dataset.t; typeTouche = true; majSeg(); maj(); } };
+    f.categorie.onchange = () => { catTouchee = true; };
+    // règle de marchand : type et catégorie remplis en tapant (tant que tu ne les as pas choisis toi-même)
+    const appliqueRegle = () => {
+      if(edit) return; const r = regleUtilisateur(f.description.value); if(r === regleVue) return; regleVue = r;
+      if(r && r.type && !typeTouche && e.types.includes(r.type)){ type = r.type; majSeg(); }
+      if(r && r.categorie && !catTouchee && e.categories.includes(r.categorie)) f.categorie.value = r.categorie;
+      if(!r && !catTouchee) f.categorie.value = catDefaut && e.categories.includes(catDefaut) ? catDefaut : "";
+      let h = $("#rgInfo", d); if(!h){ h = document.createElement("div"); h.id = "rgInfo"; h.className = "hint"; h.style.marginTop = "-4px"; f.description.closest("label").after(h); }
+      h.textContent = r ? `Règle « ${r.motif} » appliquée` : ""; h.style.display = r ? "" : "none";
+    };
     const maj = () => {
       const auto = catAuto(f.description.value);
       f.categorie.options[0].textContent = "Automatique" + (auto ? ` (${auto})` : "");
@@ -1798,7 +1809,7 @@ function dlgTransaction(t, apres, catDefaut, dateDef){
       $("#pv", d).innerHTML = h; $("#pv", d).style.display = h ? "" : "none";
     };
     majSeg(); maj();
-    f.description.oninput = maj; f.montant.oninput = maj;
+    f.description.oninput = () => { appliqueRegle(); maj(); }; f.montant.oninput = maj;
     if(!edit) setTimeout(()=>f.description.focus(), 50);
     f.onsubmit = async ev => {
       ev.preventDefault();
@@ -3522,9 +3533,12 @@ function analyseTexteRecu(texte){
 // type et catégorie proposés : règle du marchand (Amazon → 50/50, Logement), sinon le type de la dernière dépense chez ce marchand
 const sansAcc = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 async function proposeTypeCat(x){
-  const r = regleMarchand(x.description), e = S.etat || {};
-  if(r && r.type){ const t = (e.types || []).find(t => sansAcc(t).includes(sansAcc(r.type))); if(t) x.type = t; }
-  if(r && r.cat){ const c = (e.categories || []).find(c => sansAcc(c).startsWith(r.cat)); if(c) x.categorie = c; }
+  const ru = regleUtilisateur(x.description), e = S.etat || {};
+  if(ru){ if(ru.nom) x.description = ru.nom; if(ru.type && (e.types || []).includes(ru.type)) x.type = ru.type; if(ru.categorie && (e.categories || []).includes(ru.categorie)) x.categorie = ru.categorie; }
+  const r = regleMarchand(x.description);
+  if(ru && x.type && x.categorie) return;
+  if(r && r.type && !x.type){ const t = (e.types || []).find(t => sansAcc(t).includes(sansAcc(r.type))); if(t) x.type = t; }
+  if(r && r.cat && !x.categorie){ const c = (e.categories || []).find(c => sansAcc(c).startsWith(r.cat)); if(c) x.categorie = c; }
   if(!x.type) x.type = await typeSuggere(x.description);
 }
 // déjà inscrit ? même montant et même date, ou même montant à 3 jours près chez un marchand au nom semblable
@@ -3604,6 +3618,11 @@ function vueBoitePro(el){
      <div class="dlg-f" style="padding:0"><button type="button" class="btn danger" data-del>Supprimer</button><span class="grow"></span><button class="btn primary">Confirmer</button></div>
    </form>`).join("") : `<div class="spacer"></div><div class="card"><div class="p-vide">Rien à confirmer. Paie avec Apple Pay ou partage un reçu vers Finances.</div></div>`}`;
   $("#pRet", el).onclick = () => vaVers("plus");
+  // règles suggérées (situations qui reviennent) : discrètement, au-dessus de la liste
+  if(MOD("regles")) suggestionsRegles().then(sug => { if(!sug.length || S.vue !== "boite" || $("#bxSug", el)) return;
+    const c = document.createElement("div"); c.id = "bxSug"; sug = sug.slice(0, 2);
+    c.innerHTML = `<div class="spacer"></div><div class="card"><div class="p-sec"><b>Règle suggérée</b><span>Plus › Règles</span></div>${sug.map(suggestionHTML).join("")}</div>`;
+    el.querySelector(".card").after(c); brancheSuggestions(c, sug, () => vaVers("boite")); }).catch(() => {});
   { const v = $("#bxVider", el); if(v) v.onclick = async () => { if(!confirm(`Supprimer les ${l.length} éléments de la boîte ? (Annulable dans l'historique)`)) return;
       try { await ecrit("/api/boite/vider", {}, "Boîte vidée"); vaVers("boite"); } catch(e){} }; }
   el.querySelectorAll("form.bx").forEach(f => {
@@ -3615,6 +3634,106 @@ function vueBoitePro(el){
     f.onsubmit = async ev => { ev.preventDefault();
       try { await ecrit("/api/boite/confirmer", {id: b.id, genre, description: f.description.value, montant: f.montant.value, date: f.date.value, type: typ, categorie: f.categorie.value},
                         genre === "revenu" ? "Ajouté aux revenus" : "Ajoutée aux dépenses"); vaVers("boite"); } catch(e){} };
+  });
+}
+// ---------------------------------------------------------------- règles de marchands (essai, app de Zach)
+// Une règle : « si la description contient <motif> » → nom affiché, type de partage, catégorie. Appliquée à la boîte de réception,
+// à Apple Pay et à l'ajout à la main. Priorité : tes règles > règles incluses (Amazon, Uber Eats) > ta dernière dépense chez ce marchand.
+const motifRx = m => new RegExp("(^|[^a-z0-9])" + sansAcc(m).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+function regleUtilisateur(desc){
+  if(!UIPRO() || !MOD("regles") || !desc) return null;
+  const d = sansAcc(desc);
+  return (S.etat.regles || []).find(r => r.statut === "active" && r.actif && motifRx(r.motif).test(d)) || null;
+}
+// Suggestions : une même situation qui revient. Chez un même marchand, sur tes 3 derniers mois : au moins 3 dépenses
+// et au moins 80 % avec le même type (autre que Perso) ou la même catégorie choisie à la main. Rien pour ce que l'app devine déjà.
+const cleMarchand = desc => sansAcc(marchandReleve(desc) || desc).replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+async function suggestionsRegles(){
+  if(!UIPRO() || !MOD("regles")) return [];
+  const k = S.etat.mois.findIndex(x => x.cle === today().slice(0, 7)), mois = [];
+  for(const j of [k, k - 1, k - 2]) if(j >= 0 && S.etat.mois[j] && S.etat.mois[j].canvas){ try { mois.push(S.etat.mois[j].feuille === S.feuille ? S.mois : await api("/api/mois?f=" + encodeURIComponent(S.etat.mois[j].feuille))); } catch(e){} }
+  const ignores = new Set((S.etat.regles || []).filter(r => r.statut === "ignoree").map(r => cleMarchand(r.motif)));
+  const groupes = {};
+  for(const mm of mois) for(const t of mm.transactions || []){
+    if(!t.utilise || !t.description || /\(carte /i.test(t.description) || semType(t.type) === "R") continue;
+    const c = cleMarchand(t.description); if(c.replace(/[^a-z]/g, "").length < 3 || /^(paiement|solde|report|virement|retrait)/.test(c)) continue;
+    (groupes[c] = groupes[c] || {cle: c, motif: marchandReleve(t.description) || t.description, l: []}).l.push(t);
+  }
+  const top = (l, f) => { const n = {}; for(const x of l){ const v = f(x); if(v) n[v] = (n[v] || 0) + 1; } const [v, c] = Object.entries(n).sort((a, b) => b[1] - a[1])[0] || []; return v ? {v, part: c / l.length} : null; };
+  const out = [];
+  for(const g of Object.values(groupes)){
+    if(g.l.length < 3 || ignores.has(g.cle) || regleUtilisateur(g.motif)) continue;
+    const ty = top(g.l, t => t.type), ca = top(g.l, t => t.cat_manuelle ? t.categorie : null);
+    const type = ty && ty.part >= 0.8 && semType(ty.v) !== "P" ? ty.v : "";
+    // la catégorie seule n'apporte rien si les mots-clés la trouvent déjà ; avec un type, on la garde (règle complète)
+    const catMain = ca && ca.part >= 0.8 && ca.v !== "Autres" ? ca.v : "";
+    const categorie = catMain && (type || catMain !== catAuto(g.motif)) ? catMain : "";
+    if(!type && !categorie) continue;
+    out.push({motif: g.motif.slice(0, 40), type, categorie: categorie || (type ? (c => c && c !== "Autres" ? c : "")((top(g.l, t => t.categorie) || {}).v) : ""), n: g.l.length,
+              fois: Math.round(Math.max(ty && type ? ty.part : 0, ca && categorie ? ca.part : 0) * g.l.length)});
+  }
+  out.sort((a, b) => b.n - a.n);
+  S.nbSuggRegles = Math.min(out.length, 5);
+  return out.slice(0, 5);
+}
+const resumeRegle = r => [r.nom && r.nom !== r.motif ? `affiché « ${esc(r.nom)} »` : "", r.type ? esc(TYPES_COURTS[semType(r.type)] || r.type) : "", r.categorie ? iconeCat(r.categorie) + " " + esc(r.categorie) : ""].filter(Boolean).join(" · ");
+function suggestionHTML(g, i){
+  return `<div class="p-row" style="grid-template-columns:1fr"><div class="m"><div class="t"><b>${esc(g.motif)}</b> → ${resumeRegle(g)}</div>
+    <div class="s">${g.fois} fois sur ${g.n} ces 3 derniers mois</div>
+    <div style="display:flex;gap:6px;margin-top:6px"><button class="btn small primary" data-rsg="${i}">Créer la règle</button><button class="btn small" data-rmod="${i}">Modifier</button><button class="btn small" data-rig="${i}">Ignorer</button></div></div></div>`;
+}
+function brancheSuggestions(z, sug, apres){
+  z.querySelectorAll("[data-rsg]").forEach(b => b.onclick = async () => { const g = sug[+b.dataset.rsg];
+    try { await ecrit("/api/regle", {motif: g.motif, type: g.type, categorie: g.categorie, origine: "suggestion"}, `Règle créée : ${g.motif}`); apres(); } catch(e){} });
+  z.querySelectorAll("[data-rmod]").forEach(b => b.onclick = () => dlgRegle(Object.assign({origine: "suggestion"}, sug[+b.dataset.rmod]), apres));
+  z.querySelectorAll("[data-rig]").forEach(b => b.onclick = async () => { const g = sug[+b.dataset.rig];
+    try { await ecrit("/api/regle/ignorer", {motif: g.motif}, "Suggestion ignorée : elle ne reviendra pas"); apres(); } catch(e){} });
+}
+async function vueReglesPro(el){
+  el.innerHTML = `<button class="p-retour" id="pRet">‹ Plus</button><div id="pRg"><div class="card"><div class="empty">Chargement…</div></div></div>`;
+  $("#pRet", el).onclick = () => vaVers("plus");
+  const sug = await suggestionsRegles(), z = $("#pRg", el); if(!z || S.vue !== "regles") return;
+  const l = (S.etat.regles || []).filter(r => r.statut === "active");
+  const incl = REGLES_MARCHAND.filter(r => r.type || r.cat).map(r => ({motif: r.nom, type: r.type ? (S.etat.types.find(t => sansAcc(t).includes(sansAcc(r.type))) || "") : "", categorie: r.cat ? (S.etat.categories.find(c => sansAcc(c).startsWith(r.cat)) || "") : ""}))
+                .filter(r => !l.some(x => sansAcc(x.motif) === sansAcc(r.motif)));
+  z.innerHTML = `
+   <div class="card"><div class="p-sec"><b>Règles de marchands</b><span><button class="btn small" id="rgAj">+ Ajouter</button></span></div>
+     <p class="small muted" style="margin:0">Quand une description contient le marchand, le type et la catégorie se remplissent seuls : boîte de réception, Apple Pay et ajout à la main. Tu peux toujours changer avant d'enregistrer.</p></div>
+   ${sug.length ? `<div class="spacer"></div><div class="card"><div class="p-sec"><b>Suggestions</b><span>situations qui reviennent</span></div>${sug.map(suggestionHTML).join("")}</div>` : ""}
+   <div class="spacer"></div>
+   <div class="card"><div class="p-sec"><b>Mes règles</b><span>${l.length || ""}</span></div>
+     ${l.length ? l.map(r => `<div class="p-row rg-l" data-rg="${r.id}" role="button" tabindex="0" style="cursor:pointer;grid-template-columns:1fr auto">
+        <div class="m"><div class="t" ${r.actif ? "" : `style="opacity:.5"`}><b>${esc(r.motif)}</b></div><div class="s">${resumeRegle(r) || "—"}${r.actif ? "" : " · désactivée"}${r.origine === "suggestion" ? " · suggérée par l'app" : ""}</div></div>
+        <span class="chev">›</span></div>`).join("") : `<div class="p-vide">Aucune règle pour l'instant. Crée une suggestion ou touche « + Ajouter ».</div>`}</div>
+   ${incl.length ? `<div class="spacer"></div><div class="card"><div class="p-sec"><b>Incluses</b><span>touche pour les changer</span></div>
+     ${incl.map((r, i) => `<div class="p-row" data-inc="${i}" role="button" tabindex="0" style="cursor:pointer;grid-template-columns:1fr auto"><div class="m"><div class="t"><b>${esc(r.motif)}</b></div><div class="s">${resumeRegle(r)}</div></div><span class="chev">›</span></div>`).join("")}</div>` : ""}`;
+  const re = () => vaVers("regles");
+  brancheSuggestions(z, sug, re);
+  $("#rgAj", z).onclick = () => dlgRegle(null, re);
+  z.querySelectorAll("[data-rg]").forEach(r => r.onclick = () => dlgRegle(l.find(x => x.id == r.dataset.rg), re));
+  z.querySelectorAll("[data-inc]").forEach(r => r.onclick = () => dlgRegle(Object.assign({}, incl[+r.dataset.inc]), re));
+}
+function dlgRegle(r, apres){
+  const e = S.etat, edit = !!(r && r.id), v = r || {};
+  const types = (e.types || []).filter(t => semType(t) && semType(t) !== "R" && (MOD("partage") || semType(t) === "P"));
+  let type = v.type || "";
+  ouvre(`<form id="frg"><div class="dlg-h"><h2>${edit ? "Règle de marchand" : "Nouvelle règle"}</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b">
+     <label class="f">Si la description contient<input name="motif" required autocomplete="off" value="${esc(v.motif || "")}" placeholder="ex. Maxi, Netflix, SAQ"></label>
+     <label class="f">Nom affiché (facultatif)<input name="nom" autocomplete="off" value="${esc(v.nom || "")}" placeholder="garder la description telle quelle"></label>
+     <div><div class="hint" style="margin-bottom:6px">Type de dépense</div><div class="seg" id="rgTyp"><button type="button" data-t="">Ne pas changer</button>${types.map(t => `<button type="button" data-t="${esc(t)}">${esc(TYPES_COURTS[semType(t)] || t)}</button>`).join("")}</div></div>
+     <label class="f">Catégorie<select name="categorie"><option value="">Ne pas changer</option>${e.categories.map(c => `<option ${v.categorie === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></label>
+     ${edit ? `<label class="mod-l" style="padding:4px 0"><span class="mod-t"><b>Règle active</b><small>Désactivée : gardée, mais plus appliquée.</small></span><input type="checkbox" class="mod-sw" name="actif" ${v.actif ? "checked" : ""}></label>` : ""}
+     <p class="small muted" style="margin:0">S'applique aux prochaines dépenses ; celles déjà inscrites ne changent pas.</p>
+   </div>
+   <div class="dlg-f">${edit ? `<button type="button" class="btn danger" id="rgDel">Supprimer</button>` : ""}<span class="grow"></span><button class="btn primary">Enregistrer</button></div></form>`, d => {
+    const f = $("#frg", d), seg = $("#rgTyp", d);
+    const maj = () => seg.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.t === type));
+    seg.onclick = ev => { const b = ev.target.closest("button"); if(b){ type = b.dataset.t; maj(); } }; maj();
+    f.onsubmit = async ev => { ev.preventDefault();
+      try { await ecrit("/api/regle", {id: edit ? v.id : null, motif: f.motif.value, nom: f.nom.value, type, categorie: f.categorie.value, actif: edit ? f.actif.checked : true, origine: v.origine},
+                        edit ? "Règle modifiée" : "Règle créée"); d.close(); apres && apres(); } catch(e){} };
+    const del = $("#rgDel", d); if(del) del.onclick = async () => { try { await ecrit("/api/regle/supprimer", {id: v.id}, "Règle supprimée (annulable dans l'historique)"); d.close(); apres && apres(); } catch(e){} };
   });
 }
 // --- Prévisions des lignes fixes (« Dépenses / Revenus à venir ») : ne comptent nulle part tant qu'elles ne sont pas cochées
@@ -3756,7 +3875,8 @@ const MODULES = [
     ["captures_rev", "Import de revenus par captures", "Les entrées d'argent du compte proposées comme revenus."],
     ["mots_cles", "Mots-clés appris", "Quand tu corriges une catégorie, l'app s'en souvient pour la prochaine fois."],
     ["applepay", "Apple Pay", "Ajout rapide d'une dépense par ton raccourci iPhone."],
-    ["boite", "Boîte de réception", "Apple Pay et « Partager vers Finances » déposent l'élément dans une boîte : tu confirmes le type quand tu as le temps, sans fenêtre à remplir sur le moment."]]],
+    ["boite", "Boîte de réception", "Apple Pay et « Partager vers Finances » déposent l'élément dans une boîte : tu confirmes le type quand tu as le temps, sans fenêtre à remplir sur le moment."],
+    ["regles", "Règles de marchands", "« Maxi → 50/50, Nourriture » : le type et la catégorie se remplissent seuls. L'app te suggère des règles quand une même situation revient."]]],
   ["Contrôle", [
     ["banque", "Contrôle avec la banque", "Inscrire le solde de ta banque et être averti d'un écart. Recommandé."],
     ["rappro", "Rapprochement bancaire", "Comparer un relevé à l'app, ligne par ligne."]]],
@@ -3791,7 +3911,7 @@ function vuePlusPro(el){
   const nbBud = Object.keys(BUDGETS()).length;
   const item = (id, ic, t1, t2, val = "") => `<button class="p-item" id="${id}"><span class="ic">${ICO[ic]}</span><span class="tx"><div class="t1">${t1}</div>${t2 ? `<div class="t2">${t2}</div>` : ""}</span>${val ? `<span class="val num">${val}</span>` : ""}<span class="chev">›</span></button>`;
   el.innerHTML = `
-   <div class="p-groupe"><div class="t">Mon app</div><div class="p-liste">${MOD("boite") ? item("pBox", "cal", "Boîte de réception", "Apple Pay et reçus partagés, à confirmer", (S.etat.boite || []).length ? String((S.etat.boite || []).length) : "") : ""}${item("pMod", "cat", "Fonctionnalités", "Choisis les fonctions affichées dans ton app")}</div></div>
+   <div class="p-groupe"><div class="t">Mon app</div><div class="p-liste">${MOD("boite") ? item("pBox", "cal", "Boîte de réception", "Apple Pay et reçus partagés, à confirmer", (S.etat.boite || []).length ? String((S.etat.boite || []).length) : "") : ""}${MOD("regles") ? item("pReg", "mot", "Règles de marchands", "Type et catégorie remplis seuls · suggestions", S.nbSuggRegles ? S.nbSuggRegles + " suggérée" + (S.nbSuggRegles > 1 ? "s" : "") : "") : ""}${item("pMod", "cat", "Fonctionnalités", "Choisis les fonctions affichées dans ton app")}</div></div>
    ${MOD("placements") || MOD("financement") ? `<div class="p-groupe"><div class="t">Patrimoine</div><div class="p-liste">${item("pInvB", "inv", MOD("placements") && MOD("financement") ? "Placements et financement" : MOD("placements") ? "Placements" : "Financement", MOD("placements") ? "CÉLI, CÉLIAPP" + (MOD("financement") ? ", prêts" : "") : "Prêts", MOD("placements") ? $$(tj) : "")}</div></div>` : ""}
    ${MOD("rappro") ? `<div class="p-groupe"><div class="t">Mois</div><div class="p-liste">
      ${item("pRap", "rap", "Rapprochement bancaire", "Relevés Amex et Desjardins vs l'app · " + esc(S.info.nom))}</div></div>` : ""}
@@ -3808,6 +3928,7 @@ function vuePlusPro(el){
   const on = (id, f) => { const b = $(id, el); if(b) b.onclick = f; };
   on("#pMod", () => vaVers("modules"));
   on("#pBox", () => vaVers("boite"));
+  on("#pReg", () => vaVers("regles"));
   on("#pInvB", () => vaVers("inv"));
   on("#pRap", () => vaVers("rappro"));
   $("#pHist", el).onclick = () => dlgHistorique();
