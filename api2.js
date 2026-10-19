@@ -188,15 +188,29 @@
     function soldesJour(m){
       m = m || M(); const a = auj(), s = m.soldes(a);
       const rel = D.releves_banque.filter(r => r.origine === "app" && r.date <= a).sort((x, y) => x.date.localeCompare(y.date) || x.id - y.id).pop() || null;
-      const conc = rel ? m.concordance(rel) : null;
+      const conc = rel ? concordanceReleve(rel, m) : null;
       const precOk = D.releves_banque.filter(r => r.origine === "app" && rel && r.date < rel.date).sort((x, y) => y.date.localeCompare(x.date))
-        .find(r => Math.abs(m.concordance(r).ecart) < 0.005) || null;
+        .find(r => Math.abs(concordanceReleve(r, m).ecart) < 0.005) || null;
       return {date: a, app: s.app, au_compte: s.auCompte, attendu: s.attendu,
         revenus_a_venir: s.revFut.map(r => ({ligne: r.id, date: r.date, description: r.description, montant: r.montant_c / 100})), total_revenus_a_venir: s.sR,
         depenses_a_venir: s.depFut.map(d => ({ligne: d.id, date: d.date, description: d.description, montant: d.montant_c / 100})), total_depenses_a_venir: s.sD,
         partenaire: s.partenaire, pourboires_attente: s.pbAttente.map(p => ({ligne: p.id, date: p.date, montant: (p.carte_c || 0) / 100})), total_pourboires_attente: s.sPb,
         releve: rel && {ligne: rel.id, date: rel.date, solde: rel.solde_c / 100},
         concordance: conc && Object.assign(conc, {derniere_concordance: precOk ? precOk.date : null, pistes: Math.abs(conc.ecart) >= 0.005 ? pistes(conc, precOk, m) : []})};
+    }
+    // Le solde de la banque est une photo prise à un moment précis. Les lignes datées du jour du relevé mais AJOUTÉES APRÈS
+    // l'avoir inscrit (d'après le journal) ne pouvaient pas y être : elles ne comptent pas dans la comparaison. Sans ça, chaque
+    // dépense ou revenu du jour ajouté après coup créait un faux écart. Les lignes d'avant le jour du relevé comptent toujours
+    // (un oubli rattrapé doit faire disparaître l'écart) ; un ajustement de solde compte toujours.
+    function concordanceReleve(r, m){
+      const ordre = new Map(); for(const j of D.journal) if(j.action === "ajout"){ ordre.set(j.table_nom + ":" + j.ligne_id, j.id); }   // dernier ajout (un numéro peut resservir après une suppression)
+      const jr = ordre.get("releves_banque:" + r.id);
+      if(!jr) return (m || M()).concordance(r);
+      const apres = (t, x) => x.date === r.date && (ordre.get(t + ":" + x.id) || 0) > jr;
+      const Dx = Object.assign({}, D);
+      for(const t of ["depenses", "revenus", "pourboires", "financements_recus", "autres_montants"]) if(D[t] && D[t].some(x => apres(t, x))) Dx[t] = D[t].filter(x => !apres(t, x));
+      if((D.reglements || []).some(x => apres("reglements", x))) Dx.reglements = D.reglements.map(x => apres("reglements", x) ? Object.assign({}, x, {date: x.date + "~"}) : x);   // pas encore réglé au moment du relevé
+      return Dx === D || Object.keys(Dx).every(k => Dx[k] === D[k]) ? (m || M()).concordance(r) : Moteur(Dx, {moisMax: moisSuivant(auj().slice(0, 7))}).concordance(r);
     }
     function pistes(conc, precOk, m){
       // pistes pour expliquer un écart entre le solde de la banque et le solde au compte calculé

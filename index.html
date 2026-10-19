@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-VNrIQCgFP1G+CX9J04HNJFzLlc/xBpD9hkTC++h/HaY='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-T1ke2+xRtzAZ3LfJHtTUEdl53NqJubGRIyjmoyaEyWk='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -452,10 +452,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=bf4642d578"></script>
-<script src="api2.js?v=bf4642d578"></script>
-<script src="export_xlsx.js?v=bf4642d578"></script>
-<script src="web2.js?v=bf4642d578" data-version="web.js?v=bf4642d578"></script>
+<script src="calculs.js?v=08a2161dcc"></script>
+<script src="api2.js?v=08a2161dcc"></script>
+<script src="export_xlsx.js?v=08a2161dcc"></script>
+<script src="web2.js?v=08a2161dcc" data-version="web.js?v=08a2161dcc"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -740,9 +740,9 @@ function normPartage(j){
   return j;
 }
 // lecture → modification → écriture avec If-Match ; si l'autre app a écrit entre-temps, on relit et on réapplique
-async function majPartage(f){
+async function majPartage(f, dejaLu){
   for(let k = 0; k < 5; k++){
-    const {j, etag} = await WEB.partage.lit(); const x = normPartage(j); f(x);
+    const {j, etag} = k === 0 && dejaLu ? {j: JSON.parse(JSON.stringify(dejaLu.j)), etag: dejaLu.etag} : await WEB.partage.lit(); const x = normPartage(j); f(x);
     try { await WEB.partage.ecrit(x, etag); return x; }
     catch(e){ if(!e.conflit) throw e; await new Promise(r => setTimeout(r, 300 + Math.random() * 500)); }
   }
@@ -778,7 +778,9 @@ async function syncReconcilie(opts = {}){
   if(SYNC.enCours) return SYNC.enCours;
   SYNC.enCours = (async () => {
     const moi = REG().prenom, maintenant = new Date().toISOString();
-    let j = normPartage((await WEB.partage.lit()).j);
+    const lu = await WEB.partage.lit();
+    let j = normPartage(JSON.parse(JSON.stringify(lu.j)));
+    const aConfirmer = confirmationsEnAttente();
     // 1. recevoir et retirer les parts publiées par l'autre
     const aRecevoir = j.depenses.filter(d => d.de !== moi && d.statut === "active" && !d.recue);
     const aRetirer = j.depenses.filter(d => d.de !== moi && d.statut === "retiree" && d.recue && !d.recue.supprimee);
@@ -814,6 +816,8 @@ async function syncReconcilie(opts = {}){
     }
     const nouveau = j.depenses.length === 0 && !j.soldes[moi];
     j = await majPartage(j => {
+      // remboursements confirmés dans l'app (marqueur déjà placé) : notés dans le fichier partagé dans la même écriture
+      for(const g of j.reglements) if(aConfirmer.includes(g.id) && !g.confirme){ g.confirme = true; g.confirme_le = maintenant; }
       for(const d of j.depenses){ if(recus[d.id]) d.recue = recus[d.id]; if(retires.has(d.id) && d.recue) d.recue.supprimee = true; }
       for(const d of j.depenses) if(d.de === moi){
         if(d.statut === "active" && sortie[d.id]){ d.statut = sortie[d.id]; d.maj = maintenant; }
@@ -832,13 +836,14 @@ async function syncReconcilie(opts = {}){
       const vieux = iso => iso && (Date.now() - Date.parse(iso)) > 120 * 864e5;
       j.depenses = j.depenses.filter(d => !(vieux(d.maj || d.ajoute) && (d.statut === "reglee" || (d.statut === "retiree" && (!d.recue || d.recue.supprimee)))));
       j.reglements = j.reglements.filter(g => !(g.confirme && vieux(g.confirme_le)));
-    });
+    }, lu);
+    if(aConfirmer.length) retireConfirmations(aConfirmer);
     SYNC.etat = j; SYNC.maj = Date.now(); SYNC.erreur = null;
     const n = Object.keys(recus).filter(id => aRecevoir.some(d => d.id === id)).length;
     if(n || nRet){ await rafraichit(); toast([n ? `${n} dépense${n > 1 ? "s" : ""} de ${REG().partenaire} ajoutée${n > 1 ? "s" : ""}` : "", nRet ? `${nRet} retirée${nRet > 1 ? "s" : ""} (supprimée${nRet > 1 ? "s" : ""} par ${REG().partenaire})` : ""].filter(Boolean).join(" · ")); }
     else if(opts.manuel) toast("Synchronisé avec " + REG().partenaire);
     majBandeauSync();
-    const prop = j.reglements.find(g => g.par !== moi && !g.confirme);
+    const prop = j.reglements.find(g => g.par !== moi && !g.confirme && !confirmationsEnAttente().includes(g.id));
     let vu = null; try { vu = sessionStorage.getItem("reg_vu"); } catch(e){}
     if(prop && vu !== prop.id && !$("#dlg").open) dlgSyncReglement(prop);
   })().catch(e => { SYNC.erreur = e.message || String(e); console.warn("synchronisation", e); majBandeauSync(); if(opts.manuel) toast("Synchronisation impossible : " + SYNC.erreur, true); })
@@ -862,10 +867,18 @@ async function syncConfirme(prop){
   }
   if(max == null){ const util = mm.transactions.filter(t => t.utilise); if(util.length) max = util[util.length - 1].ligne; }
   if(max != null) await api("/api/reglement", {feuille: mo.feuille, ligne: max});
-  await majPartage(j => { const g = j.reglements.find(x => x.id === prop.id); if(g){ g.confirme = true; g.confirme_le = new Date().toISOString(); } });
-  await rafraichit();
-  await syncReconcilie({silencieux: true});
+  // le marqueur est placé (écriture instantanée) ; la confirmation part au fichier partagé en arrière-plan, avec la prochaine
+  // synchronisation (une seule lecture-écriture). Gardée sur l'appareil jusqu'à ce qu'elle soit écrite : rien n'est perdu si l'app se ferme.
+  ajouteConfirmation(prop.id);
+  if(SYNC.etat){ const g = SYNC.etat.reglements.find(x => x.id === prop.id); if(g){ g.confirme = true; g.confirme_le = new Date().toISOString(); } }
+  majBandeauSync();
+  rafraichit().catch(() => {});
+  planifieSync(50);
 }
+const confirmationsEnAttente = () => { try { return JSON.parse(localStorage.getItem("sync_confirmations") || "[]"); } catch(e){ return []; } };
+const ecritConfirmations = l => { try { l.length ? localStorage.setItem("sync_confirmations", JSON.stringify(l)) : localStorage.removeItem("sync_confirmations"); } catch(e){} };
+const ajouteConfirmation = id => { const l = confirmationsEnAttente(); if(!l.includes(id)) l.push(id); ecritConfirmations(l); };
+const retireConfirmations = ids => ecritConfirmations(confirmationsEnAttente().filter(x => !ids.includes(x)));
 function texteReglementAutre(prop){
   const a = esc(prop.par), v = prop.net;
   if(v == null) return "";
@@ -907,7 +920,7 @@ function bandeauSyncHTML(){
   if(WEB.partage.pause()) return `<button type="button" class="sync-b" data-sync><span class="sync-pt off"></span><span class="tx"><b>Synchronisation en pause</b><small>Touche pour la réactiver.</small></span><span class="chev">›</span></button>`;
   if(SYNC.erreur) return `<button type="button" class="sync-b" data-sync><span class="sync-pt ko"></span><span class="tx"><b>Synchronisation impossible</b><small>${esc(SYNC.erreur)}</small></span><span class="chev">›</span></button>`;
   const moi = REG().prenom, j = SYNC.etat;
-  const prop = j && j.reglements.find(g => g.par !== moi && !g.confirme), mienne = j && j.reglements.find(g => g.par === moi && !g.confirme);
+  const prop = j && j.reglements.find(g => g.par !== moi && !g.confirme && !confirmationsEnAttente().includes(g.id)), mienne = j && j.reglements.find(g => g.par === moi && !g.confirme);
   const c = comparaisonSoldes();
   let pt = "ok", ligne = `Synchronisé ${depuisQuand(SYNC.maj)}`, sous = "";
   if(!j){ pt = "off"; ligne = "Synchronisation…"; }
