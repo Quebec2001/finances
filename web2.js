@@ -4,7 +4,7 @@
 // que pour lire l'Excel (essai en mode miroir, import) et pour lire des relevés ou des captures. Aucune donnée ne passe par un serveur tiers.
 (function(){
 "use strict";
-const VERSION = "59d2d94b5c";
+const VERSION = "3956b0bea8";
 const CLIENT_ID = "c7ebaba5-e820-450d-92c0-7efd4f7517c8";
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPES_BASE = "Files.ReadWrite offline_access User.Read";
@@ -97,9 +97,15 @@ async function retourConnexion(){
   LS.set("w_verifier", null); LS.set("w_state", null);
   return true;
 }
+// un seul renouvellement à la fois : plusieurs demandes en parallèle attendent le même (un jeton de renouvellement ne sert qu'une fois)
+let renouvellement = null;
 async function accessToken(){
   const at = LS.get("w_at");
   if(at && Date.now() < +(LS.get("w_exp") || 0)) return at;
+  if(!renouvellement) renouvellement = renouvelle().finally(() => { renouvellement = null; });
+  return renouvellement;
+}
+async function renouvelle(){
   const rt = LS.get("w_rt");
   if(rt){
     try { const t = await jeton({client_id: CLIENT_ID, grant_type: "refresh_token", refresh_token: rt, scope: scopes()}); garde(t); return t.access_token; }
@@ -362,15 +368,23 @@ async function demarre(){
   }
   if(LS.get("w_verrou")) await verrouille(true);       // Face ID / code de l'appareil avant d'ouvrir quoi que ce soit
   try {
-    const me = await (await graph("/me?$select=displayName,userPrincipalName,mail")).json();
-    compte = me.userPrincipalName || me.mail || me.displayName || "";
-    nomCompte = me.displayName || "";
-    if(compte) LS.set("w_login", compte);
-    fichier = await choisitFichier(false);
-    etape("Recherche de la base de la v2…");
-    base = await trouveBase();
+    // ouverture plus rapide : nom du compte gardé (rafraîchi en arrière-plan), fichier Excel et base demandés EN MÊME TEMPS,
+    // et la base connue est ouverte directement (sa première vérification sert aussi à la trouver)
+    const lisCompte = async () => { const me = await (await graph("/me?$select=displayName,userPrincipalName,mail")).json();
+      compte = me.userPrincipalName || me.mail || me.displayName || ""; nomCompte = me.displayName || "";
+      if(compte) LS.set("w_login", compte); LS.set("w_nom", nomCompte); };
+    const pCompte = LS.get("w_login") && LS.get("w_nom") != null ? (compte = LS.get("w_login"), nomCompte = LS.get("w_nom") || "", lisCompte().catch(() => {}), null) : lisCompte();
+    const pFichier = choisitFichier(false);
+    const idConnu = LS.get("w2_base");
+    if(idConnu){
+      base = {id: idConnu}; mode = "reel";
+      try { etape("Ouverture de tes finances…"); await chargeBase(); }
+      catch(e){ mode = null; D = null; if(e.status !== 404) throw e; LS.set("w2_base", null); base = null; }
+    }
+    fichier = await pFichier; if(pCompte) await pCompte;
+    if(!base){ etape("Recherche de la base de la v2…"); base = await trouveBase(); if(base) mode = "reel"; }
     if(base){
-      mode = "reel"; etape("Ouverture de tes finances…"); await chargeBase();
+      if(!D){ etape("Ouverture de tes finances…"); await chargeBase(); }
       if(attente.length){ await rejoue(); planifieEnvoi(300); }         // changements faits avant une fermeture, pas encore envoyés
       try { await chargeLien(); } catch(e){}
     } else {
@@ -444,7 +458,7 @@ function erreurDemarrage(e){
   return new Promise(() => {});
 }
 function deconnexion(){
-  ["w_at", "w_exp", "w_rt", "w_login", "w_fichier", "w_lien", "w_scope", "w_sync_off", "w_verrou", "w2_base"].forEach(k => LS.set(k, null));
+  ["w_at", "w_exp", "w_rt", "w_login", "w_nom", "w_fichier", "w_lien", "w_scope", "w_sync_off", "w_verrou", "w2_base"].forEach(k => LS.set(k, null));
   location.href = REDIRECT;
 }
 async function changerFichier(){

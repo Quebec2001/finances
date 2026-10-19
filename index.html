@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-SPUYXnNRI51Cfk6NCJ0qKfZfwO38EzL05Ty80i6NY9M='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-yuL7lmnmu7s9pLeFuYcmhX1DdjmXbvKoSlezn8OkQlk=' 'sha256-AAYDTaP8AQKi1HnQ5LFT1t60w/wMYmwnjMQvNXwhRRQ='; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://graph.microsoft.com https://login.microsoftonline.com https://*.1drv.com https://*.microsoftpersonalcontent.com https://*.sharepoint.com https://*.livefilestore.com blob: data:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finances</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -234,6 +234,10 @@ label.f input:focus,label.f select:focus{outline:2px solid color-mix(in srgb,var
 .preview{background:var(--surface-2);border-radius:10px;padding:9px 12px;font-size:13.5px;color:var(--ink-2)}
 .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;z-index:100;max-width:calc(100vw - 32px);box-shadow:0 8px 24px rgba(0,0,0,.2);opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
+.toast.act{display:flex;align-items:center;gap:14px;pointer-events:auto;padding:8px 8px 8px 16px;width:max-content;white-space:nowrap}
+body.fab-on #vue{padding-bottom:84px}
+.toast-b{background:none;border:0;color:inherit;text-decoration:underline;text-underline-offset:3px;font:inherit;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.toast-b:focus{outline:none}
 .sync-zone:empty{display:none}.sync-zone{margin:0 0 12px}
 .sync-b{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 14px;font:inherit;color:var(--ink);cursor:pointer}
 .sync-b .tx{flex:1;min-width:0;display:grid;gap:1px}.sync-b .tx b{font-weight:600;font-size:14px}.sync-b .tx small{color:var(--ink-3);font-size:12.5px}.sync-b .chev{color:var(--ink-3);font-size:18px}
@@ -452,10 +456,10 @@ html{-webkit-tap-highlight-color:transparent}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast"></div>
 
-<script src="calculs.js?v=59d2d94b5c"></script>
-<script src="api2.js?v=59d2d94b5c"></script>
-<script src="export_xlsx.js?v=59d2d94b5c"></script>
-<script src="web2.js?v=59d2d94b5c" data-version="web.js?v=59d2d94b5c"></script>
+<script src="calculs.js?v=3956b0bea8"></script>
+<script src="api2.js?v=3956b0bea8"></script>
+<script src="export_xlsx.js?v=3956b0bea8"></script>
+<script src="web2.js?v=3956b0bea8" data-version="web.js?v=3956b0bea8"></script>
 <script>
 // retour de la connexion Microsoft (test OneDrive) : on renvoie vers la page de test
 if(/[?&](code|error)=/.test(location.search) && /[?&]state=od-/.test(location.search)) location.replace("/onedrive.html" + location.search);
@@ -502,14 +506,73 @@ async function api(chemin, corps){
   return j;
 }
 let toastT;
-function toast(msg, err){ let t=$("#toast"); if(!t){ t=document.createElement("div"); t.id="toast"; t.className="toast"; }
+function toast(msg, err, action){ let t=$("#toast"); if(!t){ t=document.createElement("div"); t.id="toast"; t.className="toast"; }
   // une fenêtre ouverte (showModal) passe par-dessus tout : on y place le message pour qu'il reste visible
-  const dl=$("#dlg"), hote = dl && dl.open ? dl : document.body; if(t.parentNode!==hote) hote.appendChild(t); t.textContent=msg; t.className="toast on"+(err?" err":""); clearTimeout(toastT); toastT=setTimeout(()=>t.className="toast"+(err?" err":""), err?5000:2200); }
+  const dl=$("#dlg"), hote = dl && dl.open ? dl : document.body; if(t.parentNode!==hote) hote.appendChild(t);
+  // la fenêtre se ferme juste après (Enregistrer, Supprimer…) : le message reste visible sur l'écran
+  if(hote===dl) dl.addEventListener("close", ()=>{ if(t.parentNode===dl) document.body.appendChild(t); }, {once:true});
+  t.textContent=msg; t.className="toast on"+(err?" err":"")+(action?" act":"");
+  // action dans le message (ex. « Supprimée · Annuler ») : 5 secondes pour toucher
+  if(action){ const b=document.createElement("button"); b.type="button"; b.className="toast-b"; b.textContent=action.label;
+    b.onclick=ev=>{ ev.stopPropagation(); clearTimeout(toastT); t.className="toast"; action.fn(); }; t.appendChild(b); }
+  clearTimeout(toastT); toastT=setTimeout(()=>t.className="toast"+(err?" err":""), err||action?5000:2200); }
+// Après une modification avec message : « … · Annuler » pendant 5 secondes. Annuler défait tout ce que cette action a inscrit
+// au journal (du plus récent au plus ancien), comme dans l'historique.
+const SANS_ANNULER = /^\/api\/(annuler|modules|parametres|configuration|export|journal)/;
+async function dernierJournal(){ try { const j = await api("/api/journal?n=1"); return j && j[0] ? j[0].id : 0; } catch(e){ return null; } }
 async function ecrit(chemin, corps, msg){
   document.body.classList.add("loading");
-  try { const r = await api(chemin, Object.assign({feuille:S.feuille}, corps)); if(msg) toast(msg); S.tend=null; await rafraichit(); planifieSync(); return r; }
-  catch(e){ toast(e.message, true); throw e; }
+  try {
+    const avant = msg && !SANS_ANNULER.test(chemin) ? await dernierJournal() : null;
+    const r = await api(chemin, Object.assign({feuille:S.feuille}, corps));
+    let ops = [];
+    if(avant != null){ try { ops = (await api("/api/journal?n=12")).filter(j => j.id > avant); } catch(e){} }
+    if(msg) toast(msg, false, ops.length && ops.every(j => j.annulable) ? {label: "Annuler", fn: () => annuleOps(ops)} : null);
+    S.tend=null; await rafraichit(); planifieSync(); return r; }
+  catch(e){ toast(e.message, true); noteErreur("écriture " + chemin, e.message, e.stack); throw e; }
   finally { document.body.classList.remove("loading"); }
+}
+// ---------------------------------------------------------------- journal d'erreurs (sur cet appareil seulement)
+// Les erreurs de l'app sont notées ici pour pouvoir les corriger : sans montants (chiffres retirés) ni noms entre « ».
+// Rien n'est envoyé : Plus › Compte › Journal d'erreurs › « Copier pour Claude ».
+const ERR_CLE = "w2_erreurs";
+const nettoieErr = t => String(t == null ? "" : t).replace(/«[^»]*»/g, "«…»").replace(/\d[\d\s\u00a0\u202f,.]*/g, "#").slice(0, 220);
+function noteErreur(type, msg, pile){
+  try {
+    msg = nettoieErr(msg); if(!msg || /^Script error/i.test(msg)) return;
+    const l = JSON.parse(localStorage.getItem(ERR_CLE) || "[]"), maintenant = new Date().toISOString();
+    // la pile garde fichier:ligne:colonne ; la ligne qui répète le message (« Error: … ») est retirée
+    pile = String(pile || "").split("\n").filter(x => /(\bat\b|@|:\d+:\d+)/.test(x)).slice(0, 4)
+      .map(x => x.replace(/https?:\/\/[^\s)]*\//g, "").replace(/«[^»]*»/g, "«…»").replace(/\?v=[^:\s)]*/g, "").trim()).join("\n").slice(0, 400);
+    const k = type + "|" + msg + "|" + pile.split("\n")[0], ex = l.find(x => x.k === k);
+    if(ex){ ex.n++; ex.der = maintenant; ex.vue = (window.S && S.vue) || ex.vue; }
+    else l.push({k, type, msg, pile, vue: (window.S && S.vue) || "", n: 1, prem: maintenant, der: maintenant, v: (window.WEB && WEB.version) || "local"});
+    localStorage.setItem(ERR_CLE, JSON.stringify(l.slice(-30)));
+  } catch(e){}
+}
+const erreursNotees = () => { try { return JSON.parse(localStorage.getItem(ERR_CLE) || "[]"); } catch(e){ return []; } };
+window.addEventListener("error", e => noteErreur("js", e.message, (e.error && e.error.stack) || `${(e.filename || "").split("/").pop()}:${e.lineno}`));
+window.addEventListener("unhandledrejection", e => { const r = e.reason || {}; noteErreur("promesse", r.message || r, r.stack); });
+function dlgErreurs(){
+  const l = erreursNotees().slice().reverse();
+  const quand = iso => { const d = new Date(iso); return `${d.getDate()} ${MOIS_ABR[d.getMonth()]} ${String(d.getHours()).padStart(2, "0")} h ${String(d.getMinutes()).padStart(2, "0")}`; };
+  ouvre(`<div class="dlg-h"><h2>Journal d'erreurs</h2><button type="button" class="x" data-close>✕</button></div>
+   <div class="dlg-b"><p class="small muted" style="margin:0">Gardé sur cet appareil seulement, sans montants ni noms. Copie-le et colle-le à Claude pour faire corriger un problème.</p>
+     ${l.length ? `<div class="list">${l.map(x => `<div class="item" style="cursor:default"><div class="main"><div class="t1">${esc(x.msg)}${x.n > 1 ? ` <span class="chip">×${x.n}</span>` : ""}</div>
+       <div class="t2">${esc(x.type)} · écran ${esc(x.vue || "?")} · ${quand(x.der)}</div></div></div>`).join("")}</div>` : `<div class="p-vide">Aucune erreur notée.</div>`}</div>
+   <div class="dlg-f">${l.length ? `<button type="button" class="btn" id="erEff">Effacer</button>` : ""}<span class="grow"></span>${l.length ? `<button type="button" class="btn primary" id="erCop">Copier pour Claude</button>` : `<button type="button" class="btn primary" data-close>Fermer</button>`}</div>`, d => {
+    const c = $("#erCop", d); if(c) c.onclick = async () => {
+      const txt = `Journal d'erreurs de l'app Finances (version ${(window.WEB && WEB.version) || "locale"}, ${navigator.userAgent.replace(/^.*?\(([^)]*)\).*$/, "$1")})\n\n` +
+        l.map(x => `[${x.der}] ${x.type} · écran ${x.vue} · ×${x.n} (depuis ${x.prem})\n${x.msg}${x.pile ? "\n" + x.pile : ""}`).join("\n\n");
+      try { await navigator.clipboard.writeText(txt); toast("Copié : colle-le dans ta conversation avec Claude"); } catch(e){ toast("Copie impossible sur cet appareil", true); } };
+    const ef = $("#erEff", d); if(ef) ef.onclick = () => { try { localStorage.removeItem(ERR_CLE); } catch(e){} d.close(); toast("Journal effacé"); };
+  });
+}
+async function annuleOps(ops){
+  document.body.classList.add("loading");
+  try { for(const j of ops.slice().sort((a, b) => b.id - a.id)) await api("/api/annuler", {id: j.id}); toast("Annulé"); }
+  catch(e){ toast(e.message, true); }
+  finally { try { const d = $("#dlg"); if(d && d.open) d.close(); } catch(e){} await rafraichit().catch(() => {}); planifieSync(); document.body.classList.remove("loading"); }
 }
 
 // ---------------------------------------------------------------- chargement
@@ -528,6 +591,16 @@ async function init(){
   if(!(REG().configuration_a_faire && S.info.modifiable)) verifiePartageRecu();
 }
 async function rafraichit(){
+  const avant = S.feuille, vue = S.vue, y = window.scrollY;
+  try { await rafraichit_(); }
+  finally { if(S.vue === vue && S.feuille === avant && y > 0) gardePosition(y); }
+}
+// l'écran est redessiné : on reste au même endroit (le contenu peut arriver un peu plus tard)
+function gardePosition(y){
+  const v = S.vue; window.scrollTo({top: y});
+  [60, 250, 600].forEach(t => setTimeout(() => { if(S.vue === v && Math.abs(window.scrollY - y) > 2 && document.documentElement.scrollHeight - window.innerHeight >= y - 2) window.scrollTo({top: y}); }, t));
+}
+async function rafraichit_(){
   const avant = S.feuille;
   S.etat = await api("/api/etat"); choisitUI();
   const sel = $("#mois");
@@ -742,7 +815,9 @@ function normPartage(j){
 // lecture → modification → écriture avec If-Match ; si l'autre app a écrit entre-temps, on relit et on réapplique
 async function majPartage(f, dejaLu){
   for(let k = 0; k < 5; k++){
-    const {j, etag} = k === 0 && dejaLu ? {j: JSON.parse(JSON.stringify(dejaLu.j)), etag: dejaLu.etag} : await WEB.partage.lit(); const x = normPartage(j); f(x);
+    const {j, etag} = k === 0 && dejaLu ? {j: JSON.parse(JSON.stringify(dejaLu.j)), etag: dejaLu.etag} : await WEB.partage.lit(); const x = normPartage(j);
+    const avant = JSON.stringify(x); f(x);
+    if(JSON.stringify(x) === avant) return x;            // rien de neuf : on n'écrit pas (moins d'attente, moins de conflits)
     try { await WEB.partage.ecrit(x, etag); return x; }
     catch(e){ if(!e.conflit) throw e; await new Promise(r => setTimeout(r, 300 + Math.random() * 500)); }
   }
@@ -846,7 +921,7 @@ async function syncReconcilie(opts = {}){
     const prop = j.reglements.find(g => g.par !== moi && !g.confirme && !confirmationsEnAttente().includes(g.id));
     let vu = null; try { vu = sessionStorage.getItem("reg_vu"); } catch(e){}
     if(prop && vu !== prop.id && !$("#dlg").open) dlgSyncReglement(prop);
-  })().catch(e => { SYNC.erreur = e.message || String(e); console.warn("synchronisation", e); majBandeauSync(); if(opts.manuel) toast("Synchronisation impossible : " + SYNC.erreur, true); })
+  })().catch(e => { SYNC.erreur = e.message || String(e); console.warn("synchronisation", e); noteErreur("synchronisation", SYNC.erreur, e.stack); majBandeauSync(); if(opts.manuel) toast("Synchronisation impossible : " + SYNC.erreur, true); })
      .finally(() => { SYNC.enCours = null; });
   return SYNC.enCours;
 }
@@ -1228,6 +1303,7 @@ function rend(){
     const br = $(".brand"); if(br) br.innerHTML = dateEntete();
     const vp = {bord:vueBordPro, trans:vueTrans, split:vuePartagePro, rev:vueRev, plus:vuePlusPro, inv:vueInvPro, ctl:vueCtlPro, rappro:vueRappro, fixes:vueFixesPro, modules:vueModulesPro, boite:vueBoitePro, regles:vueReglesPro}[S.vue] || vueBordPro;
     $("#fab").hidden = S.vue !== "trans";        // le + (nouvelle dépense) seulement dans Dépenses
+    document.body.classList.toggle("fab-on", S.vue === "trans");   // de la place sous la liste : le + ne cache pas le dernier montant
     m.innerHTML = bandeaux() + (S.vue === "split" ? syncZone() : "") + `<div id="vue"></div>`; vp($("#vue")); majBandeauSync(); brancheBandeaux(m); return;
   }
   { const br = $(".brand"); if(br && br.querySelector(".br-j")) br.innerHTML = ""; }
@@ -2762,7 +2838,12 @@ function barreOngletsPro(){
   const actif = ["inv", "ctl", "rappro", "fixes", "modules", "boite"].includes(S.vue) ? "plus" : S.vue, alerte = ctlEnErreur().length;
   n.innerHTML = ONGLETS_PRO.filter(([v]) => v !== "split" || MOD("partage")).map(([v, t]) => `<button data-v="${v}" class="${v === actif ? "on" : ""}" aria-label="${t}${v === "plus" && alerte ? " – contrôle à vérifier" : ""}">${ICO[v]}${v === "plus" && alerte ? `<i class="p-alerte" title="${alerte} contrôle${alerte > 1 ? "s" : ""} à vérifier"></i>` : ""}<span>${t}</span></button>`).join("");
 }
-function vaVers(v){ S.vue = v; rend(); window.scrollTo({top: 0}); }
+// même écran redessiné (après Enregistrer, Confirmer…) : on reste au même endroit ; autre écran : en haut
+function vaVers(v){
+  const meme = S.vue === v, y = window.scrollY; S.vue = v; rend();
+  if(!meme) return window.scrollTo({top: 0});
+  gardePosition(y);
+}
 const dateLongue = iso => { if(!iso) return ""; const [y, m, d] = iso.split("-").map(Number); return `${d === 1 ? "1er" : d} ${MOIS_MOTS[m - 1]} ${y}`; };
 const jourCourt = iso => iso ? `<b>${+iso.slice(8,10)}</b>${MOIS_ABR[+iso.slice(5,7)-1] || ""}` : "—";
 // --- Accueil
@@ -3911,7 +3992,7 @@ function vuePlusPro(el){
   const nbBud = Object.keys(BUDGETS()).length;
   const item = (id, ic, t1, t2, val = "") => `<button class="p-item" id="${id}"><span class="ic">${ICO[ic]}</span><span class="tx"><div class="t1">${t1}</div>${t2 ? `<div class="t2">${t2}</div>` : ""}</span>${val ? `<span class="val num">${val}</span>` : ""}<span class="chev">›</span></button>`;
   el.innerHTML = `
-   <div class="p-groupe"><div class="t">Mon app</div><div class="p-liste">${MOD("boite") ? item("pBox", "cal", "Boîte de réception", "Apple Pay et reçus partagés, à confirmer", (S.etat.boite || []).length ? String((S.etat.boite || []).length) : "") : ""}${MOD("regles") ? item("pReg", "mot", "Règles de marchands", "Type et catégorie remplis seuls · suggestions", S.nbSuggRegles ? S.nbSuggRegles + " suggérée" + (S.nbSuggRegles > 1 ? "s" : "") : "") : ""}${item("pMod", "cat", "Fonctionnalités", "Choisis les fonctions affichées dans ton app")}</div></div>
+   <div class="p-groupe"><div class="t">Mon app</div><div class="p-liste">${MOD("boite") ? item("pBox", "cal", "Boîte de réception", "Apple Pay et reçus partagés, à confirmer", (S.etat.boite || []).length ? String((S.etat.boite || []).length) : "") : ""}${MOD("regles") ? item("pReg", "mot", "Règles de marchands", "Type et catégorie automatiques", S.nbSuggRegles ? S.nbSuggRegles + " suggérée" + (S.nbSuggRegles > 1 ? "s" : "") : "") : ""}${item("pMod", "cat", "Fonctionnalités", "Choisis les fonctions affichées dans ton app")}</div></div>
    ${MOD("placements") || MOD("financement") ? `<div class="p-groupe"><div class="t">Patrimoine</div><div class="p-liste">${item("pInvB", "inv", MOD("placements") && MOD("financement") ? "Placements et financement" : MOD("placements") ? "Placements" : "Financement", MOD("placements") ? "CÉLI, CÉLIAPP" + (MOD("financement") ? ", prêts" : "") : "Prêts", MOD("placements") ? $$(tj) : "")}</div></div>` : ""}
    ${MOD("rappro") ? `<div class="p-groupe"><div class="t">Mois</div><div class="p-liste">
      ${item("pRap", "rap", "Rapprochement bancaire", "Relevés Amex et Desjardins vs l'app · " + esc(S.info.nom))}</div></div>` : ""}
@@ -3923,6 +4004,7 @@ function vuePlusPro(el){
      ${item("pTyp", "cat", "Types de dépenses", e.types.map(x => TYPES_COURTS[semType(x)] || x).join(" · "))}</div></div>
    <div class="p-groupe"><div class="t">Compte</div><div class="p-liste">
      ${item("pHist", "cal", "Historique des modifications", "Tout ce qui a été ajouté, modifié ou supprimé · Annuler")}
+     ${item("pErr", "rap", "Journal d'erreurs", "Sur cet appareil · à copier pour Claude", erreursNotees().length ? String(erreursNotees().length) : "")}
      ${item("pExp", "inv", "Exporter vers Excel", "Toutes tes données dans un classeur (dépenses, revenus, résumé par mois…)")}
      ${window.WEB ? item("pWeb", "nuage", "Compte, fichier et sécurité", "Fichier OneDrive, sauvegardes, verrouillage Face ID, déconnexion") : item("pFich", "nuage", "Fichier", esc(e.fichier || ""))}</div></div>`;
   const on = (id, f) => { const b = $(id, el); if(b) b.onclick = f; };
@@ -3932,6 +4014,7 @@ function vuePlusPro(el){
   on("#pInvB", () => vaVers("inv"));
   on("#pRap", () => vaVers("rappro"));
   $("#pHist", el).onclick = () => dlgHistorique();
+  $("#pErr", el).onclick = () => dlgErreurs();
   $("#pExp", el).onclick = () => exporteExcel();
   on("#pFix", () => vaVers("fixes"));
   on("#pBud", () => dlgBudgets());
