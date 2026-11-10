@@ -16,7 +16,7 @@ const SYNC={etat:null,maj:0,erreur:null,enCours:null,minuteur:null,dispo(){retur
    <div class="dlg-f"><span class="grow"></span><button type="button" class="btn" data-close>Fermer</button><button type="button" class="btn primary" id="sEnv">Envoyer</button></div>`,t=>{$("#sEnv",t).onclick=()=>envoieLien(e,t)})}function dlgSyncAccepte(e){const t=esc(e.de||REG().partenaire);if(e.de===REG().prenom)return toast("Ce lien vient de ton app : envoie-le à "+PART()+".",!0);ouvre(`<div class="dlg-h"><h2>Lier avec ${t}</h2><button type="button" class="x" data-close>✕</button></div>
    <div class="dlg-b">
      <p style="margin:0">${t} propose de synchroniser vos dépenses partagées.</p>
-     <div class="card" style="padding:12px 14px;background:var(--surface-2);border:0"><b>Ce que ça change dans ton fichier Excel</b>
+     <div class="card" style="padding:12px 14px;background:var(--surface-2);border:0"><b>Ce que ça change dans tes données</b>
        <ul class="small" style="margin:6px 0 0;padding-left:18px;display:grid;gap:4px">
          <li>Ta part des dépenses partagées payées par ${t} s'ajoute toute seule dans tes dépenses, avec la mention « carte ${t} – à rembourser » (comme quand tu reçois un lien aujourd'hui).</li>
          <li>Si ${t} supprime ou modifie une dépense pas encore remboursée, elle est retirée ou corrigée chez toi.</li>

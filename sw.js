@@ -4,10 +4,10 @@
 // Pour tout désactiver d'urgence : publier un sw.js qui ne contient que
 //   self.addEventListener("install", () => self.skipWaiting()); self.addEventListener("activate", () => self.registration.unregister());
 "use strict";
-const VERSION = "9fe0a78fc8", CACHE = "finances-" + VERSION;
+const VERSION = "af52617fb7", CACHE = "finances-" + VERSION;
 const BASE = new URL("./", self.location).pathname;                        // ex. /finances/
 const PAGE = BASE;                                                          // la page (index.html) est gardée sous l'adresse du dossier
-const exclu = p => p.startsWith(BASE + "v1/") || p.startsWith(BASE + "v2/") || p.endsWith("/sw.js");   // v1/ : ancienne app (retirée)
+const exclu = p => p.startsWith(BASE + "v2/") || p.endsWith("/sw.js");
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil((async () => {
@@ -46,7 +46,7 @@ self.addEventListener("fetch", e => {
   const req = e.request, u = new URL(req.url);
   if(req.method !== "GET" || u.origin !== self.location.origin || exclu(u.pathname)) return;      // tout le reste : réseau, sans copie
   if(req.mode === "navigate"){ if(u.pathname === BASE || u.pathname === BASE + "index.html"){ const r = page(req); e.respondWith(r.then(x => x.reponse)); e.waitUntil(r.then(x => x.suite)); } return; }
-  if(/\.(js|png|webmanifest|py|sql)$/.test(u.pathname)) e.respondWith(fichier(req, u.searchParams.has("v")));
+  if(/\.(js|png|webmanifest)$/.test(u.pathname)) e.respondWith(fichier(req, u.searchParams.has("v")));
 });
 self.addEventListener("message", e => { if(e.data && e.data.type === "version?") e.waitUntil((async () => {
   const c = await caches.open(CACHE); if(await c.match(MARQUE) && e.source) e.source.postMessage({type: "nouvelle-version"});
