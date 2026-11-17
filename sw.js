@@ -4,7 +4,7 @@
 // Pour tout désactiver d'urgence : publier un sw.js qui ne contient que
 //   self.addEventListener("install", () => self.skipWaiting()); self.addEventListener("activate", () => self.registration.unregister());
 "use strict";
-const VERSION = "bd07d2e418", CACHE = "finances-" + VERSION;
+const VERSION = "6757f10f4c", CACHE = "finances-" + VERSION;
 const BASE = new URL("./", self.location).pathname;                        // ex. /finances/
 const PAGE = BASE;                                                          // la page (index.html) est gardée sous l'adresse du dossier
 const exclu = p => p.startsWith(BASE + "v2/") || p.endsWith("/sw.js");
